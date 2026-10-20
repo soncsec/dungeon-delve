@@ -31,7 +31,7 @@ The shared decisions for every Soncrant Arcade game (ADR-001 to ADR-011: static 
 
 ### ADR-D05: Art stand-ins by runtime tint — *Accepted 2026-10-20*
 
-- **Decision:** the pack has one fantasy dungeon tileset and one potion sprite, so Phaser tints them at runtime to give each dungeon its own colour, and Mana Brew a blue potion. The image files are unchanged. The hero's attack is the walk frame plus the pack's slash effect. Jarrett uses the "Guy" sprite and Kira the "PirateGirl" sprite. Exception (owner, 2026-10-20): both have their hair recoloured from red-orange to brown. `tools/art/recolor_hair.py` makes the two PNGs from the pack originals, changing only the two hair colours above each frame's shoes or belt.
+- **Decision:** the pack has one fantasy dungeon tileset and one potion sprite, so Phaser tints them at runtime to give each dungeon its own colour. Exception (owner, 2026-10-20): a tint can only darken the red potion, so the Mana Brew is a recoloured copy made by `tools/art/mana_brew.py`. The image files are unchanged. The hero's attack is the walk frame plus the pack's slash effect. Jarrett uses the "Guy" sprite and Kira the "PirateGirl" sprite. Exception (owner, 2026-10-20): both have their hair recoloured from red-orange to brown. `tools/art/recolor_hair.py` makes the two PNGs from the pack originals, changing only the two hair colours above each frame's shoes or belt.
 
 ## Code structure
 
