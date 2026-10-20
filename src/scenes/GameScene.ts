@@ -9,6 +9,7 @@ import {
   ROOM_ROWS,
   TILE,
 } from '../config/tuning';
+import { KeyInput } from '../input/keyboard';
 import { facingFor, moveHero, type Facing } from '../logic/hero';
 import type { Axis, Point } from '../logic/movement';
 import { isSolid, type Room } from '../logic/room';
@@ -29,10 +30,17 @@ export interface GameSnapshot {
 /** Depth layers: ground, then props and the hero sorted by their feet, then tree tops, then the HUD. */
 const DEPTH = { ground: 0, sorted: 10, over: 10_000, hud: 20_000 } as const;
 
-type Keys = Record<
-  'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd',
-  Phaser.Input.Keyboard.Key
->;
+/** Every key the overworld uses (browser key codes). */
+const KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+]);
 
 /** The overworld: Jarrett walks around the current room. */
 export class GameScene extends Phaser.Scene {
@@ -40,7 +48,7 @@ export class GameScene extends Phaser.Scene {
   private pos: Point = { x: 0, y: 0 };
   private facing: Facing = 'down';
   private moving = false;
-  private keys!: Keys;
+  private keys!: KeyInput;
   private seed = DEFAULT_SEED;
   private world!: World;
   private room: { col: number; row: number } = { ...START_ROOM };
@@ -61,18 +69,8 @@ export class GameScene extends Phaser.Scene {
     this.hero = this.add.sprite(0, 0, 'jarrett', 0).setOrigin(0.5, HERO.feetY / HERO.frameHeight);
     this.placeSprite();
 
-    const kb = this.input.keyboard;
-    if (!kb) throw new Error('keyboard input is not available');
-    this.keys = kb.addKeys({
-      up: 'UP',
-      down: 'DOWN',
-      left: 'LEFT',
-      right: 'RIGHT',
-      w: 'W',
-      a: 'A',
-      s: 'S',
-      d: 'D',
-    }) as Keys;
+    this.keys = new KeyInput(KEYS);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.keys.destroy());
   }
 
   override update(_time: number, deltaMs: number): void {
@@ -156,10 +154,10 @@ export class GameScene extends Phaser.Scene {
 
   private readAxis(): Axis {
     const k = this.keys;
-    const left = k.left.isDown || k.a.isDown;
-    const right = k.right.isDown || k.d.isDown;
-    const up = k.up.isDown || k.w.isDown;
-    const down = k.down.isDown || k.s.isDown;
+    const left = k.isDown('ArrowLeft', 'KeyA');
+    const right = k.isDown('ArrowRight', 'KeyD');
+    const up = k.isDown('ArrowUp', 'KeyW');
+    const down = k.isDown('ArrowDown', 'KeyS');
     return {
       x: left === right ? 0 : left ? -1 : 1,
       y: up === down ? 0 : up ? -1 : 1,
