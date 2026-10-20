@@ -162,6 +162,8 @@ test('two sword hits defeat a robot', async ({ page }) => {
   await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
 
   // It was knocked back; step up to it and swing again.
+  // Aim only once it has stopped sliding from the last hit.
+  await expect.poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked)).toBe(false);
   const r = (await snapshot(page)).enemies[0];
   if (!r) throw new Error('robot vanished after one hit');
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), {
@@ -253,6 +255,10 @@ test('the M1 loop: walk to the next room and defeat one of its robots', async ({
 
   // Stand just above the first robot, facing down, and swing until it's gone.
   for (let swing = 0; swing < 4 && (await snapshot(page)).defeated === 0; swing++) {
+    // Aim only once it has stopped sliding from the last hit.
+    await expect
+      .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
+      .toBe(false);
     const r = (await snapshot(page)).enemies[0];
     if (!r) break;
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 14, 'down'), r);
@@ -297,6 +303,10 @@ test('a thrown dagger flies until a wall stops it, and two daggers defeat a robo
   const start = await snapshot(page);
   await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('robot', x, y + 40), start.player);
   for (let i = 0; i < 4 && (await snapshot(page)).defeated === 0; i++) {
+    // Aim only once it has stopped sliding from the last hit.
+    await expect
+      .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
+      .toBe(false);
     const r = (await snapshot(page)).enemies[0];
     if (!r) break;
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 40, 'down'), r);
@@ -410,6 +420,10 @@ for (const kind of ['bird', 'eye', 'ghost', 'wolf'] as const) {
       y: start.player.y + 50,
     });
     for (let swing = 0; swing < 6 && (await snapshot(page)).defeated === 0; swing++) {
+      // Aim only once it has stopped sliding from the last hit.
+      await expect
+        .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
+        .toBe(false);
       const e = (await snapshot(page)).enemies[0];
       if (!e) break;
       await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), {
