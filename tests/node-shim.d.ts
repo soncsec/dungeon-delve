@@ -2,6 +2,10 @@
 // @types/node package (not an approved dependency). Tests run in Node via Vitest.
 declare module 'node:fs' {
   export function readFileSync(path: string): Uint8Array;
+  export function readFileSync(path: string, encoding: 'utf8'): string;
   export function readdirSync(path: string, options: { recursive: true }): string[];
+}
+declare module 'node:zlib' {
+  export function inflateSync(data: Uint8Array): Uint8Array;
 }
 declare const process: { cwd(): string; env: Record<string, string | undefined> };

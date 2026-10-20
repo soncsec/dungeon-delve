@@ -56,3 +56,23 @@ test('?seed= in the URL sets the random seed', async ({ page }) => {
   await openGame(page, '?seed=42');
   expect((await snapshot(page)).seed).toBe(42);
 });
+
+test('asset preview scene loads every asset and pages through the groups', async ({ page }) => {
+  const watched = watchPage(page);
+  await page.goto('./?scene=preview');
+  await expect
+    .poll(() => page.evaluate(() => window.__game?.scene() ?? null), { timeout: 15_000 })
+    .toBe('AssetPreview');
+  expect(await page.evaluate(() => window.__game?.missingTextures() ?? null)).toEqual([]);
+  const first = await page.evaluate(() => window.__game?.previewGroup() ?? null);
+  expect(first).toBe('characters');
+  await page.keyboard.press('ArrowRight');
+  await expect
+    .poll(() => page.evaluate(() => window.__game?.previewGroup() ?? null))
+    .toBe('enemies');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(() => page.evaluate(() => window.__game?.previewGroup() ?? null)).toBe('items');
+  expect(watched.errors).toEqual([]);
+  expect(watched.foreignRequests).toEqual([]);
+});

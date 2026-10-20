@@ -7,7 +7,7 @@
 | Milestone | Status |
 |---|---|
 | M0 Setup | In progress |
-| M1 Walking skeleton | Not started |
+| M1 Walking skeleton | In progress |
 | M2 Combat, inventory and mana | Not started |
 | M3 First dungeon, end to end | Not started |
 | M4 The overworld | Not started |
@@ -32,10 +32,10 @@
 
 ## M0 — Setup
 
-- [ ] M0.1 Repo created from `soncsec/game-template`; `scripts/init-game.sh dungeon-delve "Dungeon Delve" 5184`; `npm run check` passes
+- [x] M0.1 Repo created from `soncsec/game-template`; `scripts/init-game.sh dungeon-delve "Dungeon Delve" 5184`; `npm run check` passes
 - [x] M0.2 Branch protection with the four required checks; secret scanning and push protection; Dependabot alerts (done by Claude with the owner's OK, 2026-10-20)
 - [ ] M0.3 GitHub Pages on (Actions mode, `main` only); first staging deploy and ZAP scan pass (owner approval)
-- [ ] M0.4 Portal PR: `games/dungeon-delve.json` (`in-development`, devPort 5184) and the ports table in NEW-GAME.md
+- [x] M0.4 Portal PR: `games/dungeon-delve.json` (`in-development`, devPort 5184) and the ports table in NEW-GAME.md
 - [x] M0.5 Planning docs approved: PROJECT.md, ARCHITECTURE.md, ROADMAP.md (owner, 2026-10-20)
 - [ ] M0.6 Coverage floor for `src/logic/` raised to 100% (the owner's rule; the template has 80%)
 - [ ] M0.7 WebKit and Pixel 7 Playwright projects (adopted from Star Destroyer, owner 2026-10-20)
@@ -44,16 +44,16 @@
 
 ## M1 — Walking skeleton
 
-**Playable result:** Jarrett walks around a 3×3 patch of overworld, slides from room to room, swings his sword, and defeats slimes that drop gems and hearts.
+**Playable result:** Jarrett walks around a 3×3 patch of overworld, slides from room to room, swings his sword, and defeats robots that drop gems and hearts.
 
-- [ ] M1.1 Art audit and copy: hero, Kira, overworld and dungeon tiles, objects, slash FX, first enemies into `public/assets/`; CREDITS.md; an asset-preview scene (`?scene=preview`)
+- [x] M1.1 Art audit and copy: hero, Kira, overworld tiles, objects, gems, slash and hit effects, the robot enemy into `public/assets/` (dungeon tiles come with M3.1); CREDITS.md; an asset-preview scene (`?scene=preview`)
 - [ ] M1.2 Room data format and loader (text rooms, tile legend, automatic edges); unit tests
 - [ ] M1.3 Movement with 4-direction walk animations and wall collision
 - [ ] M1.4 Flip-screen room transitions over a 3×3 test area
 - [ ] M1.5 Sword swing with slash effect, hit detection and knockback
-- [ ] M1.6 Slime enemy (pooled), hearts, damage and brief invulnerability, gem and heart drops
+- [ ] M1.6 Robot enemy (pooled; the pack's slime is too big for a basic enemy, see M1.1), hearts, damage and brief invulnerability, gem and heart drops
 - [ ] M1.7 HUD bar: hearts, gems
-- [ ] M1.8 Playwright: boots clean with no third-party requests; walks between rooms; a sword hit defeats a slime
+- [ ] M1.8 Playwright: boots clean with no third-party requests; walks between rooms; a sword hit defeats a robot
 
 **Acceptance criteria:** the owner plays it on staging; CI green; `src/logic/` at 100% coverage.
 
@@ -66,7 +66,7 @@
 - [ ] M2.3 Health Potion and Mana Brew (faster recharge for a while); potion keys
 - [ ] M2.4 Shield: blocks projectiles from the front while not attacking
 - [ ] M2.5 Inventory screen: equip near weapon, far weapon, spell, shield; shows potions, gems, keys, shards
-- [ ] M2.6 Four more enemy types (bat, ghost, fire skull, robot), including projectile shooters
+- [ ] M2.6 Four more enemy types (bat, ghost, fire skull, flying eye), including projectile shooters
 - [ ] M2.7 Death and respawn rules
 - [ ] M2.8 Sound effects made in code
 - [ ] M2.9 Frame-time budget test with a crowded room

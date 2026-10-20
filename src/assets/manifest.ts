@@ -1,0 +1,122 @@
+/**
+ * Every image the game loads, with its frame grid and named animations.
+ * All art is from the Ansimuz Legacy Collection (CC0); see CREDITS.md.
+ * tests/unit/manifest.test.ts checks these numbers against the real PNG files.
+ */
+export type AssetGroup = 'characters' | 'enemies' | 'tiles' | 'effects' | 'items';
+
+export const ASSET_GROUPS: readonly AssetGroup[] = [
+  'characters',
+  'enemies',
+  'tiles',
+  'effects',
+  'items',
+];
+
+/** A named animation: frame indexes into the sheet's grid (row by row). */
+export interface Anim {
+  name: string;
+  frames: readonly number[];
+  /** Frames per second. */
+  frameRate: number;
+  loop: boolean;
+}
+
+/** A sheet cut into a grid of equal frames. Tilesets are sheets with 16×16 frames. */
+export interface SheetAsset {
+  key: string;
+  group: AssetGroup;
+  /** Path under public/, e.g. assets/characters/jarrett.png */
+  path: string;
+  frameWidth: number;
+  frameHeight: number;
+  columns: number;
+  rows: number;
+  anims: readonly Anim[];
+}
+
+const sheet = (
+  group: AssetGroup,
+  key: string,
+  frameWidth: number,
+  frameHeight: number,
+  columns: number,
+  rows: number,
+  anims: readonly Anim[] = [],
+): SheetAsset => ({
+  key,
+  group,
+  path: `assets/${group}/${key}.png`,
+  frameWidth,
+  frameHeight,
+  columns,
+  rows,
+  anims,
+});
+
+const anim = (name: string, frames: readonly number[], frameRate: number, loop = true): Anim => ({
+  name,
+  frames,
+  frameRate,
+  loop,
+});
+
+const range = (from: number, count: number): number[] =>
+  Array.from({ length: count }, (_, i) => from + i);
+
+/** Top-down walkers: 4 frames each, rows facing down, left (mirror for right), up. */
+const walker = (key: string, frameRate: number): SheetAsset =>
+  sheet('characters', key, 32, 32, 4, 3, [
+    anim('walk-down', range(0, 4), frameRate),
+    anim('walk-left', range(4, 4), frameRate),
+    anim('walk-up', range(8, 4), frameRate),
+  ]);
+
+/** Gems: 7-frame spins on a 16×16 grid, one colour every 8 columns from column 4, row 2. */
+const GEM_COLOURS = ['teal', 'orange', 'red', 'yellow', 'pink', 'blue'] as const;
+const GEMS_COLUMNS = 53;
+
+export const ASSETS: readonly SheetAsset[] = [
+  // Jarrett: TinyRPG "Guy"; Princess Kira: TinyRPG "PirateGirl" (owner 2026-10-20).
+  walker('jarrett', 8),
+  walker('kira', 6),
+
+  // The TinyRPG top-down robot: one sheet per facing, 4 frames of 20×16. The side sheet faces left.
+  sheet('enemies', 'robot-front', 20, 16, 4, 1, [anim('walk', range(0, 4), 8)]),
+  sheet('enemies', 'robot-side', 20, 16, 4, 1, [anim('walk', range(0, 4), 8)]),
+  sheet('enemies', 'robot-back', 20, 16, 4, 1, [anim('walk', range(0, 4), 8)]),
+
+  // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
+  sheet('tiles', 'forest', 16, 16, 27, 11),
+  sheet('tiles', 'town', 16, 16, 24, 13),
+
+  // Sword swing (drawn over a walk frame), hit spark, and the puff an enemy vanishes in.
+  sheet('effects', 'slash-horizontal', 65, 40, 5, 1, [anim('play', range(0, 5), 20, false)]),
+  sheet('effects', 'slash-upward', 52, 56, 5, 1, [anim('play', range(0, 5), 20, false)]),
+  sheet('effects', 'hit', 31, 32, 3, 1, [anim('play', range(0, 3), 15, false)]),
+  sheet('effects', 'puff', 64, 64, 7, 1, [anim('play', range(0, 7), 14, false)]),
+
+  // Pickups: spinning gems (money) and the dungeon-objects sheet (hearts, potions, chests).
+  sheet(
+    'items',
+    'gems',
+    16,
+    16,
+    GEMS_COLUMNS,
+    11,
+    GEM_COLOURS.map((colour, i) => anim(colour, range(2 * GEMS_COLUMNS + 4 + 8 * i, 7), 10)),
+  ),
+  sheet('items', 'objects', 16, 16, 17, 9),
+];
+
+/** Animation key for one of a sheet's named animations. */
+export const animKey = (sheetKey: string, animName: string): string => `${sheetKey}:${animName}`;
+
+/** Single frames on the objects sheet (index = row × 17 + column). */
+export const OBJECT_FRAMES = {
+  heart: 3 * 17 + 15,
+  smallHeart: 7 * 17 + 14,
+  potion: 3 * 17 + 13,
+  chest: 5 * 17 + 3,
+  pot: 5 * 17 + 7,
+} as const;

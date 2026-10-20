@@ -63,7 +63,7 @@ Each dungeon's item is needed to reach a later dungeon, so the world opens up gr
 
 ### 3d. Enemies
 
-Around 12–15 types, each with its own movement and attack, introduced a few at a time: slimes, bats, ghosts, fire skulls, flying eyes, robots (the pack's one true top-down walker), plus front-facing pack creatures used as wanderers and turrets. Later regions mix earlier enemies with stronger variants.
+Around 12–15 types, each with its own movement and attack, introduced a few at a time: robots (the pack's one true top-down walker), bats, ghosts, fire skulls, flying eyes and wolves, plus front-facing pack creatures used as turrets. The pack's large creatures (slime, frog, mummy, ogre …) are too big for common enemies at native size, so they serve as mini-bosses and bosses. Later regions mix earlier enemies with stronger variants.
 
 ### 3e. Controls
 
