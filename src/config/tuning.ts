@@ -67,5 +67,16 @@ export const DROPS = { gem: 40, heart: 20 } as const;
 /** Pickups: what they're worth. A small heart restores this many half hearts. */
 export const PICKUPS = { gemValue: 1, heartHeals: 2 } as const;
 
+/** The status bar along the top. */
+export const HUD = {
+  /** CSS font family; Press Start 2P is drawn at 8 px, its native size. */
+  font: '"Press Start 2P"',
+  /** First heart's left edge, and the distance between hearts (the heart art is 15 px wide). */
+  heartX: 4,
+  heartSpacing: 15,
+  /** The most gems the bar shows. */
+  maxGems: 999,
+} as const;
+
 /** Seed for the random number generator; override with ?seed= in the URL. */
 export const DEFAULT_SEED = 1;

@@ -110,7 +110,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 ## 4. Constraints (shared by every Soncrant Arcade game)
 
 - Browser only, single player. Current Chrome, Firefox, Safari, Edge.
-- No accounts, payments, analytics, cookies or third-party requests. localStorage holds only the save game (game progress, no personal data; owner 2026-10-20) and the best finish time (Q1).
+- No accounts, payments, analytics, cookies or third-party requests. localStorage holds only the save game (game progress, no personal data) and the fastest finish time (owner 2026-10-20).
 - Art comes only from the shared CC0 pack, at its native pixel size, with whole-number scaling (phones may use an in-between zoom to fill the screen). Runtime tints are allowed (owner 2026-10-20).
 - Served at `games.soncrant.com/<slug>/` over HTTP (ADR-010), behind the portal's security headers.
 
@@ -140,7 +140,8 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | Art: runtime tints per dungeon and for the Mana Brew potion; "Guy" as Jarrett, "PirateGirl" as Kira; the sword swing is a walk frame plus the pack's slash effect (ADR-D05) |
 | 2026-10-20 | Jarrett's and Kira's hair recoloured to brown (`tools/art/recolor_hair.py`) |
 | 2026-10-20 | **Walker**, an ancient blonde-haired child, guides Jarrett: he appears at the village, dungeon entrances and the vault to give hints, story, the first sword and shield, and spell lessons. He doesn't follow or fight. "Blond_kid" sprite with paler blonde hair (section 3f) |
+| 2026-10-20 | Instead of a high score, the fastest finish time is kept in localStorage and shown on the title screen; runs that used `?dungeon=n` don't count |
 
 ## 8. Open questions
 
-1. **Best time:** a Zelda-style game has no score. Keep the fastest finish time instead (shown on the title screen; runs that used `?dungeon=n` don't count)?
+_None at the moment._

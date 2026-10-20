@@ -3,7 +3,6 @@ import { OBJECT_FRAMES, animKey } from '../assets/manifest';
 import {
   DEFAULT_SEED,
   DROPS,
-  GAME_WIDTH,
   HEALTH,
   HERO,
   HUD_HEIGHT,
@@ -15,6 +14,7 @@ import {
   SWORD,
   TILE,
 } from '../config/tuning';
+import { Hud } from '../entities/Hud';
 import { SpritePool } from '../entities/SpritePool';
 import { KeyInput } from '../input/keyboard';
 import { rollDrop, type Drop } from '../logic/drops';
@@ -148,6 +148,9 @@ export class GameScene extends Phaser.Scene {
   private robotPool!: SpritePool;
   private pickupPool!: SpritePool;
   private fxPool!: SpritePool;
+  private hud!: Hud;
+  /** Test hook only: robots stop wandering (knockback still moves them). */
+  private robotsHold = false;
 
   constructor() {
     super('Game');
@@ -163,6 +166,7 @@ export class GameScene extends Phaser.Scene {
     this.heroKnockMs = 0;
     this.robots = [];
     this.pickups = [];
+    this.robotsHold = false;
     this.robotPool = new SpritePool(this);
     this.pickupPool = new SpritePool(this);
     this.fxPool = new SpritePool(this);
@@ -171,11 +175,7 @@ export class GameScene extends Phaser.Scene {
     this.enteredAt = null;
     this.roomObjects = this.drawRoom(this.room.col, this.room.row);
     this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
-    this.add
-      .rectangle(0, 0, GAME_WIDTH, HUD_HEIGHT, 0x05070f)
-      .setOrigin(0)
-      .setScrollFactor(0)
-      .setDepth(DEPTH.hud);
+    this.hud = new Hud(this, DEPTH.hud);
 
     this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
     this.hero = this.add.sprite(0, 0, 'jarrett', 0).setOrigin(0.5, HERO.feetY / HERO.frameHeight);
@@ -188,6 +188,7 @@ export class GameScene extends Phaser.Scene {
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
     this.swing = { startedAt: null };
     this.spawnRobots();
+    this.hud.update(this.health, this.gems);
   }
 
   override update(time: number, deltaMs: number): void {
@@ -221,6 +222,7 @@ export class GameScene extends Phaser.Scene {
       isInvulnerable(this.health, time) && Math.floor(time / 80) % 2 === 0 ? 0.3 : 1,
     );
     this.placeSprite();
+    this.hud.update(this.health, this.gems);
     if (isOut(this.health)) {
       // M1: start again from the start room; the real death rules come in M2.7.
       this.scene.restart();
@@ -293,6 +295,7 @@ export class GameScene extends Phaser.Scene {
     const solid = (cx: number, cy: number): boolean =>
       this.outsideRoom(cx, cy) || (room ? isSolid(room, cx, cy) : true);
     for (const live of this.robots) {
+      if (this.robotsHold && live.r.knockMs <= 0) continue;
       live.r = stepRobot(live.r, deltaMs, ROBOT, this.rng, solid);
       this.drawRobot(live);
     }
@@ -426,6 +429,16 @@ export class GameScene extends Phaser.Scene {
   /** Test hook only: a pickup at a room position. */
   testSpawnPickup(kind: Drop, x: number, y: number): void {
     this.addPickup(kind, { x, y });
+  }
+
+  /** Test hook only: stop (or restart) robots wandering, so a test can aim at one. */
+  testHoldRobots(hold: boolean): void {
+    this.robotsHold = hold;
+  }
+
+  /** Test hook only: what the status bar shows. */
+  hudShows(): { hearts: ('full' | 'half' | 'empty')[]; gems: string } {
+    return this.hud.shows();
   }
 
   /** Test hook only: remove every robot in the room. */

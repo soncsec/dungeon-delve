@@ -1,3 +1,10 @@
+/* Status bar font: Press Start 2P (SIL OFL 1.1), bundled; see CREDITS.md. */
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('./assets/fonts/PressStart2P-Regular.ttf') format('truetype');
+  font-display: block;
+}
+
 html,
 body {
   margin: 0;

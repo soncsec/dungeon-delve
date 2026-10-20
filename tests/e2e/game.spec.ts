@@ -150,6 +150,8 @@ test('Space or J swings the sword in front of Jarrett, and he stands still meanw
 test('two sword hits defeat a robot', async ({ page }) => {
   await openGame(page);
   const start = await snapshot(page);
+  // Robots stand still (apart from knockback), so the test can aim at one.
+  await page.evaluate(() => window.__game?.holdRobots(true));
   // Facing down at the start; a robot just below his feet is under the blade.
   await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x, y), {
     x: start.player.x,
@@ -210,4 +212,23 @@ test('Jarrett picks up gems and hearts', async ({ page }) => {
   });
   await expect.poll(async () => (await snapshot(page)).health.points).toBe(6);
   expect((await snapshot(page)).pickups).toEqual([]);
+});
+
+test('the status bar shows hearts and gems', async ({ page }) => {
+  await openGame(page);
+  const hud = () => page.evaluate(() => window.__game?.hud());
+  expect(await hud()).toEqual({ hearts: ['full', 'full', 'full'], gems: '000' });
+
+  const start = await snapshot(page);
+  await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x + 6, y), {
+    x: start.player.x,
+    y: start.player.y,
+  });
+  await expect.poll(async () => (await hud())?.hearts).toEqual(['full', 'full', 'half']);
+  await page.evaluate(() => window.__game?.clearRobots());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+
+  const at = (await snapshot(page)).player;
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('gem', x, y), at);
+  await expect.poll(async () => (await hud())?.gems).toBe('001');
 });
