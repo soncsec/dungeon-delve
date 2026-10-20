@@ -3,15 +3,16 @@ import { OBJECT_FRAMES } from '../assets/manifest';
 import { GAME_WIDTH, HUD, HUD_HEIGHT } from '../config/tuning';
 import type { Health } from '../logic/health';
 import type { Mana } from '../logic/mana';
+import type { Potions } from '../logic/potions';
 import type { WeaponMode } from '../logic/weapons';
 import { gemLabel, heartIcons } from '../logic/hud';
 
-/** Empty hearts: the heart art darkened (runtime tint, ADR-D05). */
+/** Empty hearts: the heart art darkened; the Mana Brew: the potion turned blue (runtime tints, ADR-D05). */
 const EMPTY_TINT = 0x40303a;
-/** The heart's art is 15 px wide; half a heart shows its left 8 px. */
-/** The mana bar's place: right of the hearts (11 hearts end at x 169). */
-const MANA_BAR = { x: 176, y: 7, w: 52, h: 6 } as const;
+export const MANA_BREW_TINT = 0x4f8fff;
+/** The small heart's art spans x 3–13 of its frame; half a heart shows up to x 8. */
 const HALF_WIDTH = 8;
+const MANA_BAR = { x: HUD.manaBarX, y: 7, w: HUD.manaBarWidth, h: 6 } as const;
 
 /**
  * The status bar: hearts on the left, gems on the right. Fixed to the screen
@@ -23,6 +24,7 @@ export class Hud {
   private readonly gemText: Phaser.GameObjects.Text;
   private readonly weapon: Phaser.GameObjects.Image;
   private readonly manaFill: Phaser.GameObjects.Rectangle;
+  private readonly potionText: Record<'health' | 'mana', Phaser.GameObjects.Text>;
   private shown = '';
 
   constructor(
@@ -51,15 +53,36 @@ export class Hud {
       .setOrigin(0)
       .setScrollFactor(0)
       .setDepth(depth + 2);
+    // Potions: a red Health Potion and a blue Mana Brew, each with its count.
+    const potion = (x: number, tint: number | null) => {
+      const img = scene.add
+        .image(x, (HUD_HEIGHT - 16) / 2, 'objects', OBJECT_FRAMES.potion)
+        .setOrigin(0)
+        .setScrollFactor(0)
+        .setDepth(depth + 1);
+      if (tint !== null) img.setTint(tint);
+      return scene.add
+        .text(x + 14, HUD_HEIGHT / 2 - 4, '0', {
+          fontFamily: HUD.font,
+          fontSize: '8px',
+          color: '#e8f4f0',
+        })
+        .setScrollFactor(0)
+        .setDepth(depth + 1);
+    };
+    this.potionText = {
+      health: potion(HUD.healthPotionX, null),
+      mana: potion(HUD.manaPotionX, MANA_BREW_TINT),
+    };
     // The ready weapon, in a dark box left of the gems.
     scene.add
-      .rectangle(GAME_WIDTH - 84, 2, 28, HUD_HEIGHT - 4, 0x1a2230)
+      .rectangle(HUD.weaponBoxX, 2, 28, HUD_HEIGHT - 4, 0x1a2230)
       .setOrigin(0)
       .setStrokeStyle(1, 0x4fd3d6)
       .setScrollFactor(0)
       .setDepth(depth + 1);
     this.weapon = scene.add
-      .image(GAME_WIDTH - 70, HUD_HEIGHT / 2, 'sword-icon')
+      .image(HUD.weaponBoxX + 14, HUD_HEIGHT / 2, 'sword-icon')
       .setScrollFactor(0)
       .setDepth(depth + 2);
     this.gemText = scene.add
@@ -72,9 +95,9 @@ export class Hud {
       .setDepth(depth + 1);
   }
 
-  update(health: Health, gems: number, mode: WeaponMode, mana: Mana): void {
+  update(health: Health, gems: number, mode: WeaponMode, mana: Mana, potions: Potions): void {
     const filled = Math.round((MANA_BAR.w - 2) * (mana.current / mana.max));
-    const key = `${health.points}/${health.max}/${gems}/${mode}/${filled}`;
+    const key = `${health.points}/${health.max}/${gems}/${mode}/${filled}/${potions.health}/${potions.mana}`;
     if (key === this.shown) return;
     this.shown = key;
     const icons = heartIcons(health, HUD.heartX, HUD.heartSpacing);
@@ -95,6 +118,8 @@ export class Hud {
     this.gemText.setText(gemLabel(gems, HUD.maxGems));
     this.weapon.setTexture(mode === 'near' ? 'sword-icon' : 'dagger');
     this.manaFill.width = filled;
+    this.potionText.health.setText(String(potions.health));
+    this.potionText.mana.setText(String(potions.mana));
     this.manaFill.setVisible(filled > 0);
   }
 
@@ -104,6 +129,7 @@ export class Hud {
     gems: string;
     weapon: string;
     manaWidth: number;
+    potions: { health: string; mana: string };
   } {
     const hearts = this.backs
       .map((back, i) => ({ back, front: this.fronts[i] }))
@@ -117,13 +143,17 @@ export class Hud {
       gems: this.gemText.text,
       weapon: this.weapon.texture.key,
       manaWidth: this.manaFill.visible ? this.manaFill.width : 0,
+      potions: { health: this.potionText.health.text, mana: this.potionText.mana.text },
     };
   }
 
   private addHeartSlot(): void {
     const y = (HUD_HEIGHT - 16) / 2;
     const make = () =>
-      this.scene.add.image(0, y, 'objects', OBJECT_FRAMES.heart).setOrigin(0).setScrollFactor(0);
+      this.scene.add
+        .image(0, y, 'objects', OBJECT_FRAMES.smallHeart)
+        .setOrigin(0)
+        .setScrollFactor(0);
     this.backs.push(
       make()
         .setTint(EMPTY_TINT)

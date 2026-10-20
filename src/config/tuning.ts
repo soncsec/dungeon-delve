@@ -53,6 +53,13 @@ export const DAGGER = {
   damage: 1,
 } as const;
 
+/** Potions: the most of each Jarrett can carry, and what he starts with. */
+export const POTIONS = {
+  max: 3,
+  /** M2 only, so they can be tried before chests and the shop exist (M3, M4). */
+  start: { health: 1, mana: 1 },
+} as const;
+
 /** Mana for spells: refills by itself after a pause; a Mana Brew speeds it up (M2.3). */
 export const MANA = {
   max: 100,
@@ -116,9 +123,15 @@ export const PICKUPS = { gemValue: 1, heartHeals: 2 } as const;
 export const HUD = {
   /** CSS font family; Press Start 2P is drawn at 8 px, its native size. */
   font: '"Press Start 2P"',
-  /** First heart's left edge, and the distance between hearts (the heart art is 15 px wide). */
-  heartX: 4,
-  heartSpacing: 15,
+  /** First heart's left edge, and the distance between hearts (the small heart art is 11 px wide; 11 hearts fit in 135 px). */
+  heartX: 1,
+  heartSpacing: 12,
+  /** Left edges of the mana bar, the potion counts and the weapon box. */
+  manaBarX: 142,
+  manaBarWidth: 44,
+  healthPotionX: 189,
+  manaPotionX: 213,
+  weaponBoxX: 240,
   /** The most gems the bar shows. */
   maxGems: 999,
 } as const;
