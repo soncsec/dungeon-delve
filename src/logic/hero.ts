@@ -44,13 +44,14 @@ export function boxHitsSolid(
 }
 
 /**
- * Moves the hero `dist` pixels along `axis` (normalised, so diagonals are no
- * faster), one axis at a time so it slides along walls. Each axis stops flush
+ * Moves the hero (or any walker) `dist` pixels along `axis` (any direction,
+ * normalised, so diagonals are no faster), one axis at a time so it slides
+ * along walls. Each axis stops flush
  * against the first solid cell in the way.
  */
 export function moveHero(
   p: Point,
-  axis: Axis,
+  axis: { x: number; y: number },
   dist: number,
   box: Box,
   solidAt: (cellX: number, cellY: number) => boolean,

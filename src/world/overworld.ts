@@ -1,6 +1,6 @@
 /**
  * The overworld, one room per 20×10 block of text (legend in src/logic/room.ts).
- * M1: a 3×3 patch of forest, with robots in every room but the start room. Rooms join through gaps in their walls; the
+ * M1: a 3×3 patch of forest, with two enemies in every room but the start room. Rooms join through gaps in their walls; the
  * world test checks every gap lines up with the room next door.
  */
 import type { RoomDef } from '../logic/world';
@@ -12,9 +12,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 0,
     row: 0,
-    robots: [
-      { col: 6, row: 4 },
-      { col: 12, row: 5 },
+    enemies: [
+      { kind: 'robot', col: 6, row: 4 },
+      { kind: 'bird', col: 12, row: 5 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -32,9 +32,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 1,
     row: 0,
-    robots: [
-      { col: 9, row: 5 },
-      { col: 15, row: 4 },
+    enemies: [
+      { kind: 'wolf', col: 9, row: 5 },
+      { kind: 'eye', col: 15, row: 4 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -52,9 +52,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 2,
     row: 0,
-    robots: [
-      { col: 5, row: 5 },
-      { col: 12, row: 4 },
+    enemies: [
+      { kind: 'ghost', col: 5, row: 5 },
+      { kind: 'robot', col: 12, row: 4 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -72,9 +72,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 0,
     row: 1,
-    robots: [
-      { col: 10, row: 4 },
-      { col: 13, row: 6 },
+    enemies: [
+      { kind: 'robot', col: 10, row: 4 },
+      { kind: 'robot', col: 13, row: 6 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -108,9 +108,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 2,
     row: 1,
-    robots: [
-      { col: 6, row: 5 },
-      { col: 12, row: 3 },
+    enemies: [
+      { kind: 'bird', col: 6, row: 5 },
+      { kind: 'wolf', col: 12, row: 3 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -128,9 +128,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 0,
     row: 2,
-    robots: [
-      { col: 12, row: 4 },
-      { col: 6, row: 5 },
+    enemies: [
+      { kind: 'eye', col: 12, row: 4 },
+      { kind: 'robot', col: 6, row: 5 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -148,9 +148,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 1,
     row: 2,
-    robots: [
-      { col: 5, row: 4 },
-      { col: 15, row: 5 },
+    enemies: [
+      { kind: 'ghost', col: 5, row: 4 },
+      { kind: 'bird', col: 15, row: 5 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -168,9 +168,9 @@ export const OVERWORLD: readonly RoomDef[] = [
   {
     col: 2,
     row: 2,
-    robots: [
-      { col: 4, row: 5 },
-      { col: 11, row: 4 },
+    enemies: [
+      { kind: 'wolf', col: 4, row: 5 },
+      { kind: 'eye', col: 11, row: 4 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',

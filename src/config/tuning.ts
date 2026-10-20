@@ -1,3 +1,5 @@
+import type { EnemyKind, EnemyStats } from '../logic/enemies';
+
 /** All gameplay numbers live here so they can be tuned in one place. */
 
 /** The screen (ADR-D02): a status bar over one room of 20×10 tiles of 16 px = 320×180. */
@@ -79,7 +81,7 @@ export const FIREBALL = {
   range: 200,
   length: 16,
   thickness: 10,
-  /** Two damage: one fireball defeats a robot. */
+  /** Two damage: one fireball defeats a robot, a bird or a flying eye. */
   damage: 2,
   /** One in the air at a time. */
   maxInFlight: 1,
@@ -97,20 +99,75 @@ export const HEALTH = {
   knockback: { speed: 140, ms: 150 },
 } as const;
 
-/** The robot, M1's enemy. */
-export const ROBOT = {
-  /** Pixels per second (Jarrett walks at 88). */
-  speed: 30,
-  /** Sword hits to defeat. */
-  health: 2,
-  /** Half hearts it takes from Jarrett on touch. */
-  contactDamage: 1,
-  /** Collision box at its feet (the sprite is 20×16). */
-  box: { halfWidth: 7, height: 10 },
-  /** It walks one way for this long (ms, random within) before choosing again. */
-  turnMs: { min: 600, max: 1600 },
-  /** How far a sword hit pushes it: speed × time. */
-  knockback: { speed: 160, ms: 150 },
+/** Every enemy kind: how it moves, how tough it is, and what it does to Jarrett (PROJECT.md §3d). */
+export const ENEMIES: Readonly<Record<EnemyKind, EnemyStats>> = {
+  // Wanders the forest floor. Two sword hits.
+  robot: {
+    behaviour: 'wander',
+    health: 2,
+    contactDamage: 1,
+    speed: 30,
+    box: { halfWidth: 7, height: 10 },
+    flies: false,
+    turnMs: { min: 600, max: 1600 },
+    knockback: { speed: 160, ms: 150 },
+  },
+  // Flutters fast and erratically over trees and walls. One hit.
+  bird: {
+    behaviour: 'flutter',
+    health: 1,
+    contactDamage: 1,
+    speed: 55,
+    box: { halfWidth: 9, height: 14 },
+    flies: true,
+    turnMs: { min: 300, max: 800 },
+    knockback: { speed: 160, ms: 120 },
+  },
+  // Drifts slowly straight at Jarrett, through walls. Three hits.
+  ghost: {
+    behaviour: 'drift',
+    health: 3,
+    contactDamage: 1,
+    speed: 18,
+    box: { halfWidth: 10, height: 22 },
+    flies: true,
+    turnMs: { min: 1000, max: 1000 },
+    knockback: { speed: 120, ms: 150 },
+  },
+  // Keeps its distance, circling, and shoots at Jarrett every 2–3 s. Two hits.
+  eye: {
+    behaviour: 'hover',
+    health: 2,
+    contactDamage: 1,
+    speed: 26,
+    box: { halfWidth: 10, height: 18 },
+    flies: true,
+    turnMs: { min: 1000, max: 1000 },
+    knockback: { speed: 160, ms: 150 },
+    keep: { near: 64, far: 112 },
+    shootMs: { min: 2000, max: 3000 },
+  },
+  // Prowls, and charges when Jarrett is in line with it; a full heart if it hits. Three hits.
+  wolf: {
+    behaviour: 'charge',
+    health: 3,
+    contactDamage: 2,
+    speed: 28,
+    box: { halfWidth: 14, height: 12 },
+    flies: false,
+    turnMs: { min: 600, max: 1600 },
+    knockback: { speed: 140, ms: 150 },
+    charge: { speed: 130, ms: 900, sight: 140, inLine: 8, restMs: 900 },
+  },
+};
+
+/** The flying eye's shot. */
+export const ENEMY_SHOT = {
+  speed: 110,
+  range: 240,
+  size: 6,
+  /** Half hearts. */
+  damage: 1,
 } as const;
 
 /** What a defeated enemy drops, in whole percent (the rest drops nothing). */

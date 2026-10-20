@@ -65,7 +65,17 @@ Each dungeon's item is needed to reach a later dungeon, so the world opens up gr
 
 ### 3d. Enemies
 
-Around 12–15 types, each with its own movement and attack, introduced a few at a time: robots (the pack's one true top-down walker), bats, ghosts, fire skulls, flying eyes and wolves, plus front-facing pack creatures used as turrets. The pack's large creatures (slime, frog, mummy, ogre …) are too big for common enemies at native size, so they serve as mini-bosses and bosses. Later regions mix earlier enemies with stronger variants.
+Around 12–15 types, each with its own movement and attack, introduced a few at a time. The first five (M1, M2.6):
+
+| Enemy | How it moves | Health |
+|---|---|---|
+| Robot | Wanders the ground | 2 |
+| Bird | Flutters fast and erratically, over trees and walls | 1 |
+| Ghost | Drifts slowly straight at Jarrett, through walls | 3 |
+| Flying eye | Keeps its distance, circling, and shoots at Jarrett | 2 |
+| Wolf | Prowls, and charges when Jarrett is in line with it (a full heart if it hits) | 3 |
+
+Later regions mix these with stronger variants and new kinds. The pack's large creatures (slime, frog, mummy, ogre, fire skull…) are too big for common enemies at native size, so they serve as mini-bosses and bosses.
 
 ### 3e. Controls
 
@@ -141,6 +151,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | Jarrett's and Kira's hair recoloured to brown (`tools/art/recolor_hair.py`) |
 | 2026-10-20 | **Walker**, an ancient blonde-haired child, guides Jarrett: he appears at the village, dungeon entrances and the vault to give hints, story, the first sword and shield, and spell lessons. He doesn't follow or fight. "Blond_kid" sprite with paler blonde hair (section 3f) |
 | 2026-10-20 | Instead of a high score, the fastest finish time is kept in localStorage and shown on the title screen; runs that used `?dungeon=n` don't count |
+| 2026-10-20 | First enemy roster: robot, bird, ghost, flying eye, wolf (the fire skull is too big for a common enemy; it may return as a mini-boss). M2.6 built before M2.4 so the shield can be tested against real shots. The Mana Brew is a recoloured blue potion |
 
 ## 8. Open questions
 

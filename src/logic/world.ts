@@ -3,6 +3,7 @@
  * Engine-free and unit tested.
  */
 import { ROOM_COLS, ROOM_ROWS, TILE } from '../config/tuning';
+import type { EnemyKind } from './enemies';
 import { edgeOpenings, isSolid, parseRoom, type Dir, type Room } from './room';
 
 export interface RoomDef {
@@ -10,14 +11,20 @@ export interface RoomDef {
   col: number;
   row: number;
   lines: readonly string[];
-  /** Cells where a robot appears each time Jarrett enters the room. */
-  robots?: readonly { col: number; row: number }[];
+  /** Enemies that appear each time Jarrett enters the room, by start cell. */
+  enemies?: readonly EnemyPlacement[];
 }
 
 export interface World {
   rooms: ReadonlyMap<string, Room>;
-  /** Robot start cells per room key. */
-  robots: ReadonlyMap<string, readonly { col: number; row: number }[]>;
+  /** Enemy start cells per room key. */
+  enemies: ReadonlyMap<string, readonly EnemyPlacement[]>;
+}
+
+export interface EnemyPlacement {
+  kind: EnemyKind;
+  col: number;
+  row: number;
 }
 
 export const roomKey = (col: number, row: number): string => `${col},${row}`;
@@ -36,15 +43,15 @@ const OPPOSITE: Readonly<Record<Dir, Dir>> = {
   west: 'east',
 };
 
-/** Parses every room. Throws on a duplicate position, bad room data, or a robot placed in a wall. */
+/** Parses every room. Throws on a duplicate position, bad room data, or an enemy placed in a wall. */
 export function buildWorld(defs: readonly RoomDef[]): World {
   const rooms = new Map<string, Room>();
-  const robots = new Map<string, readonly { col: number; row: number }[]>();
+  const enemies = new Map<string, readonly EnemyPlacement[]>();
   for (const d of defs) {
     const key = roomKey(d.col, d.row);
     if (rooms.has(key)) throw new Error(`two rooms at ${key}`);
     const room = parseRoom(d.lines, `room ${key}`);
-    for (const r of d.robots ?? []) {
+    for (const r of d.enemies ?? []) {
       const cell = room.cells[r.row]?.[r.col];
       if (!cell || cell.solid) {
         throw new Error(
@@ -53,9 +60,9 @@ export function buildWorld(defs: readonly RoomDef[]): World {
       }
     }
     rooms.set(key, room);
-    robots.set(key, d.robots ?? []);
+    enemies.set(key, d.enemies ?? []);
   }
-  return { rooms, robots };
+  return { rooms, enemies };
 }
 
 /** Grid position of the room next door in a direction (it may not exist). */
