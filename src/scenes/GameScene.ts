@@ -97,8 +97,9 @@ export interface GameSnapshot {
   knockedBack: boolean;
   gems: number;
   enemies: { kind: EnemyKind; x: number; y: number; health: number; charging: boolean }[];
-  /** Enemy shots in the air. */
+  /** Enemy shots in the air, and how many have been fired. */
   enemyShots: { x: number; y: number }[];
+  shotsFired: number;
   pickups: { kind: PickupKind; x: number; y: number }[];
   /** Enemies defeated since the game started. */
   defeated: number;
@@ -233,6 +234,7 @@ export class GameScene extends Phaser.Scene {
   private heroKnockDir: Facing = 'down';
   private enemies: LiveEnemy[] = [];
   private enemyShots: LiveEnemyShot[] = [];
+  private shotsFired = 0;
   private pickups: Pickup[] = [];
   private enemyPool!: SpritePool;
   private pickupPool!: SpritePool;
@@ -267,6 +269,7 @@ export class GameScene extends Phaser.Scene {
     this.heroKnockMs = 0;
     this.enemies = [];
     this.enemyShots = [];
+    this.shotsFired = 0;
     this.pickups = [];
     this.enemiesHold = false;
     this.mode = 'near';
@@ -435,7 +438,6 @@ export class GameScene extends Phaser.Scene {
         rng: this.rng,
         walkSolid,
         flySolid,
-        shotBlocked: (p) => walkSolid(Math.floor(p.x / TILE), Math.floor(p.y / TILE)),
       });
       live.e = step.enemy;
       if (step.shot) this.addEnemyShot(step.shot.from, step.shot.dir);
@@ -465,6 +467,7 @@ export class GameScene extends Phaser.Scene {
 
   private addEnemyShot(from: Point, dir: { x: number; y: number }): void {
     const s = fireShot(from, dir);
+    this.shotsFired += 1;
     const sprite = this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
     const live = { s, sprite };
     this.enemyShots.push(live);
@@ -731,6 +734,7 @@ export class GameScene extends Phaser.Scene {
         charging: e.chargeMs > 0,
       })),
       enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
+      shotsFired: this.shotsFired,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
       mode: this.mode,

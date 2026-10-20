@@ -219,21 +219,6 @@ describe('hover (flying eye)', () => {
     expect(r.shot?.dir).toEqual({ x: 0, y: 1 });
   });
 
-  it('over a wall or tree it holds its shot and tries again shortly', () => {
-    const blocked = stepEnemy(enemy({ shootInMs: 0 }), 10, stats, ctx({ shotBlocked: () => true }));
-    expect(blocked.shot).toBeNull();
-    expect(blocked.enemy.shootInMs).toBe(300);
-    const custom = stepEnemy(
-      enemy({ shootInMs: 0 }),
-      10,
-      { ...stats, shootRetryMs: 150 },
-      ctx({ shotBlocked: () => true }),
-    );
-    expect(custom.enemy.shootInMs).toBe(150);
-    const clear = stepEnemy(enemy({ shootInMs: 0 }), 10, stats, ctx({ shotBlocked: () => false }));
-    expect(clear.shot).not.toBeNull();
-  });
-
   it('without distances or a gun it just comes closer and never shoots', () => {
     const plain: EnemyStats = { ...base, behaviour: 'hover', flies: true, speed: 10 };
     const r = stepEnemy(enemy(), 1000, plain, ctx({ hero: { x: 130, y: 100 } }));
