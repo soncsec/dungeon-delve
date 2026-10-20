@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxHitsSolid, facingFor, moveHero, type Box } from '../../src/logic/hero';
+import { awayFrom, boxHitsSolid, facingFor, moveHero, type Box } from '../../src/logic/hero';
 
 const box: Box = { halfWidth: 5, height: 6 };
 /** Solid cells given as "x,y" strings. */
@@ -77,5 +77,18 @@ describe('moveHero', () => {
 
   it('cannot tunnel through a one-cell wall with a big step', () => {
     expect(moveHero({ x: 88, y: 90 }, { x: 1, y: 0 }, 200, box, solids('8,5')).x).toBe(123);
+  });
+});
+
+describe('awayFrom', () => {
+  it('pushes along the axis they are further apart on', () => {
+    expect(awayFrom({ x: 100, y: 100 }, { x: 90, y: 104 })).toBe('left');
+    expect(awayFrom({ x: 100, y: 100 }, { x: 110, y: 96 })).toBe('right');
+    expect(awayFrom({ x: 100, y: 100 }, { x: 102, y: 80 })).toBe('up');
+    expect(awayFrom({ x: 100, y: 100 }, { x: 98, y: 120 })).toBe('down');
+  });
+  it('pushes sideways when exactly diagonal or on top', () => {
+    expect(awayFrom({ x: 0, y: 0 }, { x: 5, y: 5 })).toBe('right');
+    expect(awayFrom({ x: 0, y: 0 }, { x: 0, y: 0 })).toBe('right');
   });
 });

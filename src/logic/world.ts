@@ -10,10 +10,14 @@ export interface RoomDef {
   col: number;
   row: number;
   lines: readonly string[];
+  /** Cells where a robot appears each time Jarrett enters the room. */
+  robots?: readonly { col: number; row: number }[];
 }
 
 export interface World {
   rooms: ReadonlyMap<string, Room>;
+  /** Robot start cells per room key. */
+  robots: ReadonlyMap<string, readonly { col: number; row: number }[]>;
 }
 
 export const roomKey = (col: number, row: number): string => `${col},${row}`;
@@ -32,15 +36,26 @@ const OPPOSITE: Readonly<Record<Dir, Dir>> = {
   west: 'east',
 };
 
-/** Parses every room. Throws on a duplicate position or bad room data. */
+/** Parses every room. Throws on a duplicate position, bad room data, or a robot placed in a wall. */
 export function buildWorld(defs: readonly RoomDef[]): World {
   const rooms = new Map<string, Room>();
+  const robots = new Map<string, readonly { col: number; row: number }[]>();
   for (const d of defs) {
     const key = roomKey(d.col, d.row);
     if (rooms.has(key)) throw new Error(`two rooms at ${key}`);
-    rooms.set(key, parseRoom(d.lines, `room ${key}`));
+    const room = parseRoom(d.lines, `room ${key}`);
+    for (const r of d.robots ?? []) {
+      const cell = room.cells[r.row]?.[r.col];
+      if (!cell || cell.solid) {
+        throw new Error(
+          `room ${key}: robot at column ${r.col}, row ${r.row} is not on open ground`,
+        );
+      }
+    }
+    rooms.set(key, room);
+    robots.set(key, d.robots ?? []);
   }
-  return { rooms };
+  return { rooms, robots };
 }
 
 /** Grid position of the room next door in a direction (it may not exist). */

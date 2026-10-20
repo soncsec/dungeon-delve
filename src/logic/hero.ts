@@ -97,3 +97,11 @@ function flush(p: Point, along: 'x' | 'y', sign: number, box: Box): number {
   const cell = sign > 0 ? Math.ceil(edge / TILE) : Math.floor(edge / TILE);
   return sign > 0 ? cell * TILE : cell * TILE + box.height;
 }
+
+/** The way to push something at `target` away from `source`: along whichever axis they are further apart. */
+export function awayFrom(source: Point, target: Point): Facing {
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? 'left' : 'right';
+  return dy < 0 ? 'up' : 'down';
+}
