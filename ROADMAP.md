@@ -68,7 +68,7 @@
 - [x] M2.5 Inventory screen (I or Tab): equip near weapon, far weapon, spell, shield; shows potions, gems, keys, shards
 - [x] M2.6 Four more enemy types: bird, ghost, flying eye (shoots), wolf (charges); built before M2.4 (owner 2026-10-20)
 - [x] M2.7 Death and respawn rules (back in the start room until the village exists; keeps items and potions; loses 10% of gems)
-- [ ] M2.8 Sound effects made in code
+- [x] M2.8 Sound effects made in code (14 sounds; M mutes)
 - [ ] M2.9 Frame-time budget test with a crowded room
 
 **Acceptance criteria:** owner play-test; each system has unit tests; e2e covers switching weapons, casting with and without enough mana, and drinking a potion.

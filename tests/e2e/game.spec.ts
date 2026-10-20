@@ -554,3 +554,36 @@ test('out of hearts, Jarrett falls and is back in the start room, losing 10% of 
   expect(s.potions).toEqual({ health: 1, mana: 1 });
   expect(s.mana.current).toBe(100);
 });
+
+test('actions make their sounds, and M mutes and unmutes', async ({ page }) => {
+  await openGame(page);
+  const sounds = async () => (await snapshot(page)).sounds;
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await sounds()).swing).toBe(1);
+  const at = (await snapshot(page)).player;
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('gem', x, y), at);
+  await expect.poll(async () => (await sounds()).gem).toBe(1);
+  await page.evaluate(() => window.__game?.setMana(0));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await sounds()).noMana).toBe(1);
+  expect((await sounds()).cast).toBe(0);
+
+  expect((await snapshot(page)).muted).toBe(false);
+  await page.keyboard.press('m');
+  await expect.poll(async () => (await snapshot(page)).muted).toBe(true);
+  await page.keyboard.press('m');
+  await expect.poll(async () => (await snapshot(page)).muted).toBe(false);
+});
+
+test('the sounds are built in the browser from code (Web Audio)', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  const ready = await page.evaluate(() => {
+    const ctx = (window as unknown as { AudioContext?: unknown }).AudioContext;
+    return ctx !== undefined;
+  });
+  expect(ready).toBe(true);
+  // No sound files are fetched: every request stays on our own server and none is audio.
+  expect(watched.foreignRequests).toEqual([]);
+  expect(watched.errors).toEqual([]);
+});

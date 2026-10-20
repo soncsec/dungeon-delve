@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { OBJECT_FRAMES } from '../assets/manifest';
 import { GAME_HEIGHT, GAME_WIDTH, HUD } from '../config/tuning';
+import { Sfx } from '../audio/Sfx';
 import { KeyInput } from '../input/keyboard';
 import { gemLabel } from '../logic/hud';
 import {
@@ -52,6 +53,7 @@ export class InventoryScene extends Phaser.Scene {
   private keys!: KeyInput;
   private cursor = 0;
   private dynamic: Phaser.GameObjects.GameObject[] = [];
+  private sfx!: Sfx;
 
   constructor() {
     super('Inventory');
@@ -64,6 +66,7 @@ export class InventoryScene extends Phaser.Scene {
 
   create(): void {
     this.keys = new KeyInput(KEYS);
+    this.sfx = new Sfx(this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.keys.destroy());
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0b1020, 0.94).setOrigin(0);
     this.add
@@ -81,9 +84,11 @@ export class InventoryScene extends Phaser.Scene {
   override update(): void {
     for (const code of this.keys.takePresses()) {
       if (OPEN_KEYS.has(code)) {
+        this.sfx.play('menu');
         this.close();
         return;
       }
+      this.sfx.play('menu');
       if (code === 'ArrowUp' || code === 'KeyW') this.cursor = moveCursor(this.cursor, -1);
       if (code === 'ArrowDown' || code === 'KeyS') this.cursor = moveCursor(this.cursor, 1);
       if (CHANGE_KEYS.has(code)) {

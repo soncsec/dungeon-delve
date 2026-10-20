@@ -1,4 +1,5 @@
 import type { EnemyKind, EnemyStats } from '../logic/enemies';
+import type { SoundRecipe } from '../logic/sfx';
 
 /** All gameplay numbers live here so they can be tuned in one place. */
 
@@ -207,6 +208,70 @@ export const HUD = {
   /** The most gems the bar shows. */
   maxGems: 999,
 } as const;
+
+/** Every sound effect, by name. */
+export type SfxName =
+  | 'swing'
+  | 'hit'
+  | 'defeat'
+  | 'hurt'
+  | 'gem'
+  | 'heart'
+  | 'potion'
+  | 'throw'
+  | 'cast'
+  | 'block'
+  | 'enemyShot'
+  | 'fall'
+  | 'noMana'
+  | 'menu';
+
+/** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
+export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
+  /** Master volume, under the browser's own. */
+  volume: 0.5,
+  sounds: {
+    // A quick airy swish.
+    swing: { wave: 'noise', seconds: 0.12, from: 4000, to: 1200, attack: 0.01, volume: 0.3 },
+    // Blade meets enemy: a short bright knock.
+    hit: { wave: 'square', seconds: 0.1, from: 520, to: 260, attack: 0.002, volume: 0.35 },
+    // The puff: a burst of noise falling away.
+    defeat: { wave: 'noise', seconds: 0.3, from: 2600, to: 300, attack: 0.002, volume: 0.45 },
+    hurt: { wave: 'sawtooth', seconds: 0.25, from: 300, to: 90, attack: 0.003, volume: 0.4 },
+    // Pickups climb: a two-note blip for gems, a soft chime for hearts, a bubbly rise for potions.
+    gem: {
+      wave: 'square',
+      seconds: 0.12,
+      from: 988,
+      to: 988,
+      attack: 0.002,
+      volume: 0.3,
+      steps: [1, 1.5],
+    },
+    heart: {
+      wave: 'sine',
+      seconds: 0.3,
+      from: 587,
+      to: 587,
+      attack: 0.005,
+      volume: 0.4,
+      steps: [1, 1.26, 1.5, 2],
+    },
+    potion: { wave: 'triangle', seconds: 0.35, from: 300, to: 900, attack: 0.01, volume: 0.4 },
+    throw: { wave: 'noise', seconds: 0.1, from: 6000, to: 2500, attack: 0.005, volume: 0.28 },
+    // A whooshing roar rising, then gone.
+    cast: { wave: 'sawtooth', seconds: 0.3, from: 120, to: 420, attack: 0.03, volume: 0.35 },
+    // A metallic clink.
+    block: { wave: 'square', seconds: 0.11, from: 1500, to: 1400, attack: 0.001, volume: 0.3 },
+    enemyShot: { wave: 'triangle', seconds: 0.14, from: 700, to: 350, attack: 0.004, volume: 0.3 },
+    // A long sad slide down.
+    fall: { wave: 'triangle', seconds: 0.9, from: 440, to: 110, attack: 0.01, volume: 0.45 },
+    // Not enough mana: a dull low buzz.
+    noMana: { wave: 'square', seconds: 0.15, from: 110, to: 100, attack: 0.005, volume: 0.25 },
+    // Inventory open, close and cursor.
+    menu: { wave: 'square', seconds: 0.1, from: 660, to: 880, attack: 0.002, volume: 0.25 },
+  },
+};
 
 /** Seed for the random number generator; override with ?seed= in the URL. */
 export const DEFAULT_SEED = 1;
