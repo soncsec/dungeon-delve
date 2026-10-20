@@ -10,6 +10,8 @@ const PRODUCTION_CSP =
 
 test('the game runs under the production Content-Security-Policy', async ({ page }) => {
   await page.route('**/*', async (route) => {
+    // WebKit also routes the page's own blob: URLs here (Phaser loads images through them); they carry no headers.
+    if (!/^https?:/.test(route.request().url())) return route.continue();
     const response = await route.fetch();
     await route.fulfill({
       response,
