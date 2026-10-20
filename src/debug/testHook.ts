@@ -26,6 +26,8 @@ export interface TestHook {
   spawnPickup(kind: PickupKind, x: number, y: number): void;
   /** Remove every enemy and enemy shot in the current room. */
   clearEnemies(): void;
+  /** An enemy shot from a room position, flying along (dx, dy). */
+  fireEnemyShot(x: number, y: number, dx: number, dy: number): void;
   /** Stop enemies moving and shooting (true), or let them go again; knockback still moves them. */
   holdEnemies(hold: boolean): void;
   /** Set the mana level. */
@@ -61,6 +63,7 @@ export function installTestHook(game: Phaser.Game): void {
     spawnEnemy: (kind, x, y) => gameScene(game).testSpawnEnemy(kind, x, y),
     spawnPickup: (kind, x, y) => gameScene(game).testSpawnPickup(kind, x, y),
     clearEnemies: () => gameScene(game).testClearEnemies(),
+    fireEnemyShot: (x, y, dx, dy) => gameScene(game).testFireEnemyShot(x, y, dx, dy),
     holdEnemies: (hold) => gameScene(game).testHoldEnemies(hold),
     setMana: (current) => gameScene(game).testSetMana(current),
     hud: () => gameScene(game).hudShows(),
