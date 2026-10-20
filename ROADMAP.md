@@ -6,8 +6,8 @@
 
 | Milestone | Status |
 |---|---|
-| M0 Setup | In progress |
-| M1 Walking skeleton | In progress |
+| M0 Setup | Done |
+| M1 Walking skeleton | Built; waiting for the owner to play it on staging |
 | M2 Combat, inventory and mana | Not started |
 | M3 First dungeon, end to end | Not started |
 | M4 The overworld | Not started |
@@ -34,11 +34,11 @@
 
 - [x] M0.1 Repo created from `soncsec/game-template`; `scripts/init-game.sh dungeon-delve "Dungeon Delve" 5184`; `npm run check` passes
 - [x] M0.2 Branch protection with the four required checks; secret scanning and push protection; Dependabot alerts (done by Claude with the owner's OK, 2026-10-20)
-- [ ] M0.3 GitHub Pages on (Actions mode, `main` only); first staging deploy and ZAP scan pass (owner approval)
+- [x] M0.3 GitHub Pages on (Actions mode, `main` only); first staging deploy and ZAP scan pass (owner approval). Staging: https://soncsec.github.io/dungeon-delve/; ZAP: no high-risk alerts (the rest are headers GitHub Pages can't set; Apache sets them in production)
 - [x] M0.4 Portal PR: `games/dungeon-delve.json` (`in-development`, devPort 5184) and the ports table in NEW-GAME.md
 - [x] M0.5 Planning docs approved: PROJECT.md, ARCHITECTURE.md, ROADMAP.md (owner, 2026-10-20)
 - [ ] M0.6 Coverage floor for `src/logic/` raised to 100% (the owner's rule; the template has 80%)
-- [ ] M0.7 WebKit and Pixel 7 Playwright projects (adopted from Star Destroyer, owner 2026-10-20)
+- [x] M0.7 WebKit and Pixel 7 Playwright projects (adopted from Star Destroyer, owner 2026-10-20)
 
 **Acceptance criteria:** a direct push to `main` is rejected; CI is green on the first PR; staging serves the template build; the portal PR is open.
 
@@ -53,7 +53,7 @@
 - [x] M1.5 Sword swing (Space or J) with the slash effect; the area each swing covers, and overlap tests (hitting and knocking back enemies moved to M1.6, when the first enemy exists)
 - [x] M1.6 Robot enemy that the sword hits and knocks back (pooled; the pack's slime is too big for a basic enemy, see M1.1), hearts, damage and brief invulnerability, gem and heart drops
 - [x] M1.7 HUD bar: hearts, gems
-- [ ] M1.8 Playwright: boots clean with no third-party requests; walks between rooms; a sword hit defeats a robot
+- [x] M1.8 Playwright: boots clean with no third-party requests; walks between rooms; a sword hit defeats a robot (plus "the M1 loop": walk to the next room and defeat one of its robots)
 
 **Acceptance criteria:** the owner plays it on staging; CI green; `src/logic/` at 100% coverage.
 
