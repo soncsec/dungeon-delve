@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildWorld, joinProblems, neighbour, roomKey, type RoomDef } from '../../src/logic/world';
+import {
+  buildWorld,
+  enterFrom,
+  exitDirection,
+  joinProblems,
+  neighbour,
+  roomKey,
+  solidInWorld,
+  type RoomDef,
+} from '../../src/logic/world';
 import { OVERWORLD, START_ROOM } from '../../src/world/overworld';
 
 const OPEN = '....................';
@@ -76,5 +85,45 @@ describe('the overworld data', () => {
 
   it('has the start room', () => {
     expect(world.rooms.has(roomKey(START_ROOM.col, START_ROOM.row))).toBe(true);
+  });
+});
+
+describe('moving between rooms', () => {
+  // Two rooms side by side, joined at rows 4–5; the west room also has a north gap with nothing behind it.
+  const w = buildWorld([walled(0, 0, { e: true }), walled(1, 0, { w: true })]);
+
+  it('solidInWorld looks inside the room, then into the neighbours', () => {
+    expect(solidInWorld(w, 0, 0, 5, 5)).toBe(false);
+    expect(solidInWorld(w, 0, 0, 0, 0)).toBe(true);
+    // Column 20 of room 0,0 is column 0 of room 1,0: open at rows 4–5, wall elsewhere.
+    expect(solidInWorld(w, 0, 0, 20, 4)).toBe(false);
+    expect(solidInWorld(w, 0, 0, 20, 3)).toBe(true);
+    // From room 1,0 looking west.
+    expect(solidInWorld(w, 1, 0, -1, 5)).toBe(false);
+    expect(solidInWorld(w, 1, 0, -1, 6)).toBe(true);
+  });
+
+  it('solidInWorld treats places with no room as solid', () => {
+    expect(solidInWorld(w, 0, 0, -1, 4)).toBe(true);
+    expect(solidInWorld(w, 0, 0, 5, -1)).toBe(true);
+    expect(solidInWorld(w, 1, 0, 5, 10)).toBe(true);
+  });
+
+  it('exitDirection fires when the middle of the box leaves the room', () => {
+    expect(exitDirection({ x: 160, y: 80 }, 6)).toBeNull();
+    expect(exitDirection({ x: -0.5, y: 80 }, 6)).toBe('west');
+    expect(exitDirection({ x: 320, y: 80 }, 6)).toBe('east');
+    expect(exitDirection({ x: 319.9, y: 80 }, 6)).toBeNull();
+    expect(exitDirection({ x: 160, y: 2.9 }, 6)).toBe('north');
+    expect(exitDirection({ x: 160, y: 3 }, 6)).toBeNull();
+    expect(exitDirection({ x: 160, y: 163 }, 6)).toBe('south');
+    expect(exitDirection({ x: 160, y: 162.9 }, 6)).toBeNull();
+  });
+
+  it('enterFrom gives the same spot in the next room', () => {
+    expect(enterFrom({ x: 321, y: 80 }, 'east')).toEqual({ x: 1, y: 80 });
+    expect(enterFrom({ x: -1, y: 80 }, 'west')).toEqual({ x: 319, y: 80 });
+    expect(enterFrom({ x: 150, y: 2 }, 'north')).toEqual({ x: 150, y: 162 });
+    expect(enterFrom({ x: 150, y: 164 }, 'south')).toEqual({ x: 150, y: 4 });
   });
 });

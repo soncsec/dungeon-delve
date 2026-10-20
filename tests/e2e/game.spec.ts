@@ -94,3 +94,24 @@ test('Jarrett faces the way he walks, and walls stop him', async ({ page }) => {
   expect((await snapshot(page)).facing).toBe('right');
   await page.keyboard.up('ArrowRight');
 });
+
+test('walking through a gap slides to the next room, and back', async ({ page }) => {
+  await openGame(page);
+  expect((await snapshot(page)).room).toEqual({ col: 1, row: 1 });
+  // The start room's west gap is at rows 4–5; Jarrett starts in row 5.
+  await page.keyboard.down('ArrowLeft');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 0, row: 1 });
+  await page.keyboard.up('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  const arrived = await snapshot(page);
+  expect(arrived.player.x).toBeGreaterThan(300); // at the new room's east edge
+  expect(arrived.player.y).toBe(94); // same row as before
+
+  await page.keyboard.down('ArrowRight');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 1 });
+  await page.keyboard.up('ArrowRight');
+});
