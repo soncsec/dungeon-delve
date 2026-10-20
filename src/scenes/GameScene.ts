@@ -2,11 +2,15 @@ import Phaser from 'phaser';
 import { OBJECT_FRAMES, animKey } from '../assets/manifest';
 import {
   DAGGER,
+  DEATH,
   DEFAULT_SEED,
+  GAME_HEIGHT,
+  GAME_WIDTH,
   FIREBALL,
   DROPS,
   HEALTH,
   HERO,
+  HUD,
   HUD_HEIGHT,
   MANA,
   ROOM_COLS,
@@ -23,6 +27,7 @@ import {
 import { Hud } from '../entities/Hud';
 import { SpritePool } from '../entities/SpritePool';
 import { KeyInput } from '../input/keyboard';
+import { fallMessage, gemsAfterFalling } from '../logic/death';
 import { rollDrop, type Drop } from '../logic/drops';
 import {
   canThrow,
@@ -101,6 +106,9 @@ export interface GameSnapshot {
   knockedBack: boolean;
   gems: number;
   enemies: { kind: EnemyKind; x: number; y: number; health: number; charging: boolean }[];
+  /** True while he is down after running out of hearts; and how often that has happened. */
+  falling: boolean;
+  falls: number;
   /** Enemy shots in the air, how many have been fired, and how many the shield has blocked. */
   enemyShots: { x: number; y: number }[];
   shotsFired: number;
@@ -261,6 +269,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private lastCastAt: number | null = null;
   private potions: Potions = { ...POTIONS.start };
   private inv: Inventory = EMPTY_INVENTORY;
+  /** True from the moment he runs out of hearts until he is back on his feet. */
+  private falling = false;
+  private falls = 0;
   private lastThrowAt: number | null = null;
   /** Jarrett stands still until this time after a throw. */
   private throwUntil = 0;
@@ -292,6 +303,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.mana = fullMana(MANA.max);
     this.lastCastAt = null;
     this.potions = { ...POTIONS.start };
+    this.falling = false;
+    this.falls = 0;
     // M2: Jarrett starts with the whole kit so far; later Walker and the dungeons hand items out.
     this.inv = (['wooden-sword', 'daggers', 'fireball', 'wooden-shield'] as const).reduce(
       give,
@@ -329,7 +342,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.now = time;
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
-    if (this.sliding) return;
+    if (this.sliding || this.falling) return;
     if (presses.some((c) => INVENTORY_KEYS.has(c)) && this.heroKnockMs <= 0) {
       this.openInventory();
       return;
@@ -381,8 +394,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.placeSprite();
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
     if (isOut(this.health)) {
-      // M1: start again from the start room; the real death rules come in M2.7.
-      this.scene.restart();
+      this.fall();
       return;
     }
     if (!busy && this.heroKnockMs <= 0) {
@@ -488,6 +500,80 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     else sprite.clearTint();
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(DEPTH.sorted + o.y + e.pos.y);
+  }
+
+  /**
+   * Out of hearts: the screen goes dark with a message, and Jarrett is back on
+   * his feet in the start room (the village, once there is one) with full
+   * hearts and mana. He keeps his items and potions, and drops a share of his gems.
+   */
+  private fall(): void {
+    this.falling = true;
+    this.moving = false;
+    this.heroKnockMs = 0;
+    this.animate(false);
+    const kept = gemsAfterFalling(this.gems, DEATH.gemLossPercent);
+    const lost = this.gems - kept;
+    this.gems = kept;
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    const veil = this.add
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud + 10)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: veil,
+      alpha: 1,
+      duration: DEATH.fadeOutMs,
+      onComplete: () => {
+        const lines = fallMessage(lost);
+        const text = this.add
+          .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, lines.join('\n'), {
+            fontFamily: HUD.font,
+            fontSize: '8px',
+            color: '#e8f4f0',
+            align: 'center',
+            lineSpacing: 6,
+          })
+          .setOrigin(0.5)
+          .setScrollFactor(0)
+          .setDepth(DEPTH.hud + 11);
+        this.time.delayedCall(DEATH.darkMs, () => {
+          text.destroy();
+          this.respawn();
+          this.tweens.add({
+            targets: veil,
+            alpha: 0,
+            duration: DEATH.fadeInMs,
+            onComplete: () => veil.destroy(),
+          });
+        });
+      },
+    });
+  }
+
+  /** Back on his feet in the start room. */
+  private respawn(): void {
+    this.clearRoom();
+    for (const o of this.roomObjects) o.destroy();
+    this.room = { ...START_ROOM };
+    this.roomObjects = this.drawRoom(this.room.col, this.room.row);
+    this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
+    this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
+    this.facing = 'down';
+    this.enteredAt = null;
+    this.swing = { startedAt: null };
+    this.throwUntil = 0;
+    this.health = { ...this.health, points: this.health.max, invulnerableUntil: 0 };
+    this.mana = fullMana(this.mana.max);
+    this.animate(false);
+    this.placeSprite();
+    this.hero.setAlpha(1);
+    this.spawnEnemies();
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    this.falls += 1;
+    this.falling = false;
   }
 
   /** Pauses the game and shows the inventory over it. */
@@ -809,6 +895,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
       blocked: this.blocked,
       shotsFired: this.shotsFired,
+      falling: this.falling,
+      falls: this.falls,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
       mode: this.mode,
@@ -863,6 +951,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   /** Test hook only: give Jarrett an item. */
   testGiveItem(item: ItemId): void {
     this.inv = give(this.inv, item);
+  }
+
+  /** Test hook only: set his hearts (in half hearts) and gems. */
+  testSetHealth(points: number): void {
+    this.health = { ...this.health, points: Math.max(0, Math.min(this.health.max, points)) };
+  }
+
+  testSetGems(gems: number): void {
+    this.gems = Math.max(0, gems);
   }
 
   /** Test hook only: set the mana level. */

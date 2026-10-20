@@ -161,6 +161,15 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyStats>> = {
   },
 };
 
+/** Falling (out of hearts): the screen fades out and back in, and he drops a share of his gems. */
+export const DEATH = {
+  gemLossPercent: 10,
+  fadeOutMs: 600,
+  /** How long the dark screen and the message stay. */
+  darkMs: 1400,
+  fadeInMs: 400,
+} as const;
+
 /** The Wooden Shield: blocks shots arriving within 60° of straight at Jarrett's front. */
 export const SHIELD = {
   /** Cosine of the widest angle it still covers (cos 60° = 0.5). */

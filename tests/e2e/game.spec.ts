@@ -511,3 +511,32 @@ test('in the inventory, arrows choose a slot and Space switches its item', async
   await page.keyboard.press('i');
   await expect.poll(async () => (await inv())?.slots['near']).toBe('Steel Sword');
 });
+
+test('out of hearts, Jarrett falls and is back in the start room, losing 10% of his gems', async ({
+  page,
+}) => {
+  await openGame(page);
+  // Into the west room first, so coming back to the start room shows.
+  await page.keyboard.down('ArrowLeft');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 0, row: 1 });
+  await page.keyboard.up('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await page.evaluate(() => {
+    window.__game?.setGems(25);
+    window.__game?.setHealth(1);
+  });
+  const at = (await snapshot(page)).player;
+  await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('robot', x - 6, y), at);
+  await expect.poll(async () => (await snapshot(page)).falling).toBe(true);
+  await expect.poll(async () => (await snapshot(page)).falls, { timeout: 10_000 }).toBe(1);
+  const s = await snapshot(page);
+  expect(s.falling).toBe(false);
+  expect(s.room).toEqual({ col: 1, row: 1 });
+  expect(s.health).toEqual({ points: 6, max: 6 });
+  expect(s.gems).toBe(23); // 25 − 10% rounded down
+  expect(s.potions).toEqual({ health: 1, mana: 1 });
+  expect(s.mana.current).toBe(100);
+});
