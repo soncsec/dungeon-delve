@@ -7,8 +7,8 @@
 | Milestone | Status |
 |---|---|
 | M0 Setup | Done |
-| M1 Walking skeleton | Built; waiting for the owner to play it on staging |
-| M2 Combat, inventory and mana | Not started |
+| M1 Walking skeleton | Done (owner play-tested on staging 2026-10-20: "feels good") |
+| M2 Combat, inventory and mana | In progress |
 | M3 First dungeon, end to end | Not started |
 | M4 The overworld | Not started |
 | M5 Dungeons 2–4 | Not started |
@@ -61,7 +61,7 @@
 
 **Playable result:** the full combat kit in a test area: switch near/far, throw daggers, cast Fireball, block with the shield, drink potions, manage mana, use the inventory.
 
-- [ ] M2.1 Near/far weapon switch and throwing daggers (pooled)
+- [x] M2.1 Near/far weapon switch (X or K) and throwing daggers (pooled); for M2 Jarrett has them from the start, M3 makes them dungeon 1's prize
 - [ ] M2.2 Mana bar with auto-recharge after a pause; Fireball spell
 - [ ] M2.3 Health Potion and Mana Brew (faster recharge for a while); potion keys
 - [ ] M2.4 Shield: blocks projectiles from the front while not attacking

@@ -29,7 +29,7 @@ export interface TestHook {
   /** Stop robots wandering (true) or let them wander again; knockback still moves them. */
   holdRobots(hold: boolean): void;
   /** What the status bar shows: each heart's state, and the gem count text. */
-  hud(): { hearts: ('full' | 'half' | 'empty')[]; gems: string };
+  hud(): { hearts: ('full' | 'half' | 'empty')[]; gems: string; weapon: string };
 }
 
 declare global {

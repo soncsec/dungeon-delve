@@ -30,6 +30,8 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 
 - `assets/items/gems.png` — `Misc/gems/spritesheets/gems-spritesheet.png`
 - `assets/items/objects.png` — `TinyRPG/Environments/single-dungeon-crawler-objects/PNG/dungeon-crawler-objects-transparent.png`
+- `assets/items/dagger.png` — `Gothicvania/Misc/Dagger/dagger.png`
+- `assets/items/sword-icon.png` — `Gothicvania/Misc/fantasy weapons set/PNG/3.png`
 
 ## Font
 

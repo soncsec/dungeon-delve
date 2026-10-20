@@ -36,6 +36,23 @@ export const SWORD = {
   damage: 1,
 } as const;
 
+/** The throwing dagger, Jarrett's first far weapon. */
+export const DAGGER = {
+  /** Pixels per second, and how far it flies before dropping out of sight. */
+  speed: 220,
+  range: 150,
+  /** Hit box: long along its flight, thin across it. */
+  length: 12,
+  thickness: 6,
+  /** At most this many in the air at once, and this long between throws (ms). */
+  maxInFlight: 2,
+  cooldownMs: 300,
+  /** Jarrett stands still this long after a throw (ms). */
+  throwPauseMs: 120,
+  /** Health a hit takes from an enemy. */
+  damage: 1,
+} as const;
+
 /** Jarrett's health, in half hearts (2 per heart). */
 export const HEALTH = {
   startHearts: 3,

@@ -107,6 +107,10 @@ export const ASSETS: readonly SheetAsset[] = [
     GEM_COLOURS.map((colour, i) => anim(colour, range(2 * GEMS_COLUMNS + 4 + 8 * i, 7), 10)),
   ),
   sheet('items', 'objects', 16, 16, 17, 9),
+
+  // Weapons: the throwing dagger (points right; rotated in flight) and the sword icon for the status bar.
+  sheet('items', 'dagger', 32, 32, 1, 1),
+  sheet('items', 'sword-icon', 16, 16, 1, 1),
 ];
 
 /** Animation key for one of a sheet's named animations. */
