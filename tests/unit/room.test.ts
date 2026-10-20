@@ -1,0 +1,103 @@
+import { describe, expect, it } from 'vitest';
+import {
+  cellAt,
+  edgeOpenings,
+  isForest,
+  isSolid,
+  parseRoom,
+  type Room,
+} from '../../src/logic/room';
+
+const OPEN = '....................';
+const WALL = 'FFFFFFFFFFFFFFFFFFFF';
+/** A room of grass with the given rows replaced. */
+const room = (rows: Record<number, string> = {}): string[] =>
+  Array.from({ length: 10 }, (_, y) => rows[y] ?? OPEN);
+
+describe('parseRoom', () => {
+  it('reads grass and forest', () => {
+    const r = parseRoom(room({ 0: WALL }));
+    expect(cellAt(r, 0, 0)).toEqual({ solid: true, forest: true, prop: null });
+    expect(cellAt(r, 0, 1)).toEqual({ solid: false, forest: false, prop: null });
+  });
+
+  it('anchors props and blocks their footprints', () => {
+    const r = parseRoom(room({ 2: '.T...O...R....r..b.' + '.' }));
+    expect(cellAt(r, 1, 2)?.prop).toBe('pine');
+    expect(cellAt(r, 5, 2)?.prop).toBe('oak');
+    // The oak blocks its whole 3-cell base, but only the anchor holds the prop.
+    expect([4, 5, 6].map((x) => isSolid(r, x, 2))).toEqual([true, true, true]);
+    expect(cellAt(r, 4, 2)?.prop).toBeNull();
+    // The boulder blocks 2×2 from its top-left anchor.
+    expect([isSolid(r, 9, 2), isSolid(r, 10, 2), isSolid(r, 9, 3), isSolid(r, 10, 3)]).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect(isSolid(r, 11, 2)).toBe(false);
+    expect(cellAt(r, 14, 2)?.prop).toBe('rock');
+    expect(cellAt(r, 17, 2)?.prop).toBe('bush');
+  });
+
+  it('rejects the wrong number of rows or columns', () => {
+    expect(() => parseRoom(room().slice(1), 'r')).toThrow('r: expected 10 rows, got 9');
+    expect(() => parseRoom(room({ 3: '...' }), 'r')).toThrow('r: row 3 has 3 columns, expected 20');
+  });
+
+  it('rejects unknown characters', () => {
+    expect(() => parseRoom(room({ 4: '...?' + OPEN.slice(4) }), 'r')).toThrow(
+      "r: unknown character '?' at column 3, row 4",
+    );
+  });
+
+  it('rejects props that reach outside the room', () => {
+    expect(() => parseRoom(room({ 1: 'O' + OPEN.slice(1) }), 'r')).toThrow(
+      'r: oak at column 0, row 1 reaches outside the room',
+    );
+    expect(() => parseRoom(room({ 9: OPEN.slice(1) + 'R' }), 'r')).toThrow(
+      'reaches outside the room',
+    );
+  });
+
+  it('rejects props that overlap walls or each other', () => {
+    expect(() => parseRoom(room({ 1: '.OF' + OPEN.slice(3) }), 'r')).toThrow(
+      'r: oak at column 1, row 1 overlaps something at column 2, row 1',
+    );
+    // Two oaks sharing a base cell: each anchor is fine on its own.
+    expect(() => parseRoom(room({ 1: '.O.O' + OPEN.slice(4) }), 'r')).toThrow('overlaps');
+    // A boulder's footprint landing on another prop's anchor.
+    expect(() =>
+      parseRoom(room({ 1: '.R' + OPEN.slice(2), 2: '..r' + OPEN.slice(3) }), 'r'),
+    ).toThrow('overlaps');
+  });
+});
+
+describe('room queries', () => {
+  const r = parseRoom(room({ 0: WALL, 9: 'F' + OPEN.slice(1) }));
+
+  it('cellAt is null outside the room', () => {
+    expect(cellAt(r, -1, 0)).toBeNull();
+    expect(cellAt(r, 0, 10)).toBeNull();
+  });
+
+  it('isSolid treats outside the room as open', () => {
+    expect(isSolid(r, 5, 0)).toBe(true);
+    expect(isSolid(r, 5, -1)).toBe(false);
+  });
+
+  it('isForest continues the nearest edge cell outside the room', () => {
+    expect(isForest(r, 5, -3)).toBe(true);
+    expect(isForest(r, -1, 9)).toBe(true);
+    expect(isForest(r, 25, 9)).toBe(false);
+    // A malformed room with no cells has no forest anywhere.
+    expect(isForest({ cells: [] } as Room, 0, 0)).toBe(false);
+  });
+
+  it('edgeOpenings lists open cells along each edge', () => {
+    expect(edgeOpenings(r, 'north').every((open) => !open)).toBe(true);
+    expect(edgeOpenings(r, 'south')).toEqual([false, ...Array<boolean>(19).fill(true)]);
+    expect(edgeOpenings(r, 'west')).toEqual([false, ...Array<boolean>(8).fill(true), false]);
+    expect(edgeOpenings(r, 'east')).toEqual([false, ...Array<boolean>(9).fill(true)]);
+  });
+});

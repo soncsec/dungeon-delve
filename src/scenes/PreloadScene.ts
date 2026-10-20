@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ASSETS, animKey } from '../assets/manifest';
+import { PROP_REGIONS } from '../logic/tiles';
 
 /**
  * Loads every asset in the manifest and makes its animations, then starts the
@@ -30,6 +31,11 @@ export class PreloadScene extends Phaser.Scene {
         });
       }
     }
+    // Props span several cells, so each gets its own frame on the forest sheet.
+    const forest = this.textures.get('forest');
+    for (const [name, r] of Object.entries(PROP_REGIONS))
+      forest.add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
+
     const wanted = new URLSearchParams(window.location.search).get('scene');
     this.scene.start(wanted === 'preview' ? 'AssetPreview' : 'Game');
   }

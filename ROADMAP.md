@@ -47,7 +47,7 @@
 **Playable result:** Jarrett walks around a 3×3 patch of overworld, slides from room to room, swings his sword, and defeats robots that drop gems and hearts.
 
 - [x] M1.1 Art audit and copy: hero, Kira, overworld tiles, objects, gems, slash and hit effects, the robot enemy into `public/assets/` (dungeon tiles come with M3.1); CREDITS.md; an asset-preview scene (`?scene=preview`)
-- [ ] M1.2 Room data format and loader (text rooms, tile legend, automatic edges); unit tests
+- [x] M1.2 Room data format and loader (text rooms, tile legend, automatic edges); unit tests
 - [ ] M1.3 Movement with 4-direction walk animations and wall collision
 - [ ] M1.4 Flip-screen room transitions over a 3×3 test area
 - [ ] M1.5 Sword swing with slash effect, hit detection and knockback
