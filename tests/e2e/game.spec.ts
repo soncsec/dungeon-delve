@@ -108,6 +108,8 @@ test('walking through a gap slides to the next room, and back', async ({ page })
   const arrived = (await snapshot(page)).enteredAt;
   expect(arrived?.x).toBeGreaterThan(300); // at the new room's east edge
   expect(arrived?.y).toBe(94); // same row as before
+  // The west room's two robots appear once the view has arrived.
+  expect((await snapshot(page)).robots).toHaveLength(2);
 
   await page.keyboard.down('ArrowRight');
   await expect
@@ -143,4 +145,68 @@ test('Space or J swings the sword in front of Jarrett, and he stands still meanw
   await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(start.player.x);
   await page.keyboard.up('ArrowLeft');
   await page.keyboard.up('j');
+});
+
+test('two sword hits defeat a robot', async ({ page }) => {
+  await openGame(page);
+  const start = await snapshot(page);
+  // Facing down at the start; a robot just below his feet is under the blade.
+  await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x, y), {
+    x: start.player.x,
+    y: start.player.y + 18,
+  });
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).robots[0]?.health).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+
+  // It was knocked back; step up to it and swing again.
+  const r = (await snapshot(page)).robots[0];
+  if (!r) throw new Error('robot vanished after one hit');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), {
+    x: r.x,
+    y: r.y - 14,
+  });
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).defeated).toBe(1);
+  expect((await snapshot(page)).robots).toEqual([]);
+});
+
+test('touching a robot costs half a heart and pushes Jarrett away', async ({ page }) => {
+  await openGame(page);
+  const start = await snapshot(page);
+  expect(start.health).toEqual({ points: 6, max: 6 });
+  await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x + 6, y), {
+    x: start.player.x,
+    y: start.player.y,
+  });
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
+  const hurt = await snapshot(page);
+  expect(hurt.invulnerable).toBe(true);
+  await page.evaluate(() => window.__game?.clearRobots());
+  // Pushed left, away from the robot on his right.
+  await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(start.player.x - 10);
+  await expect.poll(async () => (await snapshot(page)).invulnerable, { timeout: 5000 }).toBe(false);
+});
+
+test('Jarrett picks up gems and hearts', async ({ page }) => {
+  await openGame(page);
+  const start = await snapshot(page);
+  // Lose half a heart first, so the heart has something to restore.
+  await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x + 6, y), {
+    x: start.player.x,
+    y: start.player.y,
+  });
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
+  await page.evaluate(() => window.__game?.clearRobots());
+  await expect.poll(async () => (await snapshot(page)).moving).toBe(false);
+
+  const at = (await snapshot(page)).player;
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('gem', x, y), { x: at.x, y: at.y });
+  await expect.poll(async () => (await snapshot(page)).gems).toBe(1);
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('heart', x, y), {
+    x: at.x,
+    y: at.y,
+  });
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(6);
+  expect((await snapshot(page)).pickups).toEqual([]);
 });

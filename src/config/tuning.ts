@@ -32,7 +32,40 @@ export const SWORD = {
   bodyHeight: 20,
   bodyHalfWidth: 4,
   durationMs: 250,
+  /** Health a hit takes from an enemy. */
+  damage: 1,
 } as const;
+
+/** Jarrett's health, in half hearts (2 per heart). */
+export const HEALTH = {
+  startHearts: 3,
+  /** After a hit, further damage is ignored for this long (ms); he blinks meanwhile. */
+  invulnerableMs: 1000,
+  /** A hit pushes him away from the enemy. */
+  knockback: { speed: 140, ms: 150 },
+} as const;
+
+/** The robot, M1's enemy. */
+export const ROBOT = {
+  /** Pixels per second (Jarrett walks at 88). */
+  speed: 30,
+  /** Sword hits to defeat. */
+  health: 2,
+  /** Half hearts it takes from Jarrett on touch. */
+  contactDamage: 1,
+  /** Collision box at its feet (the sprite is 20×16). */
+  box: { halfWidth: 7, height: 10 },
+  /** It walks one way for this long (ms, random within) before choosing again. */
+  turnMs: { min: 600, max: 1600 },
+  /** How far a sword hit pushes it: speed × time. */
+  knockback: { speed: 160, ms: 150 },
+} as const;
+
+/** What a defeated enemy drops, in whole percent (the rest drops nothing). */
+export const DROPS = { gem: 40, heart: 20 } as const;
+
+/** Pickups: what they're worth. A small heart restores this many half hearts. */
+export const PICKUPS = { gemValue: 1, heartHeals: 2 } as const;
 
 /** Seed for the random number generator; override with ?seed= in the URL. */
 export const DEFAULT_SEED = 1;
