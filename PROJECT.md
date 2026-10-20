@@ -7,6 +7,8 @@
 
 Dungeon Delve is a single-player, top-down action adventure in the spirit of the original *Legend of Zelda*. Our hero **Jarrett** explores a large overworld, fights his way through **8 dungeons**, and wins one **shard of the Star of Power** from each. With all 8 shards he opens the **Shadow Vault**, defeats the sorcerer who kidnapped **Princess Kira**, and sets her free.
 
+He has help: **Walker**, an ancient child with pale blonde hair who has guarded the Star of Power for a thousand years without growing a day older. Walker can't fight the sorcerer himself, so he guides Jarrett instead (section 3f).
+
 It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff of smoke) but has enough depth, secrets and challenge for adults.
 
 ## 2. Users
@@ -28,7 +30,7 @@ It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff 
 | Finale | The **Shadow Vault**, opened by all 8 shards: a short final dungeon, the final boss, Princess Kira's rescue, and an ending screen with the play time |
 | Player health | Hearts, starting at 3. Each boss leaves a **heart container** (+1 heart; 11 at the end). Hidden heart containers may be added if play-testing calls for it |
 | Death | Jarrett restarts at the dungeon entrance (or the village, if on the overworld) with full hearts. Items, keys and shards are kept; gems drop by 10% |
-| Story | A short title intro, a few lines from the village sage, and the ending. Plain, friendly text |
+| Story | A short title intro, Walker's lines as he guides Jarrett (section 3f), and the ending. Plain, friendly text |
 
 ### 3b. Combat, inventory and magic (the owner's requested systems)
 
@@ -80,6 +82,24 @@ Around 12–15 types, each with its own movement and attack, introduced a few at
 
 Touch controls (owner 2026-10-20): a virtual pad on the left, attack/switch/spell buttons on the right, potion and inventory buttons along the top.
 
+### 3f. Walker, the guide (owner request 2026-10-20)
+
+Walker looks like a child of about ten but is ancient: the Star's guardian, bound to it since it was made. When the sorcerer shattered the Star and took Princess Kira, Walker lost the power to fight, but not his wisdom. He chooses Jarrett for the quest.
+
+| Where | What Walker does |
+|---|---|
+| The village, at the start | Tells the story, gives Jarrett the Wooden Sword and Wooden Shield, explains the controls |
+| Each dungeon entrance | A hint about the dungeon, and a reminder of which item helps there |
+| After a dungeon | Teaches the new spell or item (e.g. how Fireball burns thorn bushes); says how many shards remain |
+| Now and then on the overworld | Points toward the next dungeon if Jarrett seems lost; hints at a nearby secret |
+| The Shadow Vault door | Opens it with the 8 shards; his last words before the final fight |
+| The ending | Reunited with Princess Kira and Jarrett; the Star is whole again |
+
+- He appears and vanishes in a shimmer; he never follows Jarrett or fights.
+- Talking: walk up to him and press the attack key. Text appears in a box, a few short lines at a time.
+- Art: the pack's top-down "Blond_kid" sprite (same style as Jarrett and Kira), with his hair recoloured to a paler blonde by the same tool as theirs (owner 2026-10-20).
+- He replaces the "village sage" in the earlier plan.
+
 ### Out of scope (v1)
 
 - Music (sound effects only, made in code: owner 2026-10-20)
@@ -118,6 +138,8 @@ Touch controls (owner 2026-10-20): a virtual pad on the left, attack/switch/spel
 | 2026-10-20 | Progress is saved in localStorage: one auto-save holding only game progress, validated on load (ADR-D04) |
 | 2026-10-20 | Adopted from Star Destroyer: phone and touch controls (WebKit and Pixel 7 test projects, fill the screen), sound effects made in code, a frame-time budget test, a `?dungeon=n` play-test skip that counts as a cheat |
 | 2026-10-20 | Art: runtime tints per dungeon and for the Mana Brew potion; "Guy" as Jarrett, "PirateGirl" as Kira; the sword swing is a walk frame plus the pack's slash effect (ADR-D05) |
+| 2026-10-20 | Jarrett's and Kira's hair recoloured to brown (`tools/art/recolor_hair.py`) |
+| 2026-10-20 | **Walker**, an ancient blonde-haired child, guides Jarrett: he appears at the village, dungeon entrances and the vault to give hints, story, the first sword and shield, and spell lessons. He doesn't follow or fight. "Blond_kid" sprite with paler blonde hair (section 3f) |
 
 ## 8. Open questions
 
