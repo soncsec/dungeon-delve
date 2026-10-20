@@ -38,6 +38,7 @@ import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
 import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '../logic/mana';
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
 import type { Axis, Point } from '../logic/movement';
+import { EMPTY_INVENTORY, give, type Inventory, type ItemId } from '../logic/inventory';
 import { createRng, type Rng } from '../logic/rng';
 import { shieldBlocks } from '../logic/shield';
 import {
@@ -72,6 +73,7 @@ import {
   type World,
 } from '../logic/world';
 import { OVERWORLD, START_ROOM } from '../world/overworld';
+import type { InventoryHost } from './InventoryScene';
 
 /** Read-only view of the game state, used by the e2e test hook. */
 export interface GameSnapshot {
@@ -186,6 +188,8 @@ const ATTACK_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ']);
 const SWITCH_KEYS: ReadonlySet<string> = new Set(['KeyX', 'KeyK']);
 /** Keys that cast the ready spell. */
 const SPELL_KEYS: ReadonlySet<string> = new Set(['KeyC', 'KeyL']);
+/** Keys that open the inventory. */
+const INVENTORY_KEYS: ReadonlySet<string> = new Set(['KeyI', 'Tab']);
 /** Keys that drink a potion. */
 const POTION_KEYS: Readonly<Record<string, PotionKind>> = { Digit1: 'health', Digit2: 'mana' };
 /** Every key the overworld uses (browser key codes). */
@@ -202,6 +206,7 @@ const KEYS = new Set([
   ...SWITCH_KEYS,
   ...SPELL_KEYS,
   ...Object.keys(POTION_KEYS),
+  ...INVENTORY_KEYS,
 ]);
 
 /**
@@ -209,7 +214,7 @@ const KEYS = new Set([
  * × 320, row × 160, below the status bar). The camera shows one room and
  * slides to the next when Jarrett walks through a gap (ADR-D02).
  */
-export class GameScene extends Phaser.Scene {
+export class GameScene extends Phaser.Scene implements InventoryHost {
   private hero!: Phaser.GameObjects.Sprite;
   private pos: Point = { x: 0, y: 0 };
   private facing: Facing = 'down';
@@ -255,6 +260,7 @@ export class GameScene extends Phaser.Scene {
   private mana: Mana = fullMana(MANA.max);
   private lastCastAt: number | null = null;
   private potions: Potions = { ...POTIONS.start };
+  private inv: Inventory = EMPTY_INVENTORY;
   private lastThrowAt: number | null = null;
   /** Jarrett stands still until this time after a throw. */
   private throwUntil = 0;
@@ -286,6 +292,11 @@ export class GameScene extends Phaser.Scene {
     this.mana = fullMana(MANA.max);
     this.lastCastAt = null;
     this.potions = { ...POTIONS.start };
+    // M2: Jarrett starts with the whole kit so far; later Walker and the dungeons hand items out.
+    this.inv = (['wooden-sword', 'daggers', 'fireball', 'wooden-shield'] as const).reduce(
+      give,
+      EMPTY_INVENTORY,
+    );
     this.lastThrowAt = null;
     this.throwUntil = 0;
     this.enemyPool = new SpritePool(this);
@@ -304,6 +315,8 @@ export class GameScene extends Phaser.Scene {
 
     this.keys = new KeyInput(KEYS);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.keys.destroy());
+    // Keys pressed while the inventory was open belong to it, not to the game.
+    this.events.on(Phaser.Scenes.Events.RESUME, () => this.keys.takePresses());
     // One slash effect, reused for every swing.
     this.slash = this.add.sprite(0, 0, 'slash-horizontal', 0).setVisible(false);
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
@@ -317,6 +330,10 @@ export class GameScene extends Phaser.Scene {
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
     if (this.sliding) return;
+    if (presses.some((c) => INVENTORY_KEYS.has(c)) && this.heroKnockMs <= 0) {
+      this.openInventory();
+      return;
+    }
     for (const code of presses) {
       if (SWITCH_KEYS.has(code)) this.mode = otherMode(this.mode);
       const potion = POTION_KEYS[code];
@@ -329,9 +346,12 @@ export class GameScene extends Phaser.Scene {
     this.stepEnemyShots(deltaMs, time);
     this.stepShots(deltaMs);
     if (attack && this.heroKnockMs <= 0) {
-      if (this.mode === 'near') this.trySwing(time);
-      else this.tryThrow(time);
-    } else if (cast && this.heroKnockMs <= 0) {
+      if (this.mode === 'near') {
+        if (this.inv.equipped.near) this.trySwing(time);
+      } else if (this.inv.equipped.far === 'daggers') {
+        this.tryThrow(time);
+      }
+    } else if (cast && this.heroKnockMs <= 0 && this.inv.equipped.spell === 'fireball') {
       this.tryCast(time);
     }
     const swinging = isSwinging(this.swing, time, SWORD.durationMs);
@@ -470,6 +490,39 @@ export class GameScene extends Phaser.Scene {
     sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(DEPTH.sorted + o.y + e.pos.y);
   }
 
+  /** Pauses the game and shows the inventory over it. */
+  private openInventory(): void {
+    this.moving = false;
+    this.animate(false);
+    this.scene.launch('Inventory', { host: this });
+    this.scene.pause();
+  }
+
+  inventory(): Inventory {
+    return this.inv;
+  }
+
+  setInventory(inv: Inventory): void {
+    this.inv = inv;
+  }
+
+  heldPotions(): Potions {
+    return this.potions;
+  }
+
+  heldGems(): number {
+    return this.gems;
+  }
+
+  /** Shards and keys arrive with the dungeons (M3); none yet. */
+  heldShards(): number {
+    return 0;
+  }
+
+  heldKeys(): number {
+    return 0;
+  }
+
   /** Swinging, throwing, casting, or being knocked back: the shield isn't up. */
   private handsBusy(now: number): boolean {
     return (
@@ -497,7 +550,8 @@ export class GameScene extends Phaser.Scene {
       live.s = step.shot;
       const hit = overlaps(shotBox(live.s, ENEMY_SHOT), this.heroBody());
       if (hit) {
-        if (shieldBlocks(this.facing, live.s.dir, this.handsBusy(now), SHIELD.coverCos)) {
+        const shieldUp = this.inv.equipped.shield !== null && !this.handsBusy(now);
+        if (shieldUp && shieldBlocks(this.facing, live.s.dir, false, SHIELD.coverCos)) {
           this.blocked += 1;
           this.effect('hit', live.s.pos.x, live.s.pos.y);
         } else {
@@ -804,6 +858,11 @@ export class GameScene extends Phaser.Scene {
   /** Test hook only: stop (or restart) enemies moving and shooting, so a test can aim at one. */
   testHoldEnemies(hold: boolean): void {
     this.enemiesHold = hold;
+  }
+
+  /** Test hook only: give Jarrett an item. */
+  testGiveItem(item: ItemId): void {
+    this.inv = give(this.inv, item);
   }
 
   /** Test hook only: set the mana level. */

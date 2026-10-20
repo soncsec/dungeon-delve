@@ -468,3 +468,46 @@ test('the shield blocks a shot from the front, but not from the side', async ({ 
   await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
   expect((await snapshot(page)).blocked).toBe(1);
 });
+
+test('I opens the inventory over a paused game; I closes it', async ({ page }) => {
+  await openGame(page);
+  const before = (await snapshot(page)).player;
+  await page.keyboard.press('i');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Inventory');
+  expect(await page.evaluate(() => window.__game?.inventory())).toEqual({
+    cursor: 0,
+    slots: { near: 'Wooden Sword', far: 'Daggers', spell: 'Fireball', shield: 'Wooden Shield' },
+  });
+  // The game is paused: holding a direction doesn't move Jarrett.
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.press('i');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+  expect((await snapshot(page)).player).toEqual(before);
+  expect(await page.evaluate(() => window.__game?.inventory())).toBeNull();
+});
+
+test('in the inventory, arrows choose a slot and Space switches its item', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => window.__game?.giveItem('steel-sword'));
+  await page.keyboard.press('Tab');
+  await expect.poll(() => page.evaluate(() => window.__game?.inventory()?.cursor)).toBe(0);
+  const inv = () => page.evaluate(() => window.__game?.inventory());
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await inv())?.slots['near']).toBe('Steel Sword');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await inv())?.cursor).toBe(1);
+  // Only one far weapon: Space changes nothing.
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(200);
+  expect((await inv())?.slots['far']).toBe('Daggers');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(async () => (await inv())?.cursor).toBe(3); // wrapped round to Shield
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+  // The choice stays: opening again shows the Steel Sword.
+  await page.keyboard.press('i');
+  await expect.poll(async () => (await inv())?.slots['near']).toBe('Steel Sword');
+});
