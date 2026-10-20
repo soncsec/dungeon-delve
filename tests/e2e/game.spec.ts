@@ -11,7 +11,7 @@ function watchPage(page: Page): { errors: string[]; foreignRequests: string[] } 
   page.on('pageerror', (err) => errors.push(err.message));
   page.on('request', (req) => {
     const url = new URL(req.url());
-    if (url.protocol.startsWith('http') && url.hostname !== 'localhost') {
+    if (url.protocol.startsWith('http') && url.hostname !== '127.0.0.1') {
       foreignRequests.push(req.url());
     }
   });
