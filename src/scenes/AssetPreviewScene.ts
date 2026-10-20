@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ASSETS, ASSET_GROUPS, animKey, type SheetAsset } from '../assets/manifest';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config/tuning';
+import { KeyInput } from '../input/keyboard';
 
 const HEADER = 12;
 const LABEL = 9;
@@ -19,6 +20,7 @@ interface Cell {
 export class AssetPreviewScene extends Phaser.Scene {
   private page = 0;
   private items: Phaser.GameObjects.GameObject[] = [];
+  private keys!: KeyInput;
 
   constructor() {
     super('AssetPreview');
@@ -26,9 +28,15 @@ export class AssetPreviewScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor('#1b2236');
-    this.input.keyboard?.on('keydown-RIGHT', () => this.show(this.page + 1));
-    this.input.keyboard?.on('keydown-LEFT', () => this.show(this.page - 1));
+    this.keys = new KeyInput(new Set(['ArrowLeft', 'ArrowRight']));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.keys.destroy());
     this.show(0);
+  }
+
+  override update(): void {
+    for (const code of this.keys.takePresses()) {
+      this.show(this.page + (code === 'ArrowRight' ? 1 : -1));
+    }
   }
 
   /** The group on screen, for the e2e test hook. */

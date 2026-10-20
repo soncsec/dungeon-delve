@@ -83,6 +83,7 @@
 - [ ] M3.4 Shard pickup, heart container, the Star of Power display
 - [ ] M3.5 Save and continue (ADR-D04); `?dungeon=n` play-test skip that counts as a cheat
 - [ ] M3.6 Dungeon map in the inventory
+- [ ] M3.8 Walker (PROJECT.md §3f): his sprite with paler blonde hair, a text box for talking, and his lines in the village (story, first sword and shield) and at dungeon 1's entrance and exit
 - [ ] M3.7 Reachability test: every room, key and chest in dungeon 1 can be reached in a valid order
 
 **Acceptance criteria:** owner finishes dungeon 1 on staging; reload restores progress.
@@ -92,7 +93,7 @@
 **Playable result:** the whole map can be explored, with every dungeon entrance in place (2–8 show "coming soon" signs).
 
 - [ ] M4.1 All five regions laid out (about 64 rooms)
-- [ ] M4.2 Village: sage, shop (potions, shield), gem prices
+- [ ] M4.2 Village: shop (potions, shield), gem prices
 - [ ] M4.3 Hidden passages: cracked walls, thorn bushes, false walls; secret caves
 - [ ] M4.4 Progression gates (water, thorns, boulders) tied to dungeon items
 - [ ] M4.5 Overworld enemies placed by region; respawn rules
@@ -104,6 +105,7 @@
 - [ ] M5.2 Dungeon 3, Sunken Crypt: Iron Shield, Mummy
 - [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre
 - [ ] M5.4 New enemy types for these regions
+- [ ] M5.5 Walker's lines at dungeons 2–4 and on the overworld
 
 **Acceptance criteria (each dungeon):** owner play-test; reachability test passes; the boss has its own attack pattern.
 
@@ -113,12 +115,13 @@
 - [ ] M6.2 Dungeon 6, Witchwood Tower: Steel Sword and mana upgrade, Witch
 - [ ] M6.3 Dungeon 7, Crimson Manor: Ward, Vampire
 - [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon
+- [ ] M6.5 Walker's lines at dungeons 5–8
 
 ## M7 — Shadow Vault and ending
 
-- [ ] M7.1 Vault door that opens with all 8 shards
+- [ ] M7.1 Vault door that Walker opens with all 8 shards
 - [ ] M7.2 Vault rooms and the final boss
-- [ ] M7.3 Princess Kira's rescue, ending screen with play time, credits
+- [ ] M7.3 Princess Kira's rescue with Walker, ending screen with play time, credits
 - [ ] M7.4 Fastest finish time kept (if approved, PROJECT.md Q1)
 
 **Acceptance criteria:** the owner completes the game.
