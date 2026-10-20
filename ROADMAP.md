@@ -52,7 +52,7 @@
 - [x] M1.4 Flip-screen room transitions over a 3×3 test area
 - [x] M1.5 Sword swing (Space or J) with the slash effect; the area each swing covers, and overlap tests (hitting and knocking back enemies moved to M1.6, when the first enemy exists)
 - [x] M1.6 Robot enemy that the sword hits and knocks back (pooled; the pack's slime is too big for a basic enemy, see M1.1), hearts, damage and brief invulnerability, gem and heart drops
-- [ ] M1.7 HUD bar: hearts, gems
+- [x] M1.7 HUD bar: hearts, gems
 - [ ] M1.8 Playwright: boots clean with no third-party requests; walks between rooms; a sword hit defeats a robot
 
 **Acceptance criteria:** the owner plays it on staging; CI green; `src/logic/` at 100% coverage.
@@ -122,7 +122,7 @@
 - [ ] M7.1 Vault door that Walker opens with all 8 shards
 - [ ] M7.2 Vault rooms and the final boss
 - [ ] M7.3 Princess Kira's rescue with Walker, ending screen with play time, credits
-- [ ] M7.4 Fastest finish time kept (if approved, PROJECT.md Q1)
+- [ ] M7.4 Fastest finish time kept in localStorage and shown on the title screen (owner 2026-10-20)
 
 **Acceptance criteria:** the owner completes the game.
 

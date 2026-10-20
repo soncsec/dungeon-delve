@@ -26,6 +26,10 @@ export interface TestHook {
   spawnPickup(kind: Drop, x: number, y: number): void;
   /** Remove every robot in the current room. */
   clearRobots(): void;
+  /** Stop robots wandering (true) or let them wander again; knockback still moves them. */
+  holdRobots(hold: boolean): void;
+  /** What the status bar shows: each heart's state, and the gem count text. */
+  hud(): { hearts: ('full' | 'half' | 'empty')[]; gems: string };
 }
 
 declare global {
@@ -49,6 +53,8 @@ export function installTestHook(game: Phaser.Game): void {
     spawnRobot: (x, y) => gameScene(game).testSpawnRobot(x, y),
     spawnPickup: (kind, x, y) => gameScene(game).testSpawnPickup(kind, x, y),
     clearRobots: () => gameScene(game).testClearRobots(),
+    holdRobots: (hold) => gameScene(game).testHoldRobots(hold),
+    hud: () => gameScene(game).hudShows(),
     missingTextures: () => ASSETS.filter((a) => !game.textures.exists(a.key)).map((a) => a.key),
   };
 }
