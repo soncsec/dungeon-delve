@@ -16,6 +16,8 @@ export interface TestHook {
   previewGroup(): string | null;
   /** Texture keys that failed to load or are missing. */
   missingTextures(): string[];
+  /** Put the hero's feet at a room position (room pixels). */
+  placeHero(x: number, y: number): void;
 }
 
 declare global {
@@ -34,6 +36,11 @@ export function installTestHook(game: Phaser.Game): void {
     previewGroup: () => {
       const s = game.scene.getScene('AssetPreview') as AssetPreviewScene | null;
       return s && game.scene.isActive('AssetPreview') ? s.currentGroup() : null;
+    },
+    placeHero: (x, y) => {
+      const s = game.scene.getScene('Game') as GameScene | null;
+      if (!s || !game.scene.isActive('Game')) throw new Error('game scene is not running');
+      s.placeHero(x, y);
     },
     missingTextures: () => ASSETS.filter((a) => !game.textures.exists(a.key)).map((a) => a.key),
   };

@@ -76,3 +76,20 @@ test('asset preview scene loads every asset and pages through the groups', async
   expect(watched.errors).toEqual([]);
   expect(watched.foreignRequests).toEqual([]);
 });
+
+test('Jarrett faces the way he walks, and walls stop him', async ({ page }) => {
+  await openGame(page);
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).facing).toBe('up');
+  await expect.poll(async () => (await snapshot(page)).moving).toBe(true);
+  await page.keyboard.up('ArrowUp');
+
+  // Left of the start room's boulder (cells 4–5, rows 6–7), in row 7.
+  await page.evaluate(() => window.__game?.placeHero(40, 126));
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => (await snapshot(page)).player.x).toBe(59); // flush: 64 − half box width 5
+  await page.waitForTimeout(300);
+  expect((await snapshot(page)).player).toEqual({ x: 59, y: 126 });
+  expect((await snapshot(page)).facing).toBe('right');
+  await page.keyboard.up('ArrowRight');
+});
