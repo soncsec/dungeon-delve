@@ -198,7 +198,8 @@ test('Jarrett picks up gems and hearts', async ({ page }) => {
   });
   await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
   await page.evaluate(() => window.__game?.clearRobots());
-  await expect.poll(async () => (await snapshot(page)).moving).toBe(false);
+  // Let the knockback finish, so he stands where the pickups go.
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
 
   const at = (await snapshot(page)).player;
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('gem', x, y), { x: at.x, y: at.y });

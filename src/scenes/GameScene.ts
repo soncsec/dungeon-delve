@@ -68,6 +68,8 @@ export interface GameSnapshot {
   /** Half hearts left and the most there can be. */
   health: { points: number; max: number };
   invulnerable: boolean;
+  /** True while a hit is pushing Jarrett back. */
+  knockedBack: boolean;
   gems: number;
   robots: { x: number; y: number; health: number }[];
   pickups: { kind: Drop; x: number; y: number }[];
@@ -398,6 +400,7 @@ export class GameScene extends Phaser.Scene {
       stoodAfterSwing: this.stoodAfterSwing ? { ...this.stoodAfterSwing } : null,
       health: { points: this.health.points, max: this.health.max },
       invulnerable: isInvulnerable(this.health, this.now),
+      knockedBack: this.heroKnockMs > 0,
       gems: this.gems,
       robots: this.robots.map(({ r }) => ({ x: r.pos.x, y: r.pos.y, health: r.health })),
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
