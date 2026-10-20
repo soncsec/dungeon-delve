@@ -100,7 +100,15 @@ export interface GameSnapshot {
   /** True while a hit is pushing Jarrett back. */
   knockedBack: boolean;
   gems: number;
-  enemies: { kind: EnemyKind; x: number; y: number; health: number; charging: boolean }[];
+  /** `knocked`: still being pushed back by a hit. */
+  enemies: {
+    kind: EnemyKind;
+    x: number;
+    y: number;
+    health: number;
+    charging: boolean;
+    knocked: boolean;
+  }[];
   /** Enemy shots in the air, how many have been fired, and how many the shield has blocked. */
   enemyShots: { x: number; y: number }[];
   shotsFired: number;
@@ -805,6 +813,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
         y: e.pos.y,
         health: e.health,
         charging: e.chargeMs > 0,
+        knocked: e.knockMs > 0,
       })),
       enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
       blocked: this.blocked,
