@@ -62,7 +62,7 @@
 **Playable result:** the full combat kit in a test area: switch near/far, throw daggers, cast Fireball, block with the shield, drink potions, manage mana, use the inventory.
 
 - [x] M2.1 Near/far weapon switch (X or K) and throwing daggers (pooled); for M2 Jarrett has them from the start, M3 makes them dungeon 1's prize
-- [ ] M2.2 Mana bar with auto-recharge after a pause; Fireball spell
+- [x] M2.2 Mana bar with auto-recharge after a pause; Fireball spell (C or L)
 - [ ] M2.3 Health Potion and Mana Brew (faster recharge for a while); potion keys
 - [ ] M2.4 Shield: blocks projectiles from the front while not attacking
 - [ ] M2.5 Inventory screen: equip near weapon, far weapon, spell, shield; shows potions, gems, keys, shards

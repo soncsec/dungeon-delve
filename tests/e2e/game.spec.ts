@@ -221,6 +221,7 @@ test('the status bar shows hearts and gems', async ({ page }) => {
     hearts: ['full', 'full', 'full'],
     gems: '000',
     weapon: 'sword-icon',
+    manaWidth: 50,
   });
 
   const start = await snapshot(page);
@@ -306,4 +307,38 @@ test('a thrown dagger flies until a wall stops it, and two daggers defeat a robo
     await expect.poll(async () => (await snapshot(page)).daggers).toEqual([]);
   }
   expect((await snapshot(page)).defeated).toBe(1);
+});
+
+test('C casts a Fireball: it costs mana, which then refills by itself', async ({ page }) => {
+  await openGame(page);
+  const hud = () => page.evaluate(() => window.__game?.hud());
+  expect((await snapshot(page)).mana).toEqual({ current: 100, max: 100 });
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).casts).toBe(1);
+  expect((await snapshot(page)).mana.current).toBe(75);
+  await expect.poll(async () => (await hud())?.manaWidth).toBe(38); // 75% of the 50-px bar
+  await expect.poll(async () => (await snapshot(page)).fireballs).toEqual([]);
+  // After a short pause it refills to full by itself (25 mana at 12 per second).
+  await expect.poll(async () => (await snapshot(page)).mana.current, { timeout: 15_000 }).toBe(100);
+  await expect.poll(async () => (await hud())?.manaWidth).toBe(50);
+});
+
+test('without enough mana, nothing is cast', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => window.__game?.setMana(20));
+  await page.keyboard.press('l');
+  await page.waitForTimeout(300);
+  const s = await snapshot(page);
+  expect(s.casts).toBe(0);
+  expect(s.fireballs).toEqual([]);
+});
+
+test('one Fireball defeats a robot', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdRobots(true));
+  const start = await snapshot(page);
+  await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x, y + 40), start.player);
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).defeated).toBe(1);
+  expect((await snapshot(page)).casts).toBe(1);
 });

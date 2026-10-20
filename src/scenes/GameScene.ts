@@ -3,10 +3,12 @@ import { OBJECT_FRAMES, animKey } from '../assets/manifest';
 import {
   DAGGER,
   DEFAULT_SEED,
+  FIREBALL,
   DROPS,
   HEALTH,
   HERO,
   HUD_HEIGHT,
+  MANA,
   ROOM_COLS,
   ROOM_ROWS,
   PICKUPS,
@@ -21,15 +23,16 @@ import { KeyInput } from '../input/keyboard';
 import { rollDrop, type Drop } from '../logic/drops';
 import {
   canThrow,
-  daggerBox,
+  projectileBox,
   otherMode,
-  stepDagger,
-  throwDagger,
-  type Dagger,
+  launch,
+  stepProjectile,
+  type Projectile,
   type WeaponMode,
 } from '../logic/weapons';
 import { fullHealth, heal, isInvulnerable, isOut, takeDamage, type Health } from '../logic/health';
 import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
+import { canCast, fullMana, refill, spend, type Mana } from '../logic/mana';
 import type { Axis, Point } from '../logic/movement';
 import { createRng, type Rng } from '../logic/rng';
 import { hitRobot, isDefeated, robotBody, spawnRobot, stepRobot, type Robot } from '../logic/robot';
@@ -88,20 +91,33 @@ export interface GameSnapshot {
   /** Which weapon the attack key uses. */
   mode: WeaponMode;
   daggers: { x: number; y: number; dir: Facing }[];
+  fireballs: { x: number; y: number; dir: Facing }[];
+  mana: { current: number; max: number };
+  /** Fireballs cast so far. */
+  casts: number;
   /** Daggers thrown so far, and whether another may be thrown now. */
   thrown: number;
   throwReady: boolean;
 }
 
-interface LiveDagger {
-  d: Dagger;
+type ShotKind = 'dagger' | 'fireball';
+
+/** Something flying: a thrown dagger or a fireball. */
+interface Shot {
+  kind: ShotKind;
+  d: Projectile;
   sprite: Phaser.GameObjects.Sprite;
 }
 
+const SHOT_TUNING: Readonly<Record<ShotKind, typeof DAGGER | typeof FIREBALL>> = {
+  dagger: DAGGER,
+  fireball: FIREBALL,
+};
+
 /** Sprite angle for a dagger flying each way (the art points right). */
 const DAGGER_ANGLE: Readonly<Record<Facing, number>> = { right: 0, down: 90, left: 180, up: -90 };
-/** Dagger hits use ids far above any swing number, so the two never clash. */
-const DAGGER_HIT_IDS = 1_000_000;
+/** Projectile hits use ids far above any swing number, so the two never clash. */
+const SHOT_HIT_IDS = 1_000_000;
 
 interface LiveRobot {
   r: Robot;
@@ -126,6 +142,8 @@ const ROOM_H = ROOM_ROWS * TILE;
 /** Keys that attack with the ready weapon, and that switch near and far. */
 const ATTACK_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ']);
 const SWITCH_KEYS: ReadonlySet<string> = new Set(['KeyX', 'KeyK']);
+/** Keys that cast the ready spell. */
+const SPELL_KEYS: ReadonlySet<string> = new Set(['KeyC', 'KeyL']);
 /** Every key the overworld uses (browser key codes). */
 const KEYS = new Set([
   'ArrowUp',
@@ -138,6 +156,7 @@ const KEYS = new Set([
   'KeyD',
   ...ATTACK_KEYS,
   ...SWITCH_KEYS,
+  ...SPELL_KEYS,
 ]);
 
 /**
@@ -180,9 +199,13 @@ export class GameScene extends Phaser.Scene {
   /** Test hook only: robots stop wandering (knockback still moves them). */
   private robotsHold = false;
   private mode: WeaponMode = 'near';
-  private daggers: LiveDagger[] = [];
-  private daggerPool!: SpritePool;
+  private shots: Shot[] = [];
+  private shotPool!: SpritePool;
+  private shotIds = 0;
   private thrown = 0;
+  private casts = 0;
+  private mana: Mana = fullMana(MANA.max);
+  private lastCastAt: number | null = null;
   private lastThrowAt: number | null = null;
   /** Jarrett stands still until this time after a throw. */
   private throwUntil = 0;
@@ -203,9 +226,13 @@ export class GameScene extends Phaser.Scene {
     this.pickups = [];
     this.robotsHold = false;
     this.mode = 'near';
-    this.daggers = [];
-    this.daggerPool = new SpritePool(this);
+    this.shots = [];
+    this.shotPool = new SpritePool(this);
+    this.shotIds = 0;
     this.thrown = 0;
+    this.casts = 0;
+    this.mana = fullMana(MANA.max);
+    this.lastCastAt = null;
     this.lastThrowAt = null;
     this.throwUntil = 0;
     this.robotPool = new SpritePool(this);
@@ -229,7 +256,7 @@ export class GameScene extends Phaser.Scene {
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
     this.swing = { startedAt: null };
     this.spawnRobots();
-    this.hud.update(this.health, this.gems, this.mode);
+    this.hud.update(this.health, this.gems, this.mode, this.mana);
   }
 
   override update(time: number, deltaMs: number): void {
@@ -241,11 +268,15 @@ export class GameScene extends Phaser.Scene {
       if (SWITCH_KEYS.has(code)) this.mode = otherMode(this.mode);
     }
     const attack = presses.some((c) => ATTACK_KEYS.has(c));
+    const cast = presses.some((c) => SPELL_KEYS.has(c));
+    this.mana = refill(this.mana, time, deltaMs, MANA);
     this.stepRobots(deltaMs);
-    this.stepDaggers(deltaMs);
+    this.stepShots(deltaMs);
     if (attack && this.heroKnockMs <= 0) {
       if (this.mode === 'near') this.trySwing(time);
       else this.tryThrow(time);
+    } else if (cast && this.heroKnockMs <= 0) {
+      this.tryCast(time);
     }
     const swinging = isSwinging(this.swing, time, SWORD.durationMs);
     if (swinging) this.swordHits();
@@ -272,7 +303,7 @@ export class GameScene extends Phaser.Scene {
       isInvulnerable(this.health, time) && Math.floor(time / 80) % 2 === 0 ? 0.3 : 1,
     );
     this.placeSprite();
-    this.hud.update(this.health, this.gems, this.mode);
+    this.hud.update(this.health, this.gems, this.mode, this.mana);
     if (isOut(this.health)) {
       // M1: start again from the start room; the real death rules come in M2.7.
       this.scene.restart();
@@ -431,54 +462,99 @@ export class GameScene extends Phaser.Scene {
   /** Throws a dagger the way Jarrett faces, if one is allowed now. */
   private tryThrow(now: number): void {
     if (
-      !canThrow(this.daggers.length, DAGGER.maxInFlight, this.lastThrowAt, now, DAGGER.cooldownMs)
+      !canThrow(
+        this.countShots('dagger'),
+        DAGGER.maxInFlight,
+        this.lastThrowAt,
+        now,
+        DAGGER.cooldownMs,
+      )
     ) {
       return;
     }
     this.thrown += 1;
     this.lastThrowAt = now;
     this.throwUntil = now + DAGGER.throwPauseMs;
-    this.animate(false);
-    const d = throwDagger(DAGGER_HIT_IDS + this.thrown, this.pos, this.facing, SWORD.bodyHeight);
-    const sprite = this.daggerPool.take('dagger').setAngle(DAGGER_ANGLE[d.dir]);
-    const live = { d, sprite };
-    this.daggers.push(live);
-    this.drawDagger(live);
+    this.shoot('dagger');
   }
 
-  /** Flies every dagger; one that hits a wall, a robot, or the end of its range is gone. */
-  private stepDaggers(deltaMs: number): void {
+  /** Casts a Fireball, if there's enough mana and none is already flying. */
+  private tryCast(now: number): void {
+    if (!canCast(this.mana, FIREBALL.cost)) return;
+    if (
+      !canThrow(
+        this.countShots('fireball'),
+        FIREBALL.maxInFlight,
+        this.lastCastAt,
+        now,
+        FIREBALL.cooldownMs,
+      )
+    ) {
+      return;
+    }
+    this.mana = spend(this.mana, FIREBALL.cost, now);
+    this.casts += 1;
+    this.lastCastAt = now;
+    this.throwUntil = now + FIREBALL.castPauseMs;
+    this.shoot('fireball');
+  }
+
+  private shoot(kind: ShotKind): void {
+    this.animate(false);
+    this.shotIds += 1;
+    const d = launch(SHOT_HIT_IDS + this.shotIds, this.pos, this.facing, SWORD.bodyHeight);
+    const sprite = this.shotPool.take(kind === 'dagger' ? 'dagger' : 'fire-ball');
+    sprite.setAngle(DAGGER_ANGLE[d.dir]);
+    if (kind === 'fireball') sprite.play(animKey('fire-ball', 'fly'));
+    const shot = { kind, d, sprite };
+    this.shots.push(shot);
+    this.drawShot(shot);
+  }
+
+  private countShots(kind: ShotKind): number {
+    return this.shots.filter((s) => s.kind === kind).length;
+  }
+
+  private shotsOf(kind: ShotKind): { x: number; y: number; dir: Facing }[] {
+    return this.shots
+      .filter((s) => s.kind === kind)
+      .map(({ d }) => ({ x: d.pos.x, y: d.pos.y, dir: d.dir }));
+  }
+
+  /** Flies every dagger and fireball; one that hits a wall, a robot, or the end of its range is gone. */
+  private stepShots(deltaMs: number): void {
     const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
     const solid = (cx: number, cy: number): boolean =>
       this.outsideRoom(cx, cy) || (room ? isSolid(room, cx, cy) : true);
-    for (const live of [...this.daggers]) {
-      const step = stepDagger(live.d, deltaMs, DAGGER, solid);
-      live.d = step.dagger;
-      const box = daggerBox(live.d, DAGGER);
+    for (const shot of [...this.shots]) {
+      const t = SHOT_TUNING[shot.kind];
+      const step = stepProjectile(shot.d, deltaMs, t, solid);
+      shot.d = step.projectile;
+      const box = projectileBox(shot.d, t);
       const target = this.robots.find((r) => overlaps(box, robotBody(r.r, ROBOT)));
       if (target) {
-        target.r = hitRobot(target.r, DAGGER.damage, live.d.id, live.d.dir, ROBOT);
+        target.r = hitRobot(target.r, t.damage, shot.d.id, shot.d.dir, ROBOT);
         this.effect('hit', target.r.pos.x, target.r.pos.y - ROBOT.box.height / 2);
         if (isDefeated(target.r)) this.defeat(target);
       }
-      if (target || step.stopped) this.dropDagger(live);
-      else this.drawDagger(live);
+      if (target || step.stopped) this.dropShot(shot);
+      else this.drawShot(shot);
     }
   }
 
-  private drawDagger({ d, sprite }: LiveDagger): void {
+  private drawShot({ d, sprite }: Shot): void {
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + d.pos.x, o.y + d.pos.y).setDepth(DEPTH.over - 2);
   }
 
-  private dropDagger(live: LiveDagger): void {
-    this.daggers = this.daggers.filter((x) => x !== live);
-    this.daggerPool.give(live.sprite.setAngle(0));
+  private dropShot(shot: Shot): void {
+    this.shots = this.shots.filter((x) => x !== shot);
+    this.shotPool.give(shot.sprite.setAngle(0));
   }
 
   /** Clears the room's robots and pickups (on leaving it). */
   private clearRoom(): void {
-    for (const live of [...this.daggers]) this.dropDagger(live);
+    for (const shot of [...this.shots]) this.dropShot(shot);
     for (const live of this.robots) this.robotPool.give(live.sprite);
     for (const p of this.pickups) this.pickupPool.give(p.sprite);
     this.robots = [];
@@ -508,10 +584,13 @@ export class GameScene extends Phaser.Scene {
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
       mode: this.mode,
-      daggers: this.daggers.map(({ d }) => ({ x: d.pos.x, y: d.pos.y, dir: d.dir })),
+      daggers: this.shotsOf('dagger'),
+      fireballs: this.shotsOf('fireball'),
+      mana: { current: this.mana.current, max: this.mana.max },
+      casts: this.casts,
       thrown: this.thrown,
       throwReady: canThrow(
-        this.daggers.length,
+        this.countShots('dagger'),
         DAGGER.maxInFlight,
         this.lastThrowAt,
         this.now,
@@ -545,8 +624,18 @@ export class GameScene extends Phaser.Scene {
     this.robotsHold = hold;
   }
 
+  /** Test hook only: set the mana level. */
+  testSetMana(current: number): void {
+    this.mana = { ...this.mana, current: Math.max(0, Math.min(this.mana.max, current)) };
+  }
+
   /** Test hook only: what the status bar shows. */
-  hudShows(): { hearts: ('full' | 'half' | 'empty')[]; gems: string; weapon: string } {
+  hudShows(): {
+    hearts: ('full' | 'half' | 'empty')[];
+    gems: string;
+    weapon: string;
+    manaWidth: number;
+  } {
     return this.hud.shows();
   }
 

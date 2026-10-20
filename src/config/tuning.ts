@@ -53,6 +53,34 @@ export const DAGGER = {
   damage: 1,
 } as const;
 
+/** Mana for spells: refills by itself after a pause; a Mana Brew speeds it up (M2.3). */
+export const MANA = {
+  max: 100,
+  /** Mana per second while refilling (empty to full in about 8 s). */
+  perSecond: 12,
+  /** Refilling starts this long after the last cast (ms). */
+  delayMs: 1200,
+  /** A Mana Brew makes refilling this many times faster, for this long (ms). */
+  boostFactor: 3,
+  boostMs: 30_000,
+} as const;
+
+/** The Fireball spell. */
+export const FIREBALL = {
+  cost: 25,
+  speed: 160,
+  range: 200,
+  length: 16,
+  thickness: 10,
+  /** Two damage: one fireball defeats a robot. */
+  damage: 2,
+  /** One in the air at a time. */
+  maxInFlight: 1,
+  cooldownMs: 0,
+  /** Jarrett stands still this long while casting (ms). */
+  castPauseMs: 200,
+} as const;
+
 /** Jarrett's health, in half hearts (2 per heart). */
 export const HEALTH = {
   startHearts: 3,

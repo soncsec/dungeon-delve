@@ -2,12 +2,15 @@ import Phaser from 'phaser';
 import { OBJECT_FRAMES } from '../assets/manifest';
 import { GAME_WIDTH, HUD, HUD_HEIGHT } from '../config/tuning';
 import type { Health } from '../logic/health';
+import type { Mana } from '../logic/mana';
 import type { WeaponMode } from '../logic/weapons';
 import { gemLabel, heartIcons } from '../logic/hud';
 
 /** Empty hearts: the heart art darkened (runtime tint, ADR-D05). */
 const EMPTY_TINT = 0x40303a;
 /** The heart's art is 15 px wide; half a heart shows its left 8 px. */
+/** The mana bar's place: right of the hearts (11 hearts end at x 169). */
+const MANA_BAR = { x: 176, y: 7, w: 52, h: 6 } as const;
 const HALF_WIDTH = 8;
 
 /**
@@ -19,6 +22,7 @@ export class Hud {
   private readonly fronts: Phaser.GameObjects.Image[] = [];
   private readonly gemText: Phaser.GameObjects.Text;
   private readonly weapon: Phaser.GameObjects.Image;
+  private readonly manaFill: Phaser.GameObjects.Rectangle;
   private shown = '';
 
   constructor(
@@ -35,6 +39,18 @@ export class Hud {
       .play('gems:teal')
       .setScrollFactor(0)
       .setDepth(depth + 1);
+    // The mana bar: a dark track with a blue fill, between the hearts and the weapon.
+    scene.add
+      .rectangle(MANA_BAR.x, MANA_BAR.y, MANA_BAR.w, MANA_BAR.h, 0x1a2230)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0x3a5a8a)
+      .setScrollFactor(0)
+      .setDepth(depth + 1);
+    this.manaFill = scene.add
+      .rectangle(MANA_BAR.x + 1, MANA_BAR.y + 1, MANA_BAR.w - 2, MANA_BAR.h - 2, 0x3fa0ff)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(depth + 2);
     // The ready weapon, in a dark box left of the gems.
     scene.add
       .rectangle(GAME_WIDTH - 84, 2, 28, HUD_HEIGHT - 4, 0x1a2230)
@@ -56,8 +72,9 @@ export class Hud {
       .setDepth(depth + 1);
   }
 
-  update(health: Health, gems: number, mode: WeaponMode): void {
-    const key = `${health.points}/${health.max}/${gems}/${mode}`;
+  update(health: Health, gems: number, mode: WeaponMode, mana: Mana): void {
+    const filled = Math.round((MANA_BAR.w - 2) * (mana.current / mana.max));
+    const key = `${health.points}/${health.max}/${gems}/${mode}/${filled}`;
     if (key === this.shown) return;
     this.shown = key;
     const icons = heartIcons(health, HUD.heartX, HUD.heartSpacing);
@@ -77,10 +94,17 @@ export class Hud {
     }
     this.gemText.setText(gemLabel(gems, HUD.maxGems));
     this.weapon.setTexture(mode === 'near' ? 'sword-icon' : 'dagger');
+    this.manaFill.width = filled;
+    this.manaFill.setVisible(filled > 0);
   }
 
   /** What the bar shows, for the e2e test hook. */
-  shows(): { hearts: ('full' | 'half' | 'empty')[]; gems: string; weapon: string } {
+  shows(): {
+    hearts: ('full' | 'half' | 'empty')[];
+    gems: string;
+    weapon: string;
+    manaWidth: number;
+  } {
     const hearts = this.backs
       .map((back, i) => ({ back, front: this.fronts[i] }))
       .filter(({ back }) => back.visible)
@@ -88,7 +112,12 @@ export class Hud {
         if (!front?.visible) return 'empty' as const;
         return front.isCropped ? ('half' as const) : ('full' as const);
       });
-    return { hearts, gems: this.gemText.text, weapon: this.weapon.texture.key };
+    return {
+      hearts,
+      gems: this.gemText.text,
+      weapon: this.weapon.texture.key,
+      manaWidth: this.manaFill.visible ? this.manaFill.width : 0,
+    };
   }
 
   private addHeartSlot(): void {

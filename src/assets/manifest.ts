@@ -95,6 +95,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('effects', 'slash-upward', 52, 56, 5, 1, [anim('play', range(0, 5), 20, false)]),
   sheet('effects', 'hit', 31, 32, 3, 1, [anim('play', range(0, 3), 15, false)]),
   sheet('effects', 'puff', 64, 64, 7, 1, [anim('play', range(0, 7), 14, false)]),
+  // The Fireball spell in flight (points right; rotated to its direction).
+  sheet('effects', 'fire-ball', 52, 29, 3, 1, [anim('fly', range(0, 3), 12)]),
 
   // Pickups: spinning gems (money) and the dungeon-objects sheet (hearts, potions, chests).
   sheet(
