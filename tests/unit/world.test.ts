@@ -128,24 +128,27 @@ describe('moving between rooms', () => {
   });
 });
 
-describe('robot placements', () => {
-  it('keeps each room’s robot cells', () => {
-    const w = buildWorld([{ ...walled(0, 0, {}), robots: [{ col: 3, row: 4 }] }, walled(1, 0, {})]);
-    expect(w.robots.get('0,0')).toEqual([{ col: 3, row: 4 }]);
-    expect(w.robots.get('1,0')).toEqual([]);
+describe('enemy placements', () => {
+  it('keeps each room’s enemy cells', () => {
+    const w = buildWorld([
+      { ...walled(0, 0, {}), enemies: [{ kind: 'wolf', col: 3, row: 4 }] },
+      walled(1, 0, {}),
+    ]);
+    expect(w.enemies.get('0,0')).toEqual([{ kind: 'wolf', col: 3, row: 4 }]);
+    expect(w.enemies.get('1,0')).toEqual([]);
   });
 
-  it('rejects a robot in a wall or outside the room', () => {
-    expect(() => buildWorld([{ ...walled(0, 0, {}), robots: [{ col: 0, row: 0 }] }])).toThrow(
-      'room 0,0: robot at column 0, row 0 is not on open ground',
-    );
-    expect(() => buildWorld([{ ...walled(0, 0, {}), robots: [{ col: 25, row: 3 }] }])).toThrow(
-      'not on open ground',
-    );
+  it('rejects an enemy in a wall or outside the room', () => {
+    expect(() =>
+      buildWorld([{ ...walled(0, 0, {}), enemies: [{ kind: 'robot', col: 0, row: 0 }] }]),
+    ).toThrow('room 0,0: robot at column 0, row 0 is not on open ground');
+    expect(() =>
+      buildWorld([{ ...walled(0, 0, {}), enemies: [{ kind: 'eye', col: 25, row: 3 }] }]),
+    ).toThrow('not on open ground');
   });
 
-  it('every robot in the overworld stands on open ground', () => {
+  it('every enemy in the overworld starts on open ground', () => {
     expect(() => buildWorld(OVERWORLD)).not.toThrow();
-    expect([...buildWorld(OVERWORLD).robots.values()].flat().length).toBeGreaterThan(0);
+    expect([...buildWorld(OVERWORLD).enemies.values()].flat().length).toBeGreaterThan(0);
   });
 });

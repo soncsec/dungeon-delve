@@ -86,6 +86,12 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('enemies', 'robot-side', 20, 16, 4, 1, [anim('walk', range(0, 4), 8)]),
   sheet('enemies', 'robot-back', 20, 16, 4, 1, [anim('walk', range(0, 4), 8)]),
 
+  // M2.6 enemies (Gothicvania): side views facing right, mirrored to face left.
+  sheet('enemies', 'bird', 32, 32, 7, 1, [anim('fly', range(0, 7), 12)]),
+  sheet('enemies', 'eye', 48, 48, 8, 1, [anim('fly', range(0, 8), 10)]),
+  sheet('enemies', 'ghost', 64, 64, 6, 1, [anim('fly', range(0, 6), 8)]),
+  sheet('enemies', 'wolf', 56, 32, 4, 1, [anim('run', range(0, 4), 10)]),
+
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),
   sheet('tiles', 'town', 16, 16, 24, 13),
@@ -97,6 +103,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('effects', 'puff', 64, 64, 7, 1, [anim('play', range(0, 7), 14, false)]),
   // The Fireball spell in flight (points right; rotated to its direction).
   sheet('effects', 'fire-ball', 52, 29, 3, 1, [anim('fly', range(0, 3), 12)]),
+  // The flying eye's shot.
+  sheet('effects', 'enemy-shot', 16, 16, 2, 1, [anim('fly', range(0, 2), 8)]),
 
   // Pickups: spinning gems (money) and the dungeon-objects sheet (hearts, potions, chests).
   sheet(

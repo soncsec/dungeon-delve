@@ -66,7 +66,7 @@
 - [x] M2.3 Health Potion and Mana Brew (faster recharge for a while); potion keys 1 and 2
 - [ ] M2.4 Shield: blocks projectiles from the front while not attacking
 - [ ] M2.5 Inventory screen: equip near weapon, far weapon, spell, shield; shows potions, gems, keys, shards
-- [ ] M2.6 Four more enemy types (bat, ghost, fire skull, flying eye), including projectile shooters
+- [x] M2.6 Four more enemy types: bird, ghost, flying eye (shoots), wolf (charges); built before M2.4 (owner 2026-10-20)
 - [ ] M2.7 Death and respawn rules
 - [ ] M2.8 Sound effects made in code
 - [ ] M2.9 Frame-time budget test with a crowded room

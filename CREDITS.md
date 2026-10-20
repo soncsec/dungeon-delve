@@ -14,6 +14,10 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 ### Enemies
 
 - `assets/enemies/robot-front.png`, `assets/enemies/robot-side.png`, `assets/enemies/robot-back.png` — `TinyRPG/Characters/top-down-dungeon-enemy-robot/Spritesheets/robot-walk-*.png`
+- `assets/enemies/bird.png` — `Gothicvania/Characters/flying-bird/spritesheets/flying-creature-cycle-skin.png`
+- `assets/enemies/eye.png` — `Gothicvania/Characters/flying-eye-demon/Spritesheet.png`
+- `assets/enemies/ghost.png` — `Gothicvania/Characters/enemy-ghost/Spritesheets/no-particles.png`
+- `assets/enemies/wolf.png` — `Gothicvania/Characters/wolf-runing-cycle/spritesheets/wolf-runing-cycle-skin.png`
 
 ### Tiles
 
@@ -26,6 +30,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/effects/puff.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/enemy-death.png`
 - `assets/effects/hit.png` — `Explosions and Magic/Hit/hit.png`
 - `assets/effects/fire-ball.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/fire-ball.png`
+- `assets/effects/enemy-shot.png` — `Gothicvania/Misc/EnemyProjectile/spritesheet.png`
 
 ### Items
 

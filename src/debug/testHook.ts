@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { ASSETS } from '../assets/manifest';
 import type { AssetPreviewScene } from '../scenes/AssetPreviewScene';
+import type { EnemyKind } from '../logic/enemies';
 import type { Facing } from '../logic/hero';
 import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
 
@@ -19,14 +20,14 @@ export interface TestHook {
   missingTextures(): string[];
   /** Put the hero's feet at a room position (room pixels), optionally facing a way. */
   placeHero(x: number, y: number, facing?: Facing): void;
-  /** A robot with its feet at a room position. */
-  spawnRobot(x: number, y: number): void;
+  /** An enemy with its feet at a room position. */
+  spawnEnemy(kind: EnemyKind, x: number, y: number): void;
   /** A gem, small heart or potion at a room position. */
   spawnPickup(kind: PickupKind, x: number, y: number): void;
-  /** Remove every robot in the current room. */
-  clearRobots(): void;
-  /** Stop robots wandering (true) or let them wander again; knockback still moves them. */
-  holdRobots(hold: boolean): void;
+  /** Remove every enemy and enemy shot in the current room. */
+  clearEnemies(): void;
+  /** Stop enemies moving and shooting (true), or let them go again; knockback still moves them. */
+  holdEnemies(hold: boolean): void;
   /** Set the mana level. */
   setMana(current: number): void;
   /** What the status bar shows: each heart's state, and the gem count text. */
@@ -57,10 +58,10 @@ export function installTestHook(game: Phaser.Game): void {
       return s && game.scene.isActive('AssetPreview') ? s.currentGroup() : null;
     },
     placeHero: (x, y, facing) => gameScene(game).placeHero(x, y, facing),
-    spawnRobot: (x, y) => gameScene(game).testSpawnRobot(x, y),
+    spawnEnemy: (kind, x, y) => gameScene(game).testSpawnEnemy(kind, x, y),
     spawnPickup: (kind, x, y) => gameScene(game).testSpawnPickup(kind, x, y),
-    clearRobots: () => gameScene(game).testClearRobots(),
-    holdRobots: (hold) => gameScene(game).testHoldRobots(hold),
+    clearEnemies: () => gameScene(game).testClearEnemies(),
+    holdEnemies: (hold) => gameScene(game).testHoldEnemies(hold),
     setMana: (current) => gameScene(game).testSetMana(current),
     hud: () => gameScene(game).hudShows(),
     missingTextures: () => ASSETS.filter((a) => !game.textures.exists(a.key)).map((a) => a.key),

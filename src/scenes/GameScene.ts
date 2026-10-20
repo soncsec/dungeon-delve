@@ -13,7 +13,8 @@ import {
   ROOM_ROWS,
   PICKUPS,
   POTIONS,
-  ROBOT,
+  ENEMIES,
+  ENEMY_SHOT,
   ROOM_SLIDE_MS,
   SWORD,
   TILE,
@@ -38,7 +39,16 @@ import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/po
 import { MANA_BREW_TINT } from '../entities/Hud';
 import type { Axis, Point } from '../logic/movement';
 import { createRng, type Rng } from '../logic/rng';
-import { hitRobot, isDefeated, robotBody, spawnRobot, stepRobot, type Robot } from '../logic/robot';
+import {
+  enemyBody,
+  hitEnemy,
+  isDefeated,
+  spawnEnemy,
+  stepEnemy,
+  type Enemy,
+  type EnemyKind,
+} from '../logic/enemies';
+import { fireShot, shotBox, stepShot, type EnemyShot } from '../logic/enemyShots';
 import { isSolid, type Dir } from '../logic/room';
 import {
   centre,
@@ -87,9 +97,11 @@ export interface GameSnapshot {
   /** True while a hit is pushing Jarrett back. */
   knockedBack: boolean;
   gems: number;
-  robots: { x: number; y: number; health: number }[];
+  enemies: { kind: EnemyKind; x: number; y: number; health: number; charging: boolean }[];
+  /** Enemy shots in the air. */
+  enemyShots: { x: number; y: number }[];
   pickups: { kind: PickupKind; x: number; y: number }[];
-  /** Robots defeated since the game started. */
+  /** Enemies defeated since the game started. */
   defeated: number;
   /** Which weapon the attack key uses. */
   mode: WeaponMode;
@@ -125,13 +137,31 @@ const DAGGER_ANGLE: Readonly<Record<Facing, number>> = { right: 0, down: 90, lef
 /** Projectile hits use ids far above any swing number, so the two never clash. */
 const SHOT_HIT_IDS = 1_000_000;
 
-interface LiveRobot {
-  r: Robot;
+interface LiveEnemy {
+  e: Enemy;
   sprite: Phaser.GameObjects.Sprite;
 }
 
 /** Things on the ground: drops, and potions. */
 export type PickupKind = Drop | 'health-potion' | 'mana-brew';
+
+interface LiveEnemyShot {
+  s: EnemyShot;
+  sprite: Phaser.GameObjects.Sprite;
+}
+
+/**
+ * How each enemy's art sits on its feet. Side-view kinds face right in the
+ * art and are mirrored to face left; the robot has a sheet per facing.
+ */
+const ENEMY_ART: Readonly<
+  Record<Exclude<EnemyKind, 'robot'>, { sheet: string; anim: string; feetY: number }>
+> = {
+  bird: { sheet: 'bird', anim: 'fly', feetY: 30 / 32 },
+  eye: { sheet: 'eye', anim: 'fly', feetY: 39 / 48 },
+  ghost: { sheet: 'ghost', anim: 'fly', feetY: 52 / 64 },
+  wolf: { sheet: 'wolf', anim: 'run', feetY: 1 },
+};
 
 interface Pickup {
   kind: PickupKind;
@@ -202,14 +232,15 @@ export class GameScene extends Phaser.Scene {
   private defeated = 0;
   private heroKnockMs = 0;
   private heroKnockDir: Facing = 'down';
-  private robots: LiveRobot[] = [];
+  private enemies: LiveEnemy[] = [];
+  private enemyShots: LiveEnemyShot[] = [];
   private pickups: Pickup[] = [];
-  private robotPool!: SpritePool;
+  private enemyPool!: SpritePool;
   private pickupPool!: SpritePool;
   private fxPool!: SpritePool;
   private hud!: Hud;
-  /** Test hook only: robots stop wandering (knockback still moves them). */
-  private robotsHold = false;
+  /** Test hook only: enemies stop moving and shooting (knockback still moves them). */
+  private enemiesHold = false;
   private mode: WeaponMode = 'near';
   private shots: Shot[] = [];
   private shotPool!: SpritePool;
@@ -235,9 +266,10 @@ export class GameScene extends Phaser.Scene {
     this.gems = 0;
     this.defeated = 0;
     this.heroKnockMs = 0;
-    this.robots = [];
+    this.enemies = [];
+    this.enemyShots = [];
     this.pickups = [];
-    this.robotsHold = false;
+    this.enemiesHold = false;
     this.mode = 'near';
     this.shots = [];
     this.shotPool = new SpritePool(this);
@@ -249,7 +281,7 @@ export class GameScene extends Phaser.Scene {
     this.potions = { ...POTIONS.start };
     this.lastThrowAt = null;
     this.throwUntil = 0;
-    this.robotPool = new SpritePool(this);
+    this.enemyPool = new SpritePool(this);
     this.pickupPool = new SpritePool(this);
     this.fxPool = new SpritePool(this);
     this.room = { ...START_ROOM };
@@ -269,7 +301,7 @@ export class GameScene extends Phaser.Scene {
     this.slash = this.add.sprite(0, 0, 'slash-horizontal', 0).setVisible(false);
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
     this.swing = { startedAt: null };
-    this.spawnRobots();
+    this.spawnEnemies();
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
   }
 
@@ -286,7 +318,8 @@ export class GameScene extends Phaser.Scene {
     const attack = presses.some((c) => ATTACK_KEYS.has(c));
     const cast = presses.some((c) => SPELL_KEYS.has(c));
     this.mana = refill(this.mana, time, deltaMs, MANA);
-    this.stepRobots(deltaMs);
+    this.stepEnemies(deltaMs);
+    this.stepEnemyShots(deltaMs, time);
     this.stepShots(deltaMs);
     if (attack && this.heroKnockMs <= 0) {
       if (this.mode === 'near') this.trySwing(time);
@@ -312,7 +345,7 @@ export class GameScene extends Phaser.Scene {
       this.walk(deltaMs);
     }
 
-    this.touchRobots(time);
+    this.touchEnemies(time);
     this.collectPickups();
     // Blink while invulnerable.
     this.hero.setAlpha(
@@ -372,65 +405,126 @@ export class GameScene extends Phaser.Scene {
     return cx < 0 || cy < 0 || cx >= ROOM_COLS || cy >= ROOM_ROWS;
   }
 
-  /** Robots appear at their start cells each time Jarrett enters a room. */
-  private spawnRobots(): void {
-    for (const cell of this.world.robots.get(roomKey(this.room.col, this.room.row)) ?? []) {
-      this.addRobot({ x: cell.col * TILE + TILE / 2, y: (cell.row + 1) * TILE - 1 });
+  /** Enemies appear at their start cells each time Jarrett enters a room. */
+  private spawnEnemies(): void {
+    for (const p of this.world.enemies.get(roomKey(this.room.col, this.room.row)) ?? []) {
+      this.addEnemy(p.kind, { x: p.col * TILE + TILE / 2, y: (p.row + 1) * TILE - 1 });
     }
   }
 
-  private addRobot(feet: Point): void {
-    const r = spawnRobot(feet, ROBOT, this.rng);
-    const sprite = this.robotPool.take('robot-front').setOrigin(0.5, 1);
-    this.robots.push({ r, sprite });
-    this.drawRobot({ r, sprite });
+  private addEnemy(kind: EnemyKind, feet: Point): void {
+    const e = spawnEnemy(kind, feet, ENEMIES[kind], this.rng);
+    const art = kind === 'robot' ? null : ENEMY_ART[kind];
+    const sprite = this.enemyPool
+      .take(art ? art.sheet : 'robot-front')
+      .setOrigin(0.5, art ? art.feetY : 1);
+    const live = { e, sprite };
+    this.enemies.push(live);
+    this.drawEnemy(live);
   }
 
-  private stepRobots(deltaMs: number): void {
+  private stepEnemies(deltaMs: number): void {
     const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
-    // Robots stay in their room.
-    const solid = (cx: number, cy: number): boolean =>
-      this.outsideRoom(cx, cy) || (room ? isSolid(room, cx, cy) : true);
-    for (const live of this.robots) {
-      if (this.robotsHold && live.r.knockMs <= 0) continue;
-      live.r = stepRobot(live.r, deltaMs, ROBOT, this.rng, solid);
-      this.drawRobot(live);
+    // Everyone stays in the room; walkers are also stopped by walls and trees.
+    const flySolid = (cx: number, cy: number): boolean => this.outsideRoom(cx, cy);
+    const walkSolid = (cx: number, cy: number): boolean =>
+      flySolid(cx, cy) || (room ? isSolid(room, cx, cy) : true);
+    for (const live of this.enemies) {
+      if (this.enemiesHold && live.e.knockMs <= 0) continue;
+      const step = stepEnemy(live.e, deltaMs, ENEMIES[live.e.kind], {
+        hero: this.pos,
+        rng: this.rng,
+        walkSolid,
+        flySolid,
+        shotBlocked: (p) => walkSolid(Math.floor(p.x / TILE), Math.floor(p.y / TILE)),
+      });
+      live.e = step.enemy;
+      if (step.shot) this.addEnemyShot(step.shot.from, step.shot.dir);
+      this.drawEnemy(live);
     }
   }
 
-  private drawRobot({ r, sprite }: LiveRobot): void {
-    const sheet =
-      r.facing === 'down' ? 'robot-front' : r.facing === 'up' ? 'robot-back' : 'robot-side';
-    sprite.play(animKey(sheet, 'walk'), true);
-    // The side sheet faces left.
-    sprite.setFlipX(r.facing === 'right');
-    if (r.knockMs > 0) sprite.setTint(0xff7070);
+  private drawEnemy({ e, sprite }: LiveEnemy): void {
+    if (e.kind === 'robot') {
+      const sheet =
+        e.facing === 'down' ? 'robot-front' : e.facing === 'up' ? 'robot-back' : 'robot-side';
+      sprite.play(animKey(sheet, 'walk'), true);
+      // The robot's side sheet faces left.
+      sprite.setFlipX(e.facing === 'right');
+    } else {
+      const art = ENEMY_ART[e.kind];
+      sprite.play(animKey(art.sheet, art.anim), true);
+      // These face right in the art; facing up or down keeps the last side.
+      if (e.facing === 'left') sprite.setFlipX(true);
+      if (e.facing === 'right') sprite.setFlipX(false);
+    }
+    if (e.knockMs > 0) sprite.setTint(0xff7070);
     else sprite.clearTint();
     const o = this.origin(this.room.col, this.room.row);
-    sprite.setPosition(o.x + r.pos.x, o.y + r.pos.y).setDepth(DEPTH.sorted + o.y + r.pos.y);
+    sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(DEPTH.sorted + o.y + e.pos.y);
   }
 
-  /** Every robot under the blade takes one hit per swing; defeated ones vanish in a puff. */
-  private swordHits(): void {
-    const box = swordBox(this.pos, this.facing, SWORD);
-    for (const live of [...this.robots]) {
-      if (!overlaps(box, robotBody(live.r, ROBOT))) continue;
-      const before = live.r;
-      live.r = hitRobot(live.r, SWORD.damage, this.swings, this.facing, ROBOT);
-      if (live.r === before) continue;
-      this.effect('hit', live.r.pos.x, live.r.pos.y - ROBOT.box.height / 2);
-      if (isDefeated(live.r)) this.defeat(live);
+  private addEnemyShot(from: Point, dir: { x: number; y: number }): void {
+    const s = fireShot(from, dir);
+    const sprite = this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
+    const live = { s, sprite };
+    this.enemyShots.push(live);
+    this.drawEnemyShot(live);
+  }
+
+  /** Flies enemy shots; one that reaches a wall or tree, or the end of its range, is gone. One that hits Jarrett hurts him. */
+  private stepEnemyShots(deltaMs: number, now: number): void {
+    const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
+    const solid = (cx: number, cy: number): boolean =>
+      this.outsideRoom(cx, cy) || (room ? isSolid(room, cx, cy) : true);
+    for (const live of [...this.enemyShots]) {
+      if (this.enemiesHold) continue;
+      const step = stepShot(live.s, deltaMs, ENEMY_SHOT, solid);
+      live.s = step.shot;
+      const hit = overlaps(shotBox(live.s, ENEMY_SHOT), this.heroBody());
+      if (hit) this.hurtHero(ENEMY_SHOT.damage, live.s.pos, now);
+      if (hit || step.stopped) this.dropEnemyShot(live);
+      else this.drawEnemyShot(live);
     }
   }
 
-  private defeat(live: LiveRobot): void {
-    this.robots = this.robots.filter((x) => x !== live);
-    this.robotPool.give(live.sprite);
+  private drawEnemyShot({ s, sprite }: LiveEnemyShot): void {
+    const o = this.origin(this.room.col, this.room.row);
+    sprite.setPosition(o.x + s.pos.x, o.y + s.pos.y).setDepth(DEPTH.over - 3);
+  }
+
+  private dropEnemyShot(live: LiveEnemyShot): void {
+    this.enemyShots = this.enemyShots.filter((x) => x !== live);
+    this.enemyPool.give(live.sprite);
+  }
+
+  /** Every enemy under the blade takes one hit per swing; defeated ones vanish in a puff. */
+  private swordHits(): void {
+    const box = swordBox(this.pos, this.facing, SWORD);
+    for (const live of [...this.enemies]) {
+      if (!overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind]))) continue;
+      this.strike(live, SWORD.damage, this.swings, this.facing);
+    }
+  }
+
+  /** One hit (by id, so each lands once) on an enemy, pushing it the way given. */
+  private strike(live: LiveEnemy, damage: number, hitId: number, from: Facing): void {
+    const stats = ENEMIES[live.e.kind];
+    const before = live.e;
+    live.e = hitEnemy(live.e, damage, hitId, from, stats);
+    if (live.e === before) return;
+    this.effect('hit', live.e.pos.x, live.e.pos.y - stats.box.height / 2);
+    if (isDefeated(live.e)) this.defeat(live);
+  }
+
+  private defeat(live: LiveEnemy): void {
+    this.enemies = this.enemies.filter((x) => x !== live);
+    this.enemyPool.give(live.sprite);
     this.defeated += 1;
-    const { x, y } = live.r.pos;
-    this.effect('puff', x, y - ROBOT.box.height / 2);
+    const { x, y } = live.e.pos;
+    this.effect('puff', x, y - ENEMIES[live.e.kind].box.height / 2);
     const drop = rollDrop(this.rng, DROPS);
-    if (drop) this.addPickup(drop, live.r.pos);
+    if (drop) this.addPickup(drop, live.e.pos);
   }
 
   private addPickup(kind: PickupKind, pos: Point): void {
@@ -469,15 +563,22 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Touching a robot hurts, pushes Jarrett away, and makes him briefly invulnerable. */
-  private touchRobots(now: number): void {
+  /** Touching an enemy hurts. */
+  private touchEnemies(now: number): void {
     if (isInvulnerable(this.health, now)) return;
     const body = this.heroBody();
-    const toucher = this.robots.find((live) => overlaps(body, robotBody(live.r, ROBOT)));
-    if (!toucher) return;
-    this.health = takeDamage(this.health, ROBOT.contactDamage, now, HEALTH.invulnerableMs);
+    const toucher = this.enemies.find((live) =>
+      overlaps(body, enemyBody(live.e, ENEMIES[live.e.kind])),
+    );
+    if (toucher) this.hurtHero(ENEMIES[toucher.e.kind].contactDamage, toucher.e.pos, now);
+  }
+
+  /** Damage, a push away from `source`, and a moment of invulnerability (ignored while invulnerable). */
+  private hurtHero(halfHearts: number, source: Point, now: number): void {
+    if (isInvulnerable(this.health, now)) return;
+    this.health = takeDamage(this.health, halfHearts, now, HEALTH.invulnerableMs);
     this.heroKnockMs = HEALTH.knockback.ms;
-    this.heroKnockDir = awayFrom(toucher.r.pos, this.pos);
+    this.heroKnockDir = awayFrom(source, this.pos);
   }
 
   /** Plays a one-shot effect from the pool at a room position. */
@@ -551,7 +652,7 @@ export class GameScene extends Phaser.Scene {
       .map(({ d }) => ({ x: d.pos.x, y: d.pos.y, dir: d.dir }));
   }
 
-  /** Flies every dagger and fireball; one that hits a wall, a robot, or the end of its range is gone. */
+  /** Flies every dagger and fireball; one that hits a wall, an enemy, or the end of its range is gone. */
   private stepShots(deltaMs: number): void {
     const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
     const solid = (cx: number, cy: number): boolean =>
@@ -561,12 +662,10 @@ export class GameScene extends Phaser.Scene {
       const step = stepProjectile(shot.d, deltaMs, t, solid);
       shot.d = step.projectile;
       const box = projectileBox(shot.d, t);
-      const target = this.robots.find((r) => overlaps(box, robotBody(r.r, ROBOT)));
-      if (target) {
-        target.r = hitRobot(target.r, t.damage, shot.d.id, shot.d.dir, ROBOT);
-        this.effect('hit', target.r.pos.x, target.r.pos.y - ROBOT.box.height / 2);
-        if (isDefeated(target.r)) this.defeat(target);
-      }
+      const target = this.enemies.find((live) =>
+        overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind])),
+      );
+      if (target) this.strike(target, t.damage, shot.d.id, shot.d.dir);
       if (target || step.stopped) this.dropShot(shot);
       else this.drawShot(shot);
     }
@@ -595,12 +694,13 @@ export class GameScene extends Phaser.Scene {
     else this.mana = boost(this.mana, now, MANA.boostMs);
   }
 
-  /** Clears the room's robots and pickups (on leaving it). */
+  /** Clears the room's enemies, shots and pickups (on leaving it). */
   private clearRoom(): void {
     for (const shot of [...this.shots]) this.dropShot(shot);
-    for (const live of this.robots) this.robotPool.give(live.sprite);
+    for (const live of this.enemies) this.enemyPool.give(live.sprite);
+    for (const live of [...this.enemyShots]) this.dropEnemyShot(live);
     for (const p of this.pickups) this.pickupPool.give(p.sprite);
-    this.robots = [];
+    this.enemies = [];
     this.pickups = [];
   }
 
@@ -623,7 +723,14 @@ export class GameScene extends Phaser.Scene {
       invulnerable: isInvulnerable(this.health, this.now),
       knockedBack: this.heroKnockMs > 0,
       gems: this.gems,
-      robots: this.robots.map(({ r }) => ({ x: r.pos.x, y: r.pos.y, health: r.health })),
+      enemies: this.enemies.map(({ e }) => ({
+        kind: e.kind,
+        x: e.pos.x,
+        y: e.pos.y,
+        health: e.health,
+        charging: e.chargeMs > 0,
+      })),
+      enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
       mode: this.mode,
@@ -654,9 +761,9 @@ export class GameScene extends Phaser.Scene {
     this.placeSprite();
   }
 
-  /** Test hook only: a robot with its feet at a room position. */
-  testSpawnRobot(x: number, y: number): void {
-    this.addRobot({ x, y });
+  /** Test hook only: an enemy with its feet at a room position. */
+  testSpawnEnemy(kind: EnemyKind, x: number, y: number): void {
+    this.addEnemy(kind, { x, y });
   }
 
   /** Test hook only: a pickup at a room position. */
@@ -664,9 +771,9 @@ export class GameScene extends Phaser.Scene {
     this.addPickup(kind, { x, y });
   }
 
-  /** Test hook only: stop (or restart) robots wandering, so a test can aim at one. */
-  testHoldRobots(hold: boolean): void {
-    this.robotsHold = hold;
+  /** Test hook only: stop (or restart) enemies moving and shooting, so a test can aim at one. */
+  testHoldEnemies(hold: boolean): void {
+    this.enemiesHold = hold;
   }
 
   /** Test hook only: set the mana level. */
@@ -685,10 +792,11 @@ export class GameScene extends Phaser.Scene {
     return this.hud.shows();
   }
 
-  /** Test hook only: remove every robot in the room. */
-  testClearRobots(): void {
-    for (const live of this.robots) this.robotPool.give(live.sprite);
-    this.robots = [];
+  /** Test hook only: remove every enemy and enemy shot in the room. */
+  testClearEnemies(): void {
+    for (const live of this.enemies) this.enemyPool.give(live.sprite);
+    for (const live of [...this.enemyShots]) this.dropEnemyShot(live);
+    this.enemies = [];
   }
 
   /** Slides the view to the room next door. Jarrett keeps his place on screen and stands still meanwhile. */
@@ -712,7 +820,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         for (const o of old) o.destroy();
         this.sliding = false;
-        this.spawnRobots();
+        this.spawnEnemies();
       },
     });
   }
