@@ -66,13 +66,14 @@ test('asset preview scene loads every asset and pages through the groups', async
   expect(await page.evaluate(() => window.__game?.missingTextures() ?? null)).toEqual([]);
   const first = await page.evaluate(() => window.__game?.previewGroup() ?? null);
   expect(first).toBe('characters');
+  // One key at a time, checking the page after each, so every step is accounted for.
+  const group = () => page.evaluate(() => window.__game?.previewGroup() ?? null);
   await page.keyboard.press('ArrowRight');
-  await expect
-    .poll(() => page.evaluate(() => window.__game?.previewGroup() ?? null))
-    .toBe('enemies');
+  await expect.poll(group).toBe('enemies');
   await page.keyboard.press('ArrowLeft');
-  await page.keyboard.press('ArrowLeft');
-  await expect.poll(() => page.evaluate(() => window.__game?.previewGroup() ?? null)).toBe('items');
+  await expect.poll(group).toBe('characters');
+  await page.keyboard.press('ArrowLeft'); // wraps round to the last group
+  await expect.poll(group).toBe('items');
   expect(watched.errors).toEqual([]);
   expect(watched.foreignRequests).toEqual([]);
 });
