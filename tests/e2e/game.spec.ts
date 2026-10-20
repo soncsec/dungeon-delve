@@ -429,8 +429,9 @@ test('the flying eye shoots at Jarrett, and a shot costs half a heart', async ({
   const start = await snapshot(page);
   // Within the distance it keeps, so it circles and shoots rather than closing in.
   await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('eye', x + 90, y), start.player);
+  // A shot is only in the air for half a second or so, so count shots fired rather than catch one.
   await expect
-    .poll(async () => (await snapshot(page)).enemyShots.length, { timeout: 10_000 })
+    .poll(async () => (await snapshot(page)).shotsFired, { timeout: 10_000 })
     .toBeGreaterThan(0);
   await expect.poll(async () => (await snapshot(page)).health.points, { timeout: 10_000 }).toBe(5);
 });

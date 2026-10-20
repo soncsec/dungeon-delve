@@ -121,6 +121,8 @@ export const ASSETS: readonly SheetAsset[] = [
   // Weapons: the throwing dagger (points right; rotated in flight) and the sword icon for the status bar.
   sheet('items', 'dagger', 32, 32, 1, 1),
   sheet('items', 'sword-icon', 16, 16, 1, 1),
+  // The Mana Brew: the pack's potion with its liquid recoloured blue (tools/art/mana_brew.py).
+  sheet('items', 'mana-brew', 16, 16, 1, 1),
 ];
 
 /** Animation key for one of a sheet's named animations. */

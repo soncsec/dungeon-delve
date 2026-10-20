@@ -37,7 +37,6 @@ import { fullHealth, heal, isInvulnerable, isOut, takeDamage, type Health } from
 import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
 import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '../logic/mana';
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
-import { MANA_BREW_TINT } from '../entities/Hud';
 import type { Axis, Point } from '../logic/movement';
 import { createRng, type Rng } from '../logic/rng';
 import { shieldBlocks } from '../logic/shield';
@@ -100,8 +99,9 @@ export interface GameSnapshot {
   knockedBack: boolean;
   gems: number;
   enemies: { kind: EnemyKind; x: number; y: number; health: number; charging: boolean }[];
-  /** Enemy shots in the air, and how many the shield has blocked. */
+  /** Enemy shots in the air, how many have been fired, and how many the shield has blocked. */
   enemyShots: { x: number; y: number }[];
+  shotsFired: number;
   blocked: number;
   pickups: { kind: PickupKind; x: number; y: number }[];
   /** Enemies defeated since the game started. */
@@ -238,6 +238,7 @@ export class GameScene extends Phaser.Scene {
   private enemies: LiveEnemy[] = [];
   private enemyShots: LiveEnemyShot[] = [];
   private blocked = 0;
+  private shotsFired = 0;
   private pickups: Pickup[] = [];
   private enemyPool!: SpritePool;
   private pickupPool!: SpritePool;
@@ -273,6 +274,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies = [];
     this.enemyShots = [];
     this.blocked = 0;
+    this.shotsFired = 0;
     this.pickups = [];
     this.enemiesHold = false;
     this.mode = 'near';
@@ -441,7 +443,6 @@ export class GameScene extends Phaser.Scene {
         rng: this.rng,
         walkSolid,
         flySolid,
-        shotBlocked: (p) => walkSolid(Math.floor(p.x / TILE), Math.floor(p.y / TILE)),
       });
       live.e = step.enemy;
       if (step.shot) this.addEnemyShot(step.shot.from, step.shot.dir);
@@ -478,6 +479,7 @@ export class GameScene extends Phaser.Scene {
 
   private addEnemyShot(from: Point, dir: { x: number; y: number }): void {
     const s = fireShot(from, dir);
+    this.shotsFired += 1;
     const sprite = this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
     const live = { s, sprite };
     this.enemyShots.push(live);
@@ -550,11 +552,12 @@ export class GameScene extends Phaser.Scene {
     const sprite =
       kind === 'gem'
         ? this.pickupPool.take('gems').play(animKey('gems', 'teal'))
-        : this.pickupPool.take(
-            'objects',
-            kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
-          );
-    if (kind === 'mana-brew') sprite.setTint(MANA_BREW_TINT);
+        : kind === 'mana-brew'
+          ? this.pickupPool.take('mana-brew')
+          : this.pickupPool.take(
+              'objects',
+              kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
+            );
     sprite.setOrigin(0.5, 1);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);
@@ -751,6 +754,7 @@ export class GameScene extends Phaser.Scene {
       })),
       enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
       blocked: this.blocked,
+      shotsFired: this.shotsFired,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
       mode: this.mode,

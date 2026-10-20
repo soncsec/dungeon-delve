@@ -33,9 +33,8 @@ export interface EnemyStats {
   knockback: { speed: number; ms: number };
   /** Hover: the distances it keeps from Jarrett. */
   keep?: { near: number; far: number };
-  /** Shooting: time between shots (ms), and how soon it tries again when it can't fire. */
+  /** Shooting: time between shots (ms). */
   shootMs?: { min: number; max: number };
-  shootRetryMs?: number;
   /** Charge: how fast and long, how far it sees, how close in line counts, and the rest after. */
   charge?: { speed: number; ms: number; sight: number; inLine: number; restMs: number };
 }
@@ -75,8 +74,6 @@ export interface StepContext {
   walkSolid: (cx: number, cy: number) => boolean;
   /** Solid for fliers: only outside the room. */
   flySolid: (cx: number, cy: number) => boolean;
-  /** Whether a shot can't start here (inside a wall or tree): a flier above one waits. */
-  shotBlocked?: (p: Point) => boolean;
 }
 
 export interface StepResult {
@@ -226,14 +223,8 @@ function hover(
   let shootInMs = e.shootInMs - dtMs;
   let shot: StepResult['shot'] = null;
   if (s.shootMs && shootInMs <= 0) {
-    const from = shotOrigin(moved, s);
-    if (ctx.shotBlocked?.(from)) {
-      // Over a wall or tree: try again shortly.
-      shootInMs = s.shootRetryMs ?? 300;
-    } else {
-      shot = { from, dir: to.x === 0 && to.y === 0 ? { x: 0, y: 1 } : to };
-      shootInMs = ctx.rng.int(s.shootMs.min, s.shootMs.max);
-    }
+    shot = { from: shotOrigin(moved, s), dir: to.x === 0 && to.y === 0 ? { x: 0, y: 1 } : to };
+    shootInMs = ctx.rng.int(s.shootMs.min, s.shootMs.max);
   }
   return { enemy: { ...moved, facing, shootInMs }, shot };
 }

@@ -33,6 +33,24 @@ describe('enemy shots', () => {
     expect(r.shot.travelled).toBeCloseTo(r.shot.pos.x - 10);
   });
 
+  it('fired from inside a wall, fly out of it, then stop at the next wall', () => {
+    // Walls at x 0–15 (where it starts) and x 64–79.
+    const walls = (cx: number): boolean => cx === 0 || cx === 4;
+    const r = stepShot(fireShot({ x: 8, y: 8 }, { x: 1, y: 0 }), 1000, { ...t, range: 500 }, walls);
+    expect(r.stopped).toBe(true);
+    expect(r.shot.clear).toBe(true);
+    expect(r.shot.pos.x).toBeGreaterThan(16);
+    expect(r.shot.pos.x).toBeLessThan(64);
+  });
+
+  it('still inside the wall it started in, it keeps flying', () => {
+    const wall = (cx: number): boolean => cx === 0;
+    const r = stepShot(fireShot({ x: 2, y: 8 }, { x: 1, y: 0 }), 50, t, wall); // 5 px: still in the wall
+    expect(r.stopped).toBe(false);
+    expect(r.shot.clear).toBe(false);
+    expect(r.shot.pos.x).toBe(7);
+  });
+
   it('have a square hit box round their middle', () => {
     expect(shotBox(fireShot({ x: 20, y: 30 }, { x: 1, y: 0 }), t)).toEqual({
       x: 17,
@@ -48,6 +66,6 @@ describe('enemy shots', () => {
     const s = fireShot(from, dir);
     from.x = 99;
     dir.y = -1;
-    expect(s).toEqual({ pos: { x: 1, y: 2 }, dir: { x: 0, y: 1 }, travelled: 0 });
+    expect(s).toEqual({ pos: { x: 1, y: 2 }, dir: { x: 0, y: 1 }, travelled: 0, clear: false });
   });
 });
