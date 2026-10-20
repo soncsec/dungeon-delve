@@ -17,7 +17,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/logic/**'],
-      thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
+      // The owner's rule: every line and branch of the game rules is tested.
+      thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
     },
   },
 });
