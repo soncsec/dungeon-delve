@@ -50,8 +50,8 @@
 - [x] M1.2 Room data format and loader (text rooms, tile legend, automatic edges); unit tests
 - [x] M1.3 Movement with 4-direction walk animations and wall collision
 - [x] M1.4 Flip-screen room transitions over a 3×3 test area
-- [ ] M1.5 Sword swing with slash effect, hit detection and knockback
-- [ ] M1.6 Robot enemy (pooled; the pack's slime is too big for a basic enemy, see M1.1), hearts, damage and brief invulnerability, gem and heart drops
+- [x] M1.5 Sword swing (Space or J) with the slash effect; the area each swing covers, and overlap tests (hitting and knocking back enemies moved to M1.6, when the first enemy exists)
+- [ ] M1.6 Robot enemy that the sword hits and knocks back (pooled; the pack's slime is too big for a basic enemy, see M1.1), hearts, damage and brief invulnerability, gem and heart drops
 - [ ] M1.7 HUD bar: hearts, gems
 - [ ] M1.8 Playwright: boots clean with no third-party requests; walks between rooms; a sword hit defeats a robot
 

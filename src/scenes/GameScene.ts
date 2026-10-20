@@ -8,12 +8,14 @@ import {
   ROOM_COLS,
   ROOM_ROWS,
   ROOM_SLIDE_MS,
+  SWORD,
   TILE,
 } from '../config/tuning';
 import { KeyInput } from '../input/keyboard';
 import { facingFor, moveHero, type Facing } from '../logic/hero';
 import type { Axis, Point } from '../logic/movement';
 import type { Dir } from '../logic/room';
+import { centre, isSwinging, startSwing, swordBox, type Rect, type Swing } from '../logic/sword';
 import { roomArt } from '../logic/tiles';
 import {
   buildWorld,
@@ -36,6 +38,15 @@ export interface GameSnapshot {
   room: { col: number; row: number };
   /** True while the view slides to the next room. */
   sliding: boolean;
+  /** Where Jarrett's feet were when he entered the current room (null in the start room). */
+  enteredAt: Point | null;
+  /** The area the sword covers, while a swing is under way. */
+  sword: Rect | null;
+  /** Swings started so far, and the area the latest one covered (kept after it ends). */
+  swings: number;
+  lastSword: Rect | null;
+  /** Where Jarrett stood when the latest swing ended (null until one has ended). */
+  stoodAfterSwing: Point | null;
 }
 
 /** Depth layers: ground, then props and the hero sorted by their feet, then tree tops, then the HUD. */
@@ -44,6 +55,8 @@ const DEPTH = { ground: 0, sorted: 10, over: 1_000_000, hud: 2_000_000 } as cons
 const ROOM_W = ROOM_COLS * TILE;
 const ROOM_H = ROOM_ROWS * TILE;
 
+/** Keys that swing the sword. */
+const ATTACK_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ']);
 /** Every key the overworld uses (browser key codes). */
 const KEYS = new Set([
   'ArrowUp',
@@ -54,6 +67,7 @@ const KEYS = new Set([
   'KeyA',
   'KeyS',
   'KeyD',
+  ...ATTACK_KEYS,
 ]);
 
 /**
@@ -72,6 +86,15 @@ export class GameScene extends Phaser.Scene {
   private room: { col: number; row: number } = { ...START_ROOM };
   private roomObjects: Phaser.GameObjects.GameObject[] = [];
   private sliding = false;
+  private enteredAt: Point | null = null;
+  private swing: Swing = { startedAt: null };
+  /** Game time of the latest frame, in ms. */
+  private now = 0;
+  private swings = 0;
+  private lastSword: Rect | null = null;
+  private swingFrom: Point | null = null;
+  private stoodAfterSwing: Point | null = null;
+  private slash!: Phaser.GameObjects.Sprite;
 
   constructor() {
     super('Game');
@@ -82,6 +105,7 @@ export class GameScene extends Phaser.Scene {
     this.world = buildWorld(OVERWORLD);
     this.room = { ...START_ROOM };
     this.sliding = false;
+    this.enteredAt = null;
     this.roomObjects = this.drawRoom(this.room.col, this.room.row);
     this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
     this.add
@@ -96,10 +120,28 @@ export class GameScene extends Phaser.Scene {
 
     this.keys = new KeyInput(KEYS);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.keys.destroy());
+    // One slash effect, reused for every swing.
+    this.slash = this.add.sprite(0, 0, 'slash-horizontal', 0).setVisible(false);
+    this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
+    this.swing = { startedAt: null };
   }
 
-  override update(_time: number, deltaMs: number): void {
+  override update(time: number, deltaMs: number): void {
+    this.now = time;
+    // Presses made during a slide are dropped, not saved up.
+    const attack = this.keys.takePresses().some((c) => ATTACK_KEYS.has(c));
     if (this.sliding) return;
+    if (attack) this.trySwing(time);
+    if (isSwinging(this.swing, time, SWORD.durationMs)) {
+      // Jarrett plants his feet while the blade is out.
+      this.moving = false;
+      return;
+    }
+    if (this.swingFrom) {
+      // The swing just ended: record where he stood, before any walking this frame.
+      this.stoodAfterSwing = { ...this.pos };
+      this.swingFrom = null;
+    }
     const axis = this.readAxis();
     this.facing = facingFor(axis, this.facing);
     const before = this.pos;
@@ -122,6 +164,13 @@ export class GameScene extends Phaser.Scene {
       seed: this.seed,
       room: { ...this.room },
       sliding: this.sliding,
+      enteredAt: this.enteredAt ? { ...this.enteredAt } : null,
+      sword: isSwinging(this.swing, this.now, SWORD.durationMs)
+        ? swordBox(this.pos, this.facing, SWORD)
+        : null,
+      swings: this.swings,
+      lastSword: this.lastSword ? { ...this.lastSword } : null,
+      stoodAfterSwing: this.stoodAfterSwing ? { ...this.stoodAfterSwing } : null,
     };
   }
 
@@ -136,6 +185,7 @@ export class GameScene extends Phaser.Scene {
     const next = neighbour(this.room.col, this.room.row, dir);
     const old = this.roomObjects;
     this.pos = enterFrom(this.pos, dir);
+    this.enteredAt = { ...this.pos };
     this.room = next;
     this.roomObjects = this.drawRoom(next.col, next.row);
     this.sliding = true;
@@ -152,6 +202,30 @@ export class GameScene extends Phaser.Scene {
         this.sliding = false;
       },
     });
+  }
+
+  /** Starts a swing (unless one is under way) and shows the slash in front of Jarrett. */
+  private trySwing(now: number): void {
+    const next = startSwing(this.swing, now, SWORD.durationMs);
+    if (next === this.swing) return;
+    this.swing = next;
+    this.animate(false);
+    const box = swordBox(this.pos, this.facing, SWORD);
+    this.swings += 1;
+    this.lastSword = box;
+    this.swingFrom = { ...this.pos };
+    const o = this.origin(this.room.col, this.room.row);
+    const at = centre(box);
+    const sideways = this.facing === 'left' || this.facing === 'right';
+    const key = sideways ? 'slash-horizontal' : 'slash-upward';
+    this.slash
+      .setTexture(key, 0)
+      .setPosition(o.x + at.x, o.y + at.y)
+      .setFlip(this.facing === 'left', this.facing === 'down')
+      // Behind Jarrett when swinging up (the blade is beyond his head), in front otherwise.
+      .setDepth(this.hero.depth + (this.facing === 'up' ? -1 : 1))
+      .setVisible(true)
+      .play(animKey(key, 'play'));
   }
 
   /** Walk animation while a direction is held (even against a wall); stand still otherwise. */

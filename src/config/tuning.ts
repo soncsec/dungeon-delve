@@ -25,5 +25,14 @@ export const HERO = {
   start: { col: 10, row: 5, lift: 2 },
 } as const;
 
+/** The sword: how far it reaches from Jarrett's body, and how long a swing lasts. */
+export const SWORD = {
+  reach: 16,
+  sweep: 20,
+  bodyHeight: 20,
+  bodyHalfWidth: 4,
+  durationMs: 250,
+} as const;
+
 /** Seed for the random number generator; override with ?seed= in the URL. */
 export const DEFAULT_SEED = 1;
