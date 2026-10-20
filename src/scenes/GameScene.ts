@@ -12,6 +12,7 @@ import {
   ROOM_COLS,
   ROOM_ROWS,
   PICKUPS,
+  POTIONS,
   ROBOT,
   ROOM_SLIDE_MS,
   SWORD,
@@ -32,7 +33,9 @@ import {
 } from '../logic/weapons';
 import { fullHealth, heal, isInvulnerable, isOut, takeDamage, type Health } from '../logic/health';
 import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
-import { canCast, fullMana, refill, spend, type Mana } from '../logic/mana';
+import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '../logic/mana';
+import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
+import { MANA_BREW_TINT } from '../entities/Hud';
 import type { Axis, Point } from '../logic/movement';
 import { createRng, type Rng } from '../logic/rng';
 import { hitRobot, isDefeated, robotBody, spawnRobot, stepRobot, type Robot } from '../logic/robot';
@@ -85,7 +88,7 @@ export interface GameSnapshot {
   knockedBack: boolean;
   gems: number;
   robots: { x: number; y: number; health: number }[];
-  pickups: { kind: Drop; x: number; y: number }[];
+  pickups: { kind: PickupKind; x: number; y: number }[];
   /** Robots defeated since the game started. */
   defeated: number;
   /** Which weapon the attack key uses. */
@@ -95,6 +98,9 @@ export interface GameSnapshot {
   mana: { current: number; max: number };
   /** Fireballs cast so far. */
   casts: number;
+  potions: Potions;
+  /** True while a Mana Brew is speeding up mana. */
+  manaBoosted: boolean;
   /** Daggers thrown so far, and whether another may be thrown now. */
   thrown: number;
   throwReady: boolean;
@@ -124,8 +130,11 @@ interface LiveRobot {
   sprite: Phaser.GameObjects.Sprite;
 }
 
+/** Things on the ground: drops, and potions. */
+export type PickupKind = Drop | 'health-potion' | 'mana-brew';
+
 interface Pickup {
-  kind: Drop;
+  kind: PickupKind;
   pos: Point;
   sprite: Phaser.GameObjects.Sprite;
 }
@@ -144,6 +153,8 @@ const ATTACK_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ']);
 const SWITCH_KEYS: ReadonlySet<string> = new Set(['KeyX', 'KeyK']);
 /** Keys that cast the ready spell. */
 const SPELL_KEYS: ReadonlySet<string> = new Set(['KeyC', 'KeyL']);
+/** Keys that drink a potion. */
+const POTION_KEYS: Readonly<Record<string, PotionKind>> = { Digit1: 'health', Digit2: 'mana' };
 /** Every key the overworld uses (browser key codes). */
 const KEYS = new Set([
   'ArrowUp',
@@ -157,6 +168,7 @@ const KEYS = new Set([
   ...ATTACK_KEYS,
   ...SWITCH_KEYS,
   ...SPELL_KEYS,
+  ...Object.keys(POTION_KEYS),
 ]);
 
 /**
@@ -206,6 +218,7 @@ export class GameScene extends Phaser.Scene {
   private casts = 0;
   private mana: Mana = fullMana(MANA.max);
   private lastCastAt: number | null = null;
+  private potions: Potions = { ...POTIONS.start };
   private lastThrowAt: number | null = null;
   /** Jarrett stands still until this time after a throw. */
   private throwUntil = 0;
@@ -233,6 +246,7 @@ export class GameScene extends Phaser.Scene {
     this.casts = 0;
     this.mana = fullMana(MANA.max);
     this.lastCastAt = null;
+    this.potions = { ...POTIONS.start };
     this.lastThrowAt = null;
     this.throwUntil = 0;
     this.robotPool = new SpritePool(this);
@@ -256,7 +270,7 @@ export class GameScene extends Phaser.Scene {
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
     this.swing = { startedAt: null };
     this.spawnRobots();
-    this.hud.update(this.health, this.gems, this.mode, this.mana);
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
   }
 
   override update(time: number, deltaMs: number): void {
@@ -266,6 +280,8 @@ export class GameScene extends Phaser.Scene {
     if (this.sliding) return;
     for (const code of presses) {
       if (SWITCH_KEYS.has(code)) this.mode = otherMode(this.mode);
+      const potion = POTION_KEYS[code];
+      if (potion) this.drink(potion, time);
     }
     const attack = presses.some((c) => ATTACK_KEYS.has(c));
     const cast = presses.some((c) => SPELL_KEYS.has(c));
@@ -303,7 +319,7 @@ export class GameScene extends Phaser.Scene {
       isInvulnerable(this.health, time) && Math.floor(time / 80) % 2 === 0 ? 0.3 : 1,
     );
     this.placeSprite();
-    this.hud.update(this.health, this.gems, this.mode, this.mana);
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
     if (isOut(this.health)) {
       // M1: start again from the start room; the real death rules come in M2.7.
       this.scene.restart();
@@ -417,11 +433,15 @@ export class GameScene extends Phaser.Scene {
     if (drop) this.addPickup(drop, live.r.pos);
   }
 
-  private addPickup(kind: Drop, pos: Point): void {
+  private addPickup(kind: PickupKind, pos: Point): void {
     const sprite =
       kind === 'gem'
         ? this.pickupPool.take('gems').play(animKey('gems', 'teal'))
-        : this.pickupPool.take('objects', OBJECT_FRAMES.smallHeart);
+        : this.pickupPool.take(
+            'objects',
+            kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
+          );
+    if (kind === 'mana-brew') sprite.setTint(MANA_BREW_TINT);
     sprite.setOrigin(0.5, 1);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);
@@ -433,7 +453,17 @@ export class GameScene extends Phaser.Scene {
     for (const p of [...this.pickups]) {
       if (!overlaps(body, { x: p.pos.x - 6, y: p.pos.y - 12, w: 12, h: 12 })) continue;
       if (p.kind === 'gem') this.gems += PICKUPS.gemValue;
-      else this.health = heal(this.health, PICKUPS.heartHeals);
+      else if (p.kind === 'heart') this.health = heal(this.health, PICKUPS.heartHeals);
+      else {
+        const got = addPotion(
+          this.potions,
+          p.kind === 'health-potion' ? 'health' : 'mana',
+          POTIONS.max,
+        );
+        // With no room in his bag, he leaves it on the ground.
+        if (!got.taken) continue;
+        this.potions = got.potions;
+      }
       this.pickups = this.pickups.filter((x) => x !== p);
       this.pickupPool.give(p.sprite);
     }
@@ -552,6 +582,19 @@ export class GameScene extends Phaser.Scene {
     this.shotPool.give(shot.sprite.setAngle(0));
   }
 
+  /**
+   * Drinks a potion, if he has one. A Health Potion refills every heart (and
+   * isn't wasted when he's already well); a Mana Brew speeds up mana.
+   */
+  private drink(kind: PotionKind, now: number): void {
+    if (kind === 'health' && this.health.points >= this.health.max) return;
+    const r = usePotion(this.potions, kind);
+    if (!r.used) return;
+    this.potions = r.potions;
+    if (kind === 'health') this.health = heal(this.health, this.health.max);
+    else this.mana = boost(this.mana, now, MANA.boostMs);
+  }
+
   /** Clears the room's robots and pickups (on leaving it). */
   private clearRoom(): void {
     for (const shot of [...this.shots]) this.dropShot(shot);
@@ -588,6 +631,8 @@ export class GameScene extends Phaser.Scene {
       fireballs: this.shotsOf('fireball'),
       mana: { current: this.mana.current, max: this.mana.max },
       casts: this.casts,
+      potions: { ...this.potions },
+      manaBoosted: isBoosted(this.mana, this.now),
       thrown: this.thrown,
       throwReady: canThrow(
         this.countShots('dagger'),
@@ -615,7 +660,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Test hook only: a pickup at a room position. */
-  testSpawnPickup(kind: Drop, x: number, y: number): void {
+  testSpawnPickup(kind: PickupKind, x: number, y: number): void {
     this.addPickup(kind, { x, y });
   }
 
@@ -635,6 +680,7 @@ export class GameScene extends Phaser.Scene {
     gems: string;
     weapon: string;
     manaWidth: number;
+    potions: { health: string; mana: string };
   } {
     return this.hud.shows();
   }

@@ -221,7 +221,8 @@ test('the status bar shows hearts and gems', async ({ page }) => {
     hearts: ['full', 'full', 'full'],
     gems: '000',
     weapon: 'sword-icon',
-    manaWidth: 50,
+    manaWidth: 42,
+    potions: { health: '1', mana: '1' },
   });
 
   const start = await snapshot(page);
@@ -316,11 +317,11 @@ test('C casts a Fireball: it costs mana, which then refills by itself', async ({
   await page.keyboard.press('c');
   await expect.poll(async () => (await snapshot(page)).casts).toBe(1);
   expect((await snapshot(page)).mana.current).toBe(75);
-  await expect.poll(async () => (await hud())?.manaWidth).toBe(38); // 75% of the 50-px bar
+  await expect.poll(async () => (await hud())?.manaWidth).toBe(32); // 75% of the bar's 42-px fill, rounded
   await expect.poll(async () => (await snapshot(page)).fireballs).toEqual([]);
   // After a short pause it refills to full by itself (25 mana at 12 per second).
   await expect.poll(async () => (await snapshot(page)).mana.current, { timeout: 15_000 }).toBe(100);
-  await expect.poll(async () => (await hud())?.manaWidth).toBe(50);
+  await expect.poll(async () => (await hud())?.manaWidth).toBe(42);
 });
 
 test('without enough mana, nothing is cast', async ({ page }) => {
@@ -341,4 +342,55 @@ test('one Fireball defeats a robot', async ({ page }) => {
   await page.keyboard.press('c');
   await expect.poll(async () => (await snapshot(page)).defeated).toBe(1);
   expect((await snapshot(page)).casts).toBe(1);
+});
+
+test('1 drinks a Health Potion, but only when Jarrett is hurt', async ({ page }) => {
+  await openGame(page);
+  expect((await snapshot(page)).potions).toEqual({ health: 1, mana: 1 });
+  // At full health it isn't wasted.
+  await page.keyboard.press('1');
+  await page.waitForTimeout(200);
+  expect((await snapshot(page)).potions.health).toBe(1);
+
+  const start = await snapshot(page);
+  await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x + 6, y), start.player);
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
+  await page.evaluate(() => window.__game?.clearRobots());
+  await page.keyboard.press('1');
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(6);
+  expect((await snapshot(page)).potions.health).toBe(0);
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.hud()))?.potions.health)
+    .toBe('0');
+});
+
+test('2 drinks a Mana Brew, which makes mana refill faster', async ({ page }) => {
+  await openGame(page);
+  expect((await snapshot(page)).manaBoosted).toBe(false);
+  await page.keyboard.press('2');
+  await expect.poll(async () => (await snapshot(page)).manaBoosted).toBe(true);
+  expect((await snapshot(page)).potions.mana).toBe(0);
+  // Pressing 2 with none left does nothing.
+  await page.keyboard.press('2');
+  await page.waitForTimeout(200);
+  expect((await snapshot(page)).potions.mana).toBe(0);
+});
+
+test('Jarrett picks up potions up to three of each; a fourth stays on the ground', async ({
+  page,
+}) => {
+  await openGame(page);
+  const at = (await snapshot(page)).player;
+  for (let n = 2; n <= 3; n++) {
+    await page.evaluate(({ x, y }) => window.__game?.spawnPickup('health-potion', x, y), at);
+    await expect.poll(async () => (await snapshot(page)).potions.health).toBe(n);
+  }
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('health-potion', x, y), at);
+  await page.waitForTimeout(300);
+  const s = await snapshot(page);
+  expect(s.potions.health).toBe(3);
+  expect(s.pickups.map((p) => p.kind)).toEqual(['health-potion']);
+
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('mana-brew', x, y), at);
+  await expect.poll(async () => (await snapshot(page)).potions.mana).toBe(2);
 });

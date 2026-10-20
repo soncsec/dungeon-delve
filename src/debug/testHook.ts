@@ -1,9 +1,8 @@
 import type Phaser from 'phaser';
 import { ASSETS } from '../assets/manifest';
 import type { AssetPreviewScene } from '../scenes/AssetPreviewScene';
-import type { Drop } from '../logic/drops';
 import type { Facing } from '../logic/hero';
-import type { GameScene, GameSnapshot } from '../scenes/GameScene';
+import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
 
 /**
  * Test-only hook for Playwright (ADR-006). It is loaded only in the e2e build
@@ -22,8 +21,8 @@ export interface TestHook {
   placeHero(x: number, y: number, facing?: Facing): void;
   /** A robot with its feet at a room position. */
   spawnRobot(x: number, y: number): void;
-  /** A gem or small heart at a room position. */
-  spawnPickup(kind: Drop, x: number, y: number): void;
+  /** A gem, small heart or potion at a room position. */
+  spawnPickup(kind: PickupKind, x: number, y: number): void;
   /** Remove every robot in the current room. */
   clearRobots(): void;
   /** Stop robots wandering (true) or let them wander again; knockback still moves them. */
@@ -36,6 +35,7 @@ export interface TestHook {
     gems: string;
     weapon: string;
     manaWidth: number;
+    potions: { health: string; mana: string };
   };
 }
 
