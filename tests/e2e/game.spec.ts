@@ -444,3 +444,27 @@ test('the wolf charges when Jarrett is in line with it', async ({ page }) => {
   // It rushes at him, far faster than it walks.
   await expect.poll(async () => (await snapshot(page)).health.points).toBeLessThan(6);
 });
+
+test('the shield blocks a shot from the front, but not from the side', async ({ page }) => {
+  await openGame(page);
+  const at = (await snapshot(page)).player;
+  const mid = at.y - 10; // the middle of his body
+
+  // Facing right, a shot from the right is blocked.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'right'), at);
+  await page.evaluate(({ x, y }) => window.__game?.fireEnemyShot(x + 60, y, -1, 0), {
+    x: at.x,
+    y: mid,
+  });
+  await expect.poll(async () => (await snapshot(page)).blocked).toBe(1);
+  expect((await snapshot(page)).health.points).toBe(6);
+
+  // Facing up, the same shot hits him in the side.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'up'), at);
+  await page.evaluate(({ x, y }) => window.__game?.fireEnemyShot(x + 60, y, -1, 0), {
+    x: at.x,
+    y: mid,
+  });
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
+  expect((await snapshot(page)).blocked).toBe(1);
+});

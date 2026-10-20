@@ -64,7 +64,7 @@
 - [x] M2.1 Near/far weapon switch (X or K) and throwing daggers (pooled); for M2 Jarrett has them from the start, M3 makes them dungeon 1's prize
 - [x] M2.2 Mana bar with auto-recharge after a pause; Fireball spell (C or L)
 - [x] M2.3 Health Potion and Mana Brew (faster recharge for a while); potion keys 1 and 2
-- [ ] M2.4 Shield: blocks projectiles from the front while not attacking
+- [x] M2.4 Shield: blocks projectiles from the front while not attacking (Wooden Shield, ±60°)
 - [ ] M2.5 Inventory screen: equip near weapon, far weapon, spell, shield; shows potions, gems, keys, shards
 - [x] M2.6 Four more enemy types: bird, ghost, flying eye (shoots), wolf (charges); built before M2.4 (owner 2026-10-20)
 - [ ] M2.7 Death and respawn rules

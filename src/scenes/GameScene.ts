@@ -16,6 +16,7 @@ import {
   ENEMIES,
   ENEMY_SHOT,
   ROOM_SLIDE_MS,
+  SHIELD,
   SWORD,
   TILE,
 } from '../config/tuning';
@@ -38,6 +39,7 @@ import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '.
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
 import type { Axis, Point } from '../logic/movement';
 import { createRng, type Rng } from '../logic/rng';
+import { shieldBlocks } from '../logic/shield';
 import {
   enemyBody,
   hitEnemy,
@@ -97,9 +99,10 @@ export interface GameSnapshot {
   knockedBack: boolean;
   gems: number;
   enemies: { kind: EnemyKind; x: number; y: number; health: number; charging: boolean }[];
-  /** Enemy shots in the air, and how many have been fired. */
+  /** Enemy shots in the air, how many have been fired, and how many the shield has blocked. */
   enemyShots: { x: number; y: number }[];
   shotsFired: number;
+  blocked: number;
   pickups: { kind: PickupKind; x: number; y: number }[];
   /** Enemies defeated since the game started. */
   defeated: number;
@@ -234,6 +237,7 @@ export class GameScene extends Phaser.Scene {
   private heroKnockDir: Facing = 'down';
   private enemies: LiveEnemy[] = [];
   private enemyShots: LiveEnemyShot[] = [];
+  private blocked = 0;
   private shotsFired = 0;
   private pickups: Pickup[] = [];
   private enemyPool!: SpritePool;
@@ -269,6 +273,7 @@ export class GameScene extends Phaser.Scene {
     this.heroKnockMs = 0;
     this.enemies = [];
     this.enemyShots = [];
+    this.blocked = 0;
     this.shotsFired = 0;
     this.pickups = [];
     this.enemiesHold = false;
@@ -465,6 +470,13 @@ export class GameScene extends Phaser.Scene {
     sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(DEPTH.sorted + o.y + e.pos.y);
   }
 
+  /** Swinging, throwing, casting, or being knocked back: the shield isn't up. */
+  private handsBusy(now: number): boolean {
+    return (
+      isSwinging(this.swing, now, SWORD.durationMs) || now < this.throwUntil || this.heroKnockMs > 0
+    );
+  }
+
   private addEnemyShot(from: Point, dir: { x: number; y: number }): void {
     const s = fireShot(from, dir);
     this.shotsFired += 1;
@@ -484,7 +496,14 @@ export class GameScene extends Phaser.Scene {
       const step = stepShot(live.s, deltaMs, ENEMY_SHOT, solid);
       live.s = step.shot;
       const hit = overlaps(shotBox(live.s, ENEMY_SHOT), this.heroBody());
-      if (hit) this.hurtHero(ENEMY_SHOT.damage, live.s.pos, now);
+      if (hit) {
+        if (shieldBlocks(this.facing, live.s.dir, this.handsBusy(now), SHIELD.coverCos)) {
+          this.blocked += 1;
+          this.effect('hit', live.s.pos.x, live.s.pos.y);
+        } else {
+          this.hurtHero(ENEMY_SHOT.damage, live.s.pos, now);
+        }
+      }
       if (hit || step.stopped) this.dropEnemyShot(live);
       else this.drawEnemyShot(live);
     }
@@ -734,6 +753,7 @@ export class GameScene extends Phaser.Scene {
         charging: e.chargeMs > 0,
       })),
       enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
+      blocked: this.blocked,
       shotsFired: this.shotsFired,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
@@ -773,6 +793,12 @@ export class GameScene extends Phaser.Scene {
   /** Test hook only: a pickup at a room position. */
   testSpawnPickup(kind: PickupKind, x: number, y: number): void {
     this.addPickup(kind, { x, y });
+  }
+
+  /** Test hook only: an enemy shot from a room position, flying along (dx, dy) (normalised). */
+  testFireEnemyShot(x: number, y: number, dx: number, dy: number): void {
+    const len = Math.hypot(dx, dy) || 1;
+    this.addEnemyShot({ x, y }, { x: dx / len, y: dy / len });
   }
 
   /** Test hook only: stop (or restart) enemies moving and shooting, so a test can aim at one. */

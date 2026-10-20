@@ -161,6 +161,12 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyStats>> = {
   },
 };
 
+/** The Wooden Shield: blocks shots arriving within 60° of straight at Jarrett's front. */
+export const SHIELD = {
+  /** Cosine of the widest angle it still covers (cos 60° = 0.5). */
+  coverCos: 0.5,
+} as const;
+
 /** The flying eye's shot. */
 export const ENEMY_SHOT = {
   speed: 110,
