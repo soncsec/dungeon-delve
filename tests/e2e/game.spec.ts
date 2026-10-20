@@ -162,6 +162,8 @@ test('two sword hits defeat a robot', async ({ page }) => {
   await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
 
   // It was knocked back; step up to it and swing again.
+  // Aim only once it has stopped sliding from the last hit.
+  await expect.poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked)).toBe(false);
   const r = (await snapshot(page)).enemies[0];
   if (!r) throw new Error('robot vanished after one hit');
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), {
@@ -253,6 +255,10 @@ test('the M1 loop: walk to the next room and defeat one of its robots', async ({
 
   // Stand just above the first robot, facing down, and swing until it's gone.
   for (let swing = 0; swing < 4 && (await snapshot(page)).defeated === 0; swing++) {
+    // Aim only once it has stopped sliding from the last hit.
+    await expect
+      .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
+      .toBe(false);
     const r = (await snapshot(page)).enemies[0];
     if (!r) break;
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 14, 'down'), r);
@@ -297,6 +303,10 @@ test('a thrown dagger flies until a wall stops it, and two daggers defeat a robo
   const start = await snapshot(page);
   await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('robot', x, y + 40), start.player);
   for (let i = 0; i < 4 && (await snapshot(page)).defeated === 0; i++) {
+    // Aim only once it has stopped sliding from the last hit.
+    await expect
+      .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
+      .toBe(false);
     const r = (await snapshot(page)).enemies[0];
     if (!r) break;
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 40, 'down'), r);
@@ -410,6 +420,10 @@ for (const kind of ['bird', 'eye', 'ghost', 'wolf'] as const) {
       y: start.player.y + 50,
     });
     for (let swing = 0; swing < 6 && (await snapshot(page)).defeated === 0; swing++) {
+      // Aim only once it has stopped sliding from the last hit.
+      await expect
+        .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
+        .toBe(false);
       const e = (await snapshot(page)).enemies[0];
       if (!e) break;
       await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), {
@@ -467,4 +481,47 @@ test('the shield blocks a shot from the front, but not from the side', async ({ 
   });
   await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
   expect((await snapshot(page)).blocked).toBe(1);
+});
+
+test('I opens the inventory over a paused game; I closes it', async ({ page }) => {
+  await openGame(page);
+  const before = (await snapshot(page)).player;
+  await page.keyboard.press('i');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Inventory');
+  expect(await page.evaluate(() => window.__game?.inventory())).toEqual({
+    cursor: 0,
+    slots: { near: 'Wooden Sword', far: 'Daggers', spell: 'Fireball', shield: 'Wooden Shield' },
+  });
+  // The game is paused: holding a direction doesn't move Jarrett.
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.press('i');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+  expect((await snapshot(page)).player).toEqual(before);
+  expect(await page.evaluate(() => window.__game?.inventory())).toBeNull();
+});
+
+test('in the inventory, arrows choose a slot and Space switches its item', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => window.__game?.giveItem('steel-sword'));
+  await page.keyboard.press('Tab');
+  await expect.poll(() => page.evaluate(() => window.__game?.inventory()?.cursor)).toBe(0);
+  const inv = () => page.evaluate(() => window.__game?.inventory());
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await inv())?.slots['near']).toBe('Steel Sword');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await inv())?.cursor).toBe(1);
+  // Only one far weapon: Space changes nothing.
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(200);
+  expect((await inv())?.slots['far']).toBe('Daggers');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(async () => (await inv())?.cursor).toBe(3); // wrapped round to Shield
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+  // The choice stays: opening again shows the Steel Sword.
+  await page.keyboard.press('i');
+  await expect.poll(async () => (await inv())?.slots['near']).toBe('Steel Sword');
 });

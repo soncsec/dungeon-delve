@@ -3,7 +3,9 @@ import { ASSETS } from '../assets/manifest';
 import type { AssetPreviewScene } from '../scenes/AssetPreviewScene';
 import type { EnemyKind } from '../logic/enemies';
 import type { Facing } from '../logic/hero';
+import type { ItemId } from '../logic/inventory';
 import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
+import type { InventoryScene } from '../scenes/InventoryScene';
 
 /**
  * Test-only hook for Playwright (ADR-006). It is loaded only in the e2e build
@@ -32,6 +34,10 @@ export interface TestHook {
   holdEnemies(hold: boolean): void;
   /** Set the mana level. */
   setMana(current: number): void;
+  /** Give Jarrett an item (it goes in the inventory). */
+  giveItem(item: ItemId): void;
+  /** What the inventory screen shows, or null when it isn't open. */
+  inventory(): { cursor: number; slots: Record<string, string> } | null;
   /** What the status bar shows: each heart's state, and the gem count text. */
   hud(): {
     hearts: ('full' | 'half' | 'empty')[];
@@ -66,6 +72,11 @@ export function installTestHook(game: Phaser.Game): void {
     fireEnemyShot: (x, y, dx, dy) => gameScene(game).testFireEnemyShot(x, y, dx, dy),
     holdEnemies: (hold) => gameScene(game).testHoldEnemies(hold),
     setMana: (current) => gameScene(game).testSetMana(current),
+    giveItem: (item) => gameScene(game).testGiveItem(item),
+    inventory: () => {
+      const s = game.scene.getScene('Inventory') as InventoryScene | null;
+      return s && game.scene.isActive('Inventory') ? s.shows() : null;
+    },
     hud: () => gameScene(game).hudShows(),
     missingTextures: () => ASSETS.filter((a) => !game.textures.exists(a.key)).map((a) => a.key),
   };
