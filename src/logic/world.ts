@@ -2,7 +2,8 @@
  * The world: rooms laid out on a grid, joined edge to edge (ADR-D01, ADR-D02).
  * Engine-free and unit tested.
  */
-import { edgeOpenings, parseRoom, type Dir, type Room } from './room';
+import { ROOM_COLS, ROOM_ROWS, TILE } from '../config/tuning';
+import { edgeOpenings, isSolid, parseRoom, type Dir, type Room } from './room';
 
 export interface RoomDef {
   /** Grid position: column (west to east) and row (north to south). */
@@ -76,4 +77,39 @@ export function joinProblems(world: World): string[] {
     }
   }
   return problems;
+}
+
+/**
+ * Whether a cell blocks movement, measured from one room but reaching into its
+ * neighbours: (-1, 4) is the west neighbour's column 19, row 4. Where there is
+ * no room, everything is solid, so the hero can only leave through real gaps.
+ */
+export function solidInWorld(
+  world: World,
+  col: number,
+  row: number,
+  cx: number,
+  cy: number,
+): boolean {
+  const dc = Math.floor(cx / ROOM_COLS);
+  const dr = Math.floor(cy / ROOM_ROWS);
+  const room = world.rooms.get(roomKey(col + dc, row + dr));
+  if (!room) return true;
+  return isSolid(room, cx - dc * ROOM_COLS, cy - dr * ROOM_ROWS);
+}
+
+/** The edge the hero has crossed, once the middle of his collision box leaves the room; null while inside. */
+export function exitDirection(feet: { x: number; y: number }, boxHeight: number): Dir | null {
+  const midY = feet.y - boxHeight / 2;
+  if (feet.x < 0) return 'west';
+  if (feet.x >= ROOM_COLS * TILE) return 'east';
+  if (midY < 0) return 'north';
+  if (midY >= ROOM_ROWS * TILE) return 'south';
+  return null;
+}
+
+/** The same spot in the next room's coordinates, after crossing an edge. */
+export function enterFrom(feet: { x: number; y: number }, dir: Dir): { x: number; y: number } {
+  const [dc, dr] = STEP[dir];
+  return { x: feet.x - dc * ROOM_COLS * TILE, y: feet.y - dr * ROOM_ROWS * TILE };
 }

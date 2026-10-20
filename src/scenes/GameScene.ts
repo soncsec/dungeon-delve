@@ -7,13 +7,22 @@ import {
   HUD_HEIGHT,
   ROOM_COLS,
   ROOM_ROWS,
+  ROOM_SLIDE_MS,
   TILE,
 } from '../config/tuning';
 import { facingFor, moveHero, type Facing } from '../logic/hero';
 import type { Axis, Point } from '../logic/movement';
-import { isSolid, type Room } from '../logic/room';
+import type { Dir } from '../logic/room';
 import { roomArt } from '../logic/tiles';
-import { buildWorld, roomKey, type World } from '../logic/world';
+import {
+  buildWorld,
+  enterFrom,
+  exitDirection,
+  neighbour,
+  roomKey,
+  solidInWorld,
+  type World,
+} from '../logic/world';
 import { OVERWORLD, START_ROOM } from '../world/overworld';
 
 /** Read-only view of the game state, used by the e2e test hook. */
@@ -24,17 +33,26 @@ export interface GameSnapshot {
   moving: boolean;
   seed: number;
   room: { col: number; row: number };
+  /** True while the view slides to the next room. */
+  sliding: boolean;
 }
 
 /** Depth layers: ground, then props and the hero sorted by their feet, then tree tops, then the HUD. */
-const DEPTH = { ground: 0, sorted: 10, over: 10_000, hud: 20_000 } as const;
+const DEPTH = { ground: 0, sorted: 10, over: 1_000_000, hud: 2_000_000 } as const;
+
+const ROOM_W = ROOM_COLS * TILE;
+const ROOM_H = ROOM_ROWS * TILE;
 
 type Keys = Record<
   'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd',
   Phaser.Input.Keyboard.Key
 >;
 
-/** The overworld: Jarrett walks around the current room. */
+/**
+ * The overworld. Each room is drawn at its own place in world space (column
+ * × 320, row × 160, below the status bar). The camera shows one room and
+ * slides to the next when Jarrett walks through a gap (ADR-D02).
+ */
 export class GameScene extends Phaser.Scene {
   private hero!: Phaser.GameObjects.Sprite;
   private pos: Point = { x: 0, y: 0 };
@@ -44,7 +62,8 @@ export class GameScene extends Phaser.Scene {
   private seed = DEFAULT_SEED;
   private world!: World;
   private room: { col: number; row: number } = { ...START_ROOM };
-  private current!: Room;
+  private roomObjects: Phaser.GameObjects.GameObject[] = [];
+  private sliding = false;
 
   constructor() {
     super('Game');
@@ -53,9 +72,15 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.seed = seedFromUrl();
     this.world = buildWorld(OVERWORLD);
-    this.current = this.roomAt(this.room.col, this.room.row);
-    this.drawRoom();
-    this.add.rectangle(0, 0, GAME_WIDTH, HUD_HEIGHT, 0x05070f).setOrigin(0).setDepth(DEPTH.hud);
+    this.room = { ...START_ROOM };
+    this.sliding = false;
+    this.roomObjects = this.drawRoom(this.room.col, this.room.row);
+    this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
+    this.add
+      .rectangle(0, 0, GAME_WIDTH, HUD_HEIGHT, 0x05070f)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud);
 
     this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
     this.hero = this.add.sprite(0, 0, 'jarrett', 0).setOrigin(0.5, HERO.feetY / HERO.frameHeight);
@@ -76,15 +101,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   override update(_time: number, deltaMs: number): void {
+    if (this.sliding) return;
     const axis = this.readAxis();
     this.facing = facingFor(axis, this.facing);
     const before = this.pos;
+    const { col, row } = this.room;
     this.pos = moveHero(this.pos, axis, (HERO.speed * deltaMs) / 1000, HERO.box, (cx, cy) =>
-      this.solidAt(cx, cy),
+      solidInWorld(this.world, col, row, cx, cy),
     );
     this.moving = this.pos.x !== before.x || this.pos.y !== before.y;
     this.animate(axis.x !== 0 || axis.y !== 0);
     this.placeSprite();
+    const dir = exitDirection(this.pos, HERO.box.height);
+    if (dir) this.slideTo(dir);
   }
 
   snapshot(): GameSnapshot {
@@ -94,19 +123,37 @@ export class GameScene extends Phaser.Scene {
       moving: this.moving,
       seed: this.seed,
       room: { ...this.room },
+      sliding: this.sliding,
     };
   }
 
-  /** Test hook only: put the hero's feet at a room position. */
+  /** Test hook only: put the hero's feet at a position in the current room (room pixels). */
   placeHero(x: number, y: number): void {
     this.pos = { x, y };
     this.placeSprite();
   }
 
-  /** Walls, props, and (until rooms connect in M1.4) everything outside the room. */
-  private solidAt(cx: number, cy: number): boolean {
-    if (cx < 0 || cy < 0 || cx >= ROOM_COLS || cy >= ROOM_ROWS) return true;
-    return isSolid(this.current, cx, cy);
+  /** Slides the view to the room next door. Jarrett keeps his place on screen and stands still meanwhile. */
+  private slideTo(dir: Dir): void {
+    const next = neighbour(this.room.col, this.room.row, dir);
+    const old = this.roomObjects;
+    this.pos = enterFrom(this.pos, dir);
+    this.room = next;
+    this.roomObjects = this.drawRoom(next.col, next.row);
+    this.sliding = true;
+    this.moving = false;
+    this.animate(false);
+    this.tweens.add({
+      targets: this.cameras.main,
+      scrollX: next.col * ROOM_W,
+      scrollY: next.row * ROOM_H,
+      duration: ROOM_SLIDE_MS,
+      ease: 'Linear',
+      onComplete: () => {
+        for (const o of old) o.destroy();
+        this.sliding = false;
+      },
+    });
   }
 
   /** Walk animation while a direction is held (even against a wall); stand still otherwise. */
@@ -121,37 +168,49 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private placeSprite(): void {
-    this.hero.setPosition(this.pos.x, HUD_HEIGHT + this.pos.y);
-    this.hero.setDepth(DEPTH.sorted + HUD_HEIGHT + this.pos.y);
+  /** Top-left of a room in world pixels. */
+  private origin(col: number, row: number): Point {
+    return { x: col * ROOM_W, y: HUD_HEIGHT + row * ROOM_H };
   }
 
-  private roomAt(col: number, row: number): Room {
+  private placeSprite(): void {
+    const o = this.origin(this.room.col, this.room.row);
+    this.hero.setPosition(o.x + this.pos.x, o.y + this.pos.y);
+    this.hero.setDepth(DEPTH.sorted + o.y + this.pos.y);
+  }
+
+  /** Draws a room at its place in the world; returns everything drawn, to remove later. */
+  private drawRoom(col: number, row: number): Phaser.GameObjects.GameObject[] {
     const room = this.world.rooms.get(roomKey(col, row));
     if (!room) throw new Error(`no room at ${col},${row}`);
-    return room;
-  }
-
-  private drawRoom(): void {
-    const art = roomArt(this.current);
+    const o = this.origin(col, row);
+    const art = roomArt(room);
+    const drawn: Phaser.GameObjects.GameObject[] = [];
     for (const t of art.ground) {
-      this.add
-        .image(t.x, HUD_HEIGHT + t.y, 'forest', t.frame)
-        .setOrigin(0)
-        .setDepth(DEPTH.ground);
+      drawn.push(
+        this.add
+          .image(o.x + t.x, o.y + t.y, 'forest', t.frame)
+          .setOrigin(0)
+          .setDepth(DEPTH.ground),
+      );
     }
     for (const p of art.props) {
-      this.add
-        .image(p.x, HUD_HEIGHT + p.y, 'forest', `prop:${p.prop}`)
-        .setOrigin(0.5, 1)
-        .setDepth(DEPTH.sorted + HUD_HEIGHT + p.y);
+      drawn.push(
+        this.add
+          .image(o.x + p.x, o.y + p.y, 'forest', `prop:${p.prop}`)
+          .setOrigin(0.5, 1)
+          .setDepth(DEPTH.sorted + o.y + p.y),
+      );
     }
     for (const t of art.over) {
-      this.add
-        .image(t.x, HUD_HEIGHT + t.y, 'forest', t.frame)
-        .setOrigin(0)
-        .setDepth(DEPTH.over);
+      drawn.push(
+        this.add
+          .image(o.x + t.x, o.y + t.y, 'forest', t.frame)
+          .setOrigin(0)
+          .setDepth(DEPTH.over),
+      );
     }
+    return drawn;
   }
 
   private readAxis(): Axis {

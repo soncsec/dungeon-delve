@@ -7,6 +7,8 @@ export const ROOM_ROWS = 10;
 export const HUD_HEIGHT = 20;
 export const GAME_WIDTH = ROOM_COLS * TILE;
 export const GAME_HEIGHT = HUD_HEIGHT + ROOM_ROWS * TILE;
+/** How long the view takes to slide to the next room, in ms. */
+export const ROOM_SLIDE_MS = 500;
 
 /** Jarrett. */
 export const HERO = {
