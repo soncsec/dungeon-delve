@@ -56,3 +56,41 @@ test('?seed= in the URL sets the random seed', async ({ page }) => {
   await openGame(page, '?seed=42');
   expect((await snapshot(page)).seed).toBe(42);
 });
+
+test('asset preview scene loads every asset and pages through the groups', async ({ page }) => {
+  const watched = watchPage(page);
+  await page.goto('./?scene=preview');
+  await expect
+    .poll(() => page.evaluate(() => window.__game?.scene() ?? null), { timeout: 15_000 })
+    .toBe('AssetPreview');
+  expect(await page.evaluate(() => window.__game?.missingTextures() ?? null)).toEqual([]);
+  const first = await page.evaluate(() => window.__game?.previewGroup() ?? null);
+  expect(first).toBe('characters');
+  // One key at a time, checking the page after each, so every step is accounted for.
+  const group = () => page.evaluate(() => window.__game?.previewGroup() ?? null);
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(group).toBe('enemies');
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(group).toBe('characters');
+  await page.keyboard.press('ArrowLeft'); // wraps round to the last group
+  await expect.poll(group).toBe('items');
+  expect(watched.errors).toEqual([]);
+  expect(watched.foreignRequests).toEqual([]);
+});
+
+test('Jarrett faces the way he walks, and walls stop him', async ({ page }) => {
+  await openGame(page);
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).facing).toBe('up');
+  await expect.poll(async () => (await snapshot(page)).moving).toBe(true);
+  await page.keyboard.up('ArrowUp');
+
+  // Left of the start room's boulder (cells 4–5, rows 6–7), in row 7.
+  await page.evaluate(() => window.__game?.placeHero(40, 126));
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => (await snapshot(page)).player.x).toBe(59); // flush: 64 − half box width 5
+  await page.waitForTimeout(300);
+  expect((await snapshot(page)).player).toEqual({ x: 59, y: 126 });
+  expect((await snapshot(page)).facing).toBe('right');
+  await page.keyboard.up('ArrowRight');
+});

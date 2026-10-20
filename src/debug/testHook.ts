@@ -1,4 +1,6 @@
 import type Phaser from 'phaser';
+import { ASSETS } from '../assets/manifest';
+import type { AssetPreviewScene } from '../scenes/AssetPreviewScene';
 import type { GameScene, GameSnapshot } from '../scenes/GameScene';
 
 /**
@@ -10,6 +12,12 @@ export interface TestHook {
   /** The key of the scene that is running, or null while loading. */
   scene(): string | null;
   snapshot(): GameSnapshot | null;
+  /** The asset group the preview scene shows, or null when it isn't running. */
+  previewGroup(): string | null;
+  /** Texture keys that failed to load or are missing. */
+  missingTextures(): string[];
+  /** Put the hero's feet at a room position (room pixels). */
+  placeHero(x: number, y: number): void;
 }
 
 declare global {
@@ -25,5 +33,15 @@ export function installTestHook(game: Phaser.Game): void {
       const s = game.scene.getScene('Game') as GameScene | null;
       return s && game.scene.isActive('Game') ? s.snapshot() : null;
     },
+    previewGroup: () => {
+      const s = game.scene.getScene('AssetPreview') as AssetPreviewScene | null;
+      return s && game.scene.isActive('AssetPreview') ? s.currentGroup() : null;
+    },
+    placeHero: (x, y) => {
+      const s = game.scene.getScene('Game') as GameScene | null;
+      if (!s || !game.scene.isActive('Game')) throw new Error('game scene is not running');
+      s.placeHero(x, y);
+    },
+    missingTextures: () => ASSETS.filter((a) => !game.textures.exists(a.key)).map((a) => a.key),
   };
 }
