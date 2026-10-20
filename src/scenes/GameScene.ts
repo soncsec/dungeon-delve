@@ -36,7 +36,6 @@ import { fullHealth, heal, isInvulnerable, isOut, takeDamage, type Health } from
 import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
 import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '../logic/mana';
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
-import { MANA_BREW_TINT } from '../entities/Hud';
 import type { Axis, Point } from '../logic/movement';
 import { createRng, type Rng } from '../logic/rng';
 import {
@@ -531,11 +530,12 @@ export class GameScene extends Phaser.Scene {
     const sprite =
       kind === 'gem'
         ? this.pickupPool.take('gems').play(animKey('gems', 'teal'))
-        : this.pickupPool.take(
-            'objects',
-            kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
-          );
-    if (kind === 'mana-brew') sprite.setTint(MANA_BREW_TINT);
+        : kind === 'mana-brew'
+          ? this.pickupPool.take('mana-brew')
+          : this.pickupPool.take(
+              'objects',
+              kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
+            );
     sprite.setOrigin(0.5, 1);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);

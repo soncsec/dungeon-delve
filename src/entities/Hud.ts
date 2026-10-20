@@ -7,9 +7,8 @@ import type { Potions } from '../logic/potions';
 import type { WeaponMode } from '../logic/weapons';
 import { gemLabel, heartIcons } from '../logic/hud';
 
-/** Empty hearts: the heart art darkened; the Mana Brew: the potion turned blue (runtime tints, ADR-D05). */
+/** Empty hearts: the heart art darkened (runtime tint, ADR-D05). */
 const EMPTY_TINT = 0x40303a;
-export const MANA_BREW_TINT = 0x4f8fff;
 /** The small heart's art spans x 3–13 of its frame; half a heart shows up to x 8. */
 const HALF_WIDTH = 8;
 const MANA_BAR = { x: HUD.manaBarX, y: 7, w: HUD.manaBarWidth, h: 6 } as const;
@@ -54,13 +53,12 @@ export class Hud {
       .setScrollFactor(0)
       .setDepth(depth + 2);
     // Potions: a red Health Potion and a blue Mana Brew, each with its count.
-    const potion = (x: number, tint: number | null) => {
-      const img = scene.add
-        .image(x, (HUD_HEIGHT - 16) / 2, 'objects', OBJECT_FRAMES.potion)
+    const potion = (x: number, texture: string, frame: number) => {
+      scene.add
+        .image(x, (HUD_HEIGHT - 16) / 2, texture, frame)
         .setOrigin(0)
         .setScrollFactor(0)
         .setDepth(depth + 1);
-      if (tint !== null) img.setTint(tint);
       return scene.add
         .text(x + 14, HUD_HEIGHT / 2 - 4, '0', {
           fontFamily: HUD.font,
@@ -71,8 +69,8 @@ export class Hud {
         .setDepth(depth + 1);
     };
     this.potionText = {
-      health: potion(HUD.healthPotionX, null),
-      mana: potion(HUD.manaPotionX, MANA_BREW_TINT),
+      health: potion(HUD.healthPotionX, 'objects', OBJECT_FRAMES.potion),
+      mana: potion(HUD.manaPotionX, 'mana-brew', 0),
     };
     // The ready weapon, in a dark box left of the gems.
     scene.add
