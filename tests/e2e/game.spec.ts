@@ -232,3 +232,29 @@ test('the status bar shows hearts and gems', async ({ page }) => {
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('gem', x, y), at);
   await expect.poll(async () => (await hud())?.gems).toBe('001');
 });
+
+test('the M1 loop: walk to the next room and defeat one of its robots', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.keyboard.down('ArrowLeft');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 0, row: 1 });
+  await page.keyboard.up('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  expect((await snapshot(page)).robots).toHaveLength(2);
+  await page.evaluate(() => window.__game?.holdRobots(true));
+
+  // Stand just above the first robot, facing down, and swing until it's gone.
+  for (let swing = 0; swing < 4 && (await snapshot(page)).defeated === 0; swing++) {
+    const r = (await snapshot(page)).robots[0];
+    if (!r) break;
+    await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 14, 'down'), r);
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  }
+  expect((await snapshot(page)).defeated).toBe(1);
+  expect((await snapshot(page)).robots).toHaveLength(1);
+  expect(watched.errors).toEqual([]);
+  expect(watched.foreignRequests).toEqual([]);
+});
