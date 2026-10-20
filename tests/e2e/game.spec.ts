@@ -104,13 +104,39 @@ test('walking through a gap slides to the next room, and back', async ({ page })
     .toEqual({ col: 0, row: 1 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
-  const arrived = await snapshot(page);
-  expect(arrived.player.x).toBeGreaterThan(300); // at the new room's east edge
-  expect(arrived.player.y).toBe(94); // same row as before
+  const arrived = (await snapshot(page)).enteredAt;
+  expect(arrived?.x).toBeGreaterThan(300); // at the new room's east edge
+  expect(arrived?.y).toBe(94); // same row as before
 
   await page.keyboard.down('ArrowRight');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
     .toEqual({ col: 1, row: 1 });
   await page.keyboard.up('ArrowRight');
+});
+
+test('Space or J swings the sword in front of Jarrett, and he stands still meanwhile', async ({
+  page,
+}) => {
+  await openGame(page);
+  const start = await snapshot(page);
+  expect(start.swings).toBe(0);
+  // Facing down at the start: the swing covers the ground just below his feet.
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).swings).toBe(1);
+  const box = (await snapshot(page)).lastSword;
+  expect(box?.y).toBe(start.player.y);
+  expect(box?.x).toBeLessThan(start.player.x);
+  expect((box?.x ?? 0) + (box?.w ?? 0)).toBeGreaterThan(start.player.x);
+
+  // J swings too. Holding a direction from the moment of the swing doesn't move
+  // him until it ends; then he walks on.
+  await page.keyboard.down('j');
+  await page.keyboard.down('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).swings).toBe(2);
+  await expect.poll(async () => (await snapshot(page)).stoodAfterSwing).not.toBeNull();
+  expect((await snapshot(page)).stoodAfterSwing).toEqual(start.player);
+  await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(start.player.x);
+  await page.keyboard.up('ArrowLeft');
+  await page.keyboard.up('j');
 });
