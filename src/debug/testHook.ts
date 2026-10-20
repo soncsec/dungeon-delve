@@ -37,6 +37,8 @@ export interface TestHook {
   /** Set his hearts (in half hearts) and gems. */
   setHealth(points: number): void;
   setGems(gems: number): void;
+  /** Each frame's work (update and render) in ms since the last reset, and Phaser's measured fps. */
+  frameTimes(reset?: boolean): { workMs: number[]; fps: number };
   /** Give Jarrett an item (it goes in the inventory). */
   giveItem(item: ItemId): void;
   /** What the inventory screen shows, or null when it isn't open. */
@@ -51,6 +53,9 @@ export interface TestHook {
   };
 }
 
+/** Frames kept for `frameTimes` (about 30 s at 60 fps). */
+const FRAME_RECORD = 1800;
+
 declare global {
   interface Window {
     __game?: TestHook;
@@ -58,6 +63,17 @@ declare global {
 }
 
 export function installTestHook(game: Phaser.Game): void {
+  // Time each frame's work: from the start of the step to the end of rendering.
+  const work: number[] = [];
+  let stepStart = 0;
+  game.events.on('prestep', () => {
+    stepStart = performance.now();
+  });
+  game.events.on('postrender', () => {
+    work.push(performance.now() - stepStart);
+    if (work.length > FRAME_RECORD) work.shift();
+  });
+
   window.__game = {
     scene: () => game.scene.getScenes(true)[0]?.scene.key ?? null,
     snapshot: () => {
@@ -77,6 +93,10 @@ export function installTestHook(game: Phaser.Game): void {
     setMana: (current) => gameScene(game).testSetMana(current),
     setHealth: (points) => gameScene(game).testSetHealth(points),
     setGems: (gems) => gameScene(game).testSetGems(gems),
+    frameTimes: (reset) => {
+      if (reset) work.length = 0;
+      return { workMs: [...work], fps: game.loop.actualFps };
+    },
     giveItem: (item) => gameScene(game).testGiveItem(item),
     inventory: () => {
       const s = game.scene.getScene('Inventory') as InventoryScene | null;

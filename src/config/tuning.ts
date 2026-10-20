@@ -273,5 +273,16 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
   },
 };
 
+/**
+ * The automated frame-rate check (M2.9): the work for one frame (update and
+ * render) must fit in a 60 fps frame. The median gets half the frame, leaving
+ * room for the browser, and 95% of frames must fit in a whole one.
+ */
+export const FRAME_BUDGET = {
+  frameMs: 1000 / 60,
+  medianMs: 1000 / 60 / 2,
+  p95Ms: 1000 / 60,
+} as const;
+
 /** Seed for the random number generator; override with ?seed= in the URL. */
 export const DEFAULT_SEED = 1;
