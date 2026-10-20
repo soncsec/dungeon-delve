@@ -217,7 +217,11 @@ test('Jarrett picks up gems and hearts', async ({ page }) => {
 test('the status bar shows hearts and gems', async ({ page }) => {
   await openGame(page);
   const hud = () => page.evaluate(() => window.__game?.hud());
-  expect(await hud()).toEqual({ hearts: ['full', 'full', 'full'], gems: '000' });
+  expect(await hud()).toEqual({
+    hearts: ['full', 'full', 'full'],
+    gems: '000',
+    weapon: 'sword-icon',
+  });
 
   const start = await snapshot(page);
   await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x + 6, y), {
@@ -257,4 +261,49 @@ test('the M1 loop: walk to the next room and defeat one of its robots', async ({
   expect((await snapshot(page)).robots).toHaveLength(1);
   expect(watched.errors).toEqual([]);
   expect(watched.foreignRequests).toEqual([]);
+});
+
+test('X or K switches between the sword and the daggers, and the status bar shows which', async ({
+  page,
+}) => {
+  await openGame(page);
+  const hud = () => page.evaluate(() => window.__game?.hud());
+  expect((await snapshot(page)).mode).toBe('near');
+  await page.keyboard.press('x');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('far');
+  await expect.poll(async () => (await hud())?.weapon).toBe('dagger');
+  await page.keyboard.press('k');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('near');
+  await expect.poll(async () => (await hud())?.weapon).toBe('sword-icon');
+});
+
+test('a thrown dagger flies until a wall stops it, and two daggers defeat a robot', async ({
+  page,
+}) => {
+  await openGame(page);
+  await page.keyboard.press('x');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('far');
+
+  // Facing down from the start: the dagger flies down and stops at the room's edge.
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).thrown).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).daggers).toEqual([]);
+  expect((await snapshot(page)).swings).toBe(0); // far mode doesn't swing the sword
+
+  // A robot further down the room, standing still for the test.
+  await page.evaluate(() => window.__game?.holdRobots(true));
+  const start = await snapshot(page);
+  await page.evaluate(({ x, y }) => window.__game?.spawnRobot(x, y + 40), start.player);
+  for (let i = 0; i < 4 && (await snapshot(page)).defeated === 0; i++) {
+    const r = (await snapshot(page)).robots[0];
+    if (!r) break;
+    await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 40, 'down'), r);
+    // The cooldown between throws must have passed.
+    await expect.poll(async () => (await snapshot(page)).throwReady).toBe(true);
+    const thrown = (await snapshot(page)).thrown;
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await snapshot(page)).thrown).toBe(thrown + 1);
+    await expect.poll(async () => (await snapshot(page)).daggers).toEqual([]);
+  }
+  expect((await snapshot(page)).defeated).toBe(1);
 });

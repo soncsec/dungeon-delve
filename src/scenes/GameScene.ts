@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { OBJECT_FRAMES, animKey } from '../assets/manifest';
 import {
+  DAGGER,
   DEFAULT_SEED,
   DROPS,
   HEALTH,
@@ -18,6 +19,15 @@ import { Hud } from '../entities/Hud';
 import { SpritePool } from '../entities/SpritePool';
 import { KeyInput } from '../input/keyboard';
 import { rollDrop, type Drop } from '../logic/drops';
+import {
+  canThrow,
+  daggerBox,
+  otherMode,
+  stepDagger,
+  throwDagger,
+  type Dagger,
+  type WeaponMode,
+} from '../logic/weapons';
 import { fullHealth, heal, isInvulnerable, isOut, takeDamage, type Health } from '../logic/health';
 import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
 import type { Axis, Point } from '../logic/movement';
@@ -75,7 +85,23 @@ export interface GameSnapshot {
   pickups: { kind: Drop; x: number; y: number }[];
   /** Robots defeated since the game started. */
   defeated: number;
+  /** Which weapon the attack key uses. */
+  mode: WeaponMode;
+  daggers: { x: number; y: number; dir: Facing }[];
+  /** Daggers thrown so far, and whether another may be thrown now. */
+  thrown: number;
+  throwReady: boolean;
 }
+
+interface LiveDagger {
+  d: Dagger;
+  sprite: Phaser.GameObjects.Sprite;
+}
+
+/** Sprite angle for a dagger flying each way (the art points right). */
+const DAGGER_ANGLE: Readonly<Record<Facing, number>> = { right: 0, down: 90, left: 180, up: -90 };
+/** Dagger hits use ids far above any swing number, so the two never clash. */
+const DAGGER_HIT_IDS = 1_000_000;
 
 interface LiveRobot {
   r: Robot;
@@ -97,8 +123,9 @@ const DEPTH = { ground: 0, sorted: 10, over: 1_000_000, hud: 2_000_000 } as cons
 const ROOM_W = ROOM_COLS * TILE;
 const ROOM_H = ROOM_ROWS * TILE;
 
-/** Keys that swing the sword. */
+/** Keys that attack with the ready weapon, and that switch near and far. */
 const ATTACK_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ']);
+const SWITCH_KEYS: ReadonlySet<string> = new Set(['KeyX', 'KeyK']);
 /** Every key the overworld uses (browser key codes). */
 const KEYS = new Set([
   'ArrowUp',
@@ -110,6 +137,7 @@ const KEYS = new Set([
   'KeyS',
   'KeyD',
   ...ATTACK_KEYS,
+  ...SWITCH_KEYS,
 ]);
 
 /**
@@ -151,6 +179,13 @@ export class GameScene extends Phaser.Scene {
   private hud!: Hud;
   /** Test hook only: robots stop wandering (knockback still moves them). */
   private robotsHold = false;
+  private mode: WeaponMode = 'near';
+  private daggers: LiveDagger[] = [];
+  private daggerPool!: SpritePool;
+  private thrown = 0;
+  private lastThrowAt: number | null = null;
+  /** Jarrett stands still until this time after a throw. */
+  private throwUntil = 0;
 
   constructor() {
     super('Game');
@@ -167,6 +202,12 @@ export class GameScene extends Phaser.Scene {
     this.robots = [];
     this.pickups = [];
     this.robotsHold = false;
+    this.mode = 'near';
+    this.daggers = [];
+    this.daggerPool = new SpritePool(this);
+    this.thrown = 0;
+    this.lastThrowAt = null;
+    this.throwUntil = 0;
     this.robotPool = new SpritePool(this);
     this.pickupPool = new SpritePool(this);
     this.fxPool = new SpritePool(this);
@@ -188,23 +229,32 @@ export class GameScene extends Phaser.Scene {
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
     this.swing = { startedAt: null };
     this.spawnRobots();
-    this.hud.update(this.health, this.gems);
+    this.hud.update(this.health, this.gems, this.mode);
   }
 
   override update(time: number, deltaMs: number): void {
     this.now = time;
     // Presses made during a slide are dropped, not saved up.
-    const attack = this.keys.takePresses().some((c) => ATTACK_KEYS.has(c));
+    const presses = this.keys.takePresses();
     if (this.sliding) return;
+    for (const code of presses) {
+      if (SWITCH_KEYS.has(code)) this.mode = otherMode(this.mode);
+    }
+    const attack = presses.some((c) => ATTACK_KEYS.has(c));
     this.stepRobots(deltaMs);
-    if (attack && this.heroKnockMs <= 0) this.trySwing(time);
+    this.stepDaggers(deltaMs);
+    if (attack && this.heroKnockMs <= 0) {
+      if (this.mode === 'near') this.trySwing(time);
+      else this.tryThrow(time);
+    }
     const swinging = isSwinging(this.swing, time, SWORD.durationMs);
     if (swinging) this.swordHits();
+    const busy = swinging || time < this.throwUntil;
 
     if (this.heroKnockMs > 0) {
       this.knockHero(deltaMs);
-    } else if (swinging) {
-      // Jarrett plants his feet while the blade is out.
+    } else if (busy) {
+      // Jarrett plants his feet while the blade is out or a dagger leaves his hand.
       this.moving = false;
     } else {
       if (this.swingFrom) {
@@ -222,13 +272,13 @@ export class GameScene extends Phaser.Scene {
       isInvulnerable(this.health, time) && Math.floor(time / 80) % 2 === 0 ? 0.3 : 1,
     );
     this.placeSprite();
-    this.hud.update(this.health, this.gems);
+    this.hud.update(this.health, this.gems, this.mode);
     if (isOut(this.health)) {
       // M1: start again from the start room; the real death rules come in M2.7.
       this.scene.restart();
       return;
     }
-    if (!swinging && this.heroKnockMs <= 0) {
+    if (!busy && this.heroKnockMs <= 0) {
       const dir = exitDirection(this.pos, HERO.box.height);
       if (dir) this.slideTo(dir);
     }
@@ -378,8 +428,57 @@ export class GameScene extends Phaser.Scene {
     s.play(animKey(sheet, 'play'));
   }
 
+  /** Throws a dagger the way Jarrett faces, if one is allowed now. */
+  private tryThrow(now: number): void {
+    if (
+      !canThrow(this.daggers.length, DAGGER.maxInFlight, this.lastThrowAt, now, DAGGER.cooldownMs)
+    ) {
+      return;
+    }
+    this.thrown += 1;
+    this.lastThrowAt = now;
+    this.throwUntil = now + DAGGER.throwPauseMs;
+    this.animate(false);
+    const d = throwDagger(DAGGER_HIT_IDS + this.thrown, this.pos, this.facing, SWORD.bodyHeight);
+    const sprite = this.daggerPool.take('dagger').setAngle(DAGGER_ANGLE[d.dir]);
+    const live = { d, sprite };
+    this.daggers.push(live);
+    this.drawDagger(live);
+  }
+
+  /** Flies every dagger; one that hits a wall, a robot, or the end of its range is gone. */
+  private stepDaggers(deltaMs: number): void {
+    const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
+    const solid = (cx: number, cy: number): boolean =>
+      this.outsideRoom(cx, cy) || (room ? isSolid(room, cx, cy) : true);
+    for (const live of [...this.daggers]) {
+      const step = stepDagger(live.d, deltaMs, DAGGER, solid);
+      live.d = step.dagger;
+      const box = daggerBox(live.d, DAGGER);
+      const target = this.robots.find((r) => overlaps(box, robotBody(r.r, ROBOT)));
+      if (target) {
+        target.r = hitRobot(target.r, DAGGER.damage, live.d.id, live.d.dir, ROBOT);
+        this.effect('hit', target.r.pos.x, target.r.pos.y - ROBOT.box.height / 2);
+        if (isDefeated(target.r)) this.defeat(target);
+      }
+      if (target || step.stopped) this.dropDagger(live);
+      else this.drawDagger(live);
+    }
+  }
+
+  private drawDagger({ d, sprite }: LiveDagger): void {
+    const o = this.origin(this.room.col, this.room.row);
+    sprite.setPosition(o.x + d.pos.x, o.y + d.pos.y).setDepth(DEPTH.over - 2);
+  }
+
+  private dropDagger(live: LiveDagger): void {
+    this.daggers = this.daggers.filter((x) => x !== live);
+    this.daggerPool.give(live.sprite.setAngle(0));
+  }
+
   /** Clears the room's robots and pickups (on leaving it). */
   private clearRoom(): void {
+    for (const live of [...this.daggers]) this.dropDagger(live);
     for (const live of this.robots) this.robotPool.give(live.sprite);
     for (const p of this.pickups) this.pickupPool.give(p.sprite);
     this.robots = [];
@@ -408,6 +507,16 @@ export class GameScene extends Phaser.Scene {
       robots: this.robots.map(({ r }) => ({ x: r.pos.x, y: r.pos.y, health: r.health })),
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
+      mode: this.mode,
+      daggers: this.daggers.map(({ d }) => ({ x: d.pos.x, y: d.pos.y, dir: d.dir })),
+      thrown: this.thrown,
+      throwReady: canThrow(
+        this.daggers.length,
+        DAGGER.maxInFlight,
+        this.lastThrowAt,
+        this.now,
+        DAGGER.cooldownMs,
+      ),
     };
   }
 
@@ -437,7 +546,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Test hook only: what the status bar shows. */
-  hudShows(): { hearts: ('full' | 'half' | 'empty')[]; gems: string } {
+  hudShows(): { hearts: ('full' | 'half' | 'empty')[]; gems: string; weapon: string } {
     return this.hud.shows();
   }
 

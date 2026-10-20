@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { OBJECT_FRAMES } from '../assets/manifest';
 import { GAME_WIDTH, HUD, HUD_HEIGHT } from '../config/tuning';
 import type { Health } from '../logic/health';
+import type { WeaponMode } from '../logic/weapons';
 import { gemLabel, heartIcons } from '../logic/hud';
 
 /** Empty hearts: the heart art darkened (runtime tint, ADR-D05). */
@@ -17,6 +18,7 @@ export class Hud {
   private readonly backs: Phaser.GameObjects.Image[] = [];
   private readonly fronts: Phaser.GameObjects.Image[] = [];
   private readonly gemText: Phaser.GameObjects.Text;
+  private readonly weapon: Phaser.GameObjects.Image;
   private shown = '';
 
   constructor(
@@ -33,6 +35,17 @@ export class Hud {
       .play('gems:teal')
       .setScrollFactor(0)
       .setDepth(depth + 1);
+    // The ready weapon, in a dark box left of the gems.
+    scene.add
+      .rectangle(GAME_WIDTH - 84, 2, 28, HUD_HEIGHT - 4, 0x1a2230)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0x4fd3d6)
+      .setScrollFactor(0)
+      .setDepth(depth + 1);
+    this.weapon = scene.add
+      .image(GAME_WIDTH - 70, HUD_HEIGHT / 2, 'sword-icon')
+      .setScrollFactor(0)
+      .setDepth(depth + 2);
     this.gemText = scene.add
       .text(GAME_WIDTH - 34, HUD_HEIGHT / 2 - 4, '', {
         fontFamily: HUD.font,
@@ -43,8 +56,8 @@ export class Hud {
       .setDepth(depth + 1);
   }
 
-  update(health: Health, gems: number): void {
-    const key = `${health.points}/${health.max}/${gems}`;
+  update(health: Health, gems: number, mode: WeaponMode): void {
+    const key = `${health.points}/${health.max}/${gems}/${mode}`;
     if (key === this.shown) return;
     this.shown = key;
     const icons = heartIcons(health, HUD.heartX, HUD.heartSpacing);
@@ -63,10 +76,11 @@ export class Hud {
       this.fronts[i]?.setVisible(false);
     }
     this.gemText.setText(gemLabel(gems, HUD.maxGems));
+    this.weapon.setTexture(mode === 'near' ? 'sword-icon' : 'dagger');
   }
 
   /** What the bar shows, for the e2e test hook. */
-  shows(): { hearts: ('full' | 'half' | 'empty')[]; gems: string } {
+  shows(): { hearts: ('full' | 'half' | 'empty')[]; gems: string; weapon: string } {
     const hearts = this.backs
       .map((back, i) => ({ back, front: this.fronts[i] }))
       .filter(({ back }) => back.visible)
@@ -74,7 +88,7 @@ export class Hud {
         if (!front?.visible) return 'empty' as const;
         return front.isCropped ? ('half' as const) : ('full' as const);
       });
-    return { hearts, gems: this.gemText.text };
+    return { hearts, gems: this.gemText.text, weapon: this.weapon.texture.key };
   }
 
   private addHeartSlot(): void {
