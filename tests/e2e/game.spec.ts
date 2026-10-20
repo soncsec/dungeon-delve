@@ -130,6 +130,9 @@ test('Space or J swings the sword in front of Jarrett, and he stands still meanw
   expect(box?.x).toBeLessThan(start.player.x);
   expect((box?.x ?? 0) + (box?.w ?? 0)).toBeGreaterThan(start.player.x);
 
+  // A press during a swing is ignored, so let the first swing finish.
+  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+
   // J swings too. Holding a direction from the moment of the swing doesn't move
   // him until it ends; then he walks on.
   await page.keyboard.down('j');
