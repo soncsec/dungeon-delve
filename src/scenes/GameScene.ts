@@ -11,6 +11,7 @@ import {
   SWORD,
   TILE,
 } from '../config/tuning';
+import { KeyInput } from '../input/keyboard';
 import { facingFor, moveHero, type Facing } from '../logic/hero';
 import type { Axis, Point } from '../logic/movement';
 import type { Dir } from '../logic/room';
@@ -54,10 +55,20 @@ const DEPTH = { ground: 0, sorted: 10, over: 1_000_000, hud: 2_000_000 } as cons
 const ROOM_W = ROOM_COLS * TILE;
 const ROOM_H = ROOM_ROWS * TILE;
 
-type Keys = Record<
-  'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd',
-  Phaser.Input.Keyboard.Key
->;
+/** Keys that swing the sword. */
+const ATTACK_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ']);
+/** Every key the overworld uses (browser key codes). */
+const KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  ...ATTACK_KEYS,
+]);
 
 /**
  * The overworld. Each room is drawn at its own place in world space (column
@@ -69,7 +80,7 @@ export class GameScene extends Phaser.Scene {
   private pos: Point = { x: 0, y: 0 };
   private facing: Facing = 'down';
   private moving = false;
-  private keys!: Keys;
+  private keys!: KeyInput;
   private seed = DEFAULT_SEED;
   private world!: World;
   private room: { col: number; row: number } = { ...START_ROOM };
@@ -80,8 +91,6 @@ export class GameScene extends Phaser.Scene {
   /** Game time of the latest frame, in ms. */
   private now = 0;
   private swings = 0;
-  /** Set by the attack key's key-down event, so even a tap shorter than a frame swings. */
-  private swingQueued = false;
   private lastSword: Rect | null = null;
   private swingFrom: Point | null = null;
   private stoodAfterSwing: Point | null = null;
@@ -109,23 +118,8 @@ export class GameScene extends Phaser.Scene {
     this.hero = this.add.sprite(0, 0, 'jarrett', 0).setOrigin(0.5, HERO.feetY / HERO.frameHeight);
     this.placeSprite();
 
-    const kb = this.input.keyboard;
-    if (!kb) throw new Error('keyboard input is not available');
-    this.keys = kb.addKeys({
-      up: 'UP',
-      down: 'DOWN',
-      left: 'LEFT',
-      right: 'RIGHT',
-      w: 'W',
-      a: 'A',
-      s: 'S',
-      d: 'D',
-    }) as Keys;
-    // Stop the browser scrolling the page on Space.
-    kb.addCapture('SPACE');
-    this.swingQueued = false;
-    kb.on('keydown-SPACE', () => (this.swingQueued = true));
-    kb.on('keydown-J', () => (this.swingQueued = true));
+    this.keys = new KeyInput(KEYS);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.keys.destroy());
     // One slash effect, reused for every swing.
     this.slash = this.add.sprite(0, 0, 'slash-horizontal', 0).setVisible(false);
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
@@ -134,11 +128,10 @@ export class GameScene extends Phaser.Scene {
 
   override update(time: number, deltaMs: number): void {
     this.now = time;
+    // Presses made during a slide are dropped, not saved up.
+    const attack = this.keys.takePresses().some((c) => ATTACK_KEYS.has(c));
     if (this.sliding) return;
-    if (this.swingQueued) {
-      this.swingQueued = false;
-      this.trySwing(time);
-    }
+    if (attack) this.trySwing(time);
     if (isSwinging(this.swing, time, SWORD.durationMs)) {
       // Jarrett plants his feet while the blade is out.
       this.moving = false;
@@ -294,10 +287,10 @@ export class GameScene extends Phaser.Scene {
 
   private readAxis(): Axis {
     const k = this.keys;
-    const left = k.left.isDown || k.a.isDown;
-    const right = k.right.isDown || k.d.isDown;
-    const up = k.up.isDown || k.w.isDown;
-    const down = k.down.isDown || k.s.isDown;
+    const left = k.isDown('ArrowLeft', 'KeyA');
+    const right = k.isDown('ArrowRight', 'KeyD');
+    const up = k.isDown('ArrowUp', 'KeyW');
+    const down = k.isDown('ArrowDown', 'KeyS');
     return {
       x: left === right ? 0 : left ? -1 : 1,
       y: up === down ? 0 : up ? -1 : 1,
