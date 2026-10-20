@@ -25,6 +25,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/effects/slash-horizontal.png`, `assets/effects/slash-upward.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/`
 - `assets/effects/puff.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/enemy-death.png`
 - `assets/effects/hit.png` — `Explosions and Magic/Hit/hit.png`
+- `assets/effects/fire-ball.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/fire-ball.png`
 
 ### Items
 

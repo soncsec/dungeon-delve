@@ -1,8 +1,8 @@
 /**
- * Near and far weapons (engine-free, unit tested). Jarrett has one weapon of
- * each kind ready; a key switches which one the attack key uses. The far
- * weapon so far is the throwing dagger: it flies straight until it hits a
- * wall, an enemy, or its range runs out.
+ * Near and far weapons, and things that fly (engine-free, unit tested).
+ * Jarrett has one weapon of each kind ready; a key switches which one the
+ * attack key uses. Projectiles (thrown daggers, fireballs) fly straight until
+ * they hit a wall, an enemy, or their range runs out.
  */
 import { TILE } from '../config/tuning';
 import type { Facing } from './hero';
@@ -15,8 +15,8 @@ export function otherMode(m: WeaponMode): WeaponMode {
   return m === 'near' ? 'far' : 'near';
 }
 
-export interface Dagger {
-  /** Unique per throw, so a dagger hits an enemy only once. */
+export interface Projectile {
+  /** Unique per launch, so one projectile hits an enemy only once. */
   id: number;
   /** Its middle, in room pixels. */
   pos: Point;
@@ -25,7 +25,7 @@ export interface Dagger {
   travelled: number;
 }
 
-export interface DaggerTuning {
+export interface ProjectileTuning {
   speed: number;
   range: number;
   /** Length along its flight, and thickness across it. */
@@ -33,24 +33,24 @@ export interface DaggerTuning {
   thickness: number;
 }
 
-/** A new dagger leaving Jarrett's hand: level with the middle of his body, just in front of him. */
-export function throwDagger(id: number, feet: Point, facing: Facing, bodyHeight: number): Dagger {
+/** A new projectile leaving Jarrett's hand: level with the middle of his body, just in front of him. */
+export function launch(id: number, feet: Point, facing: Facing, bodyHeight: number): Projectile {
   const v = facingVector(facing);
   const start = { x: feet.x + v.x * 8, y: feet.y - bodyHeight / 2 + v.y * 8 };
   return { id, pos: start, dir: facing, travelled: 0 };
 }
 
 /**
- * Flies a dagger for `dtMs`. It stops (`stopped: true`) when its middle enters
+ * Flies a projectile for `dtMs`. It stops (`stopped: true`) when its middle enters
  * a solid cell or it has flown its full range. Moves in sub-tile steps so it
  * can't skip over a thin wall.
  */
-export function stepDagger(
-  d: Dagger,
+export function stepProjectile(
+  d: Projectile,
   dtMs: number,
-  t: DaggerTuning,
+  t: ProjectileTuning,
   solidAt: (cx: number, cy: number) => boolean,
-): { dagger: Dagger; stopped: boolean } {
+): { projectile: Projectile; stopped: boolean } {
   const v = facingVector(d.dir);
   const want = Math.min((t.speed * dtMs) / 1000, t.range - d.travelled);
   const steps = Math.max(1, Math.ceil(want / (TILE / 4)));
@@ -59,7 +59,7 @@ export function stepDagger(
     const next = { x: d.pos.x + (v.x * want * i) / steps, y: d.pos.y + (v.y * want * i) / steps };
     if (solidAt(Math.floor(next.x / TILE), Math.floor(next.y / TILE))) {
       return {
-        dagger: {
+        projectile: {
           ...d,
           pos,
           travelled: d.travelled + Math.hypot(pos.x - d.pos.x, pos.y - d.pos.y),
@@ -70,18 +70,18 @@ export function stepDagger(
     pos = next;
   }
   const travelled = d.travelled + want;
-  return { dagger: { ...d, pos, travelled }, stopped: travelled >= t.range };
+  return { projectile: { ...d, pos, travelled }, stopped: travelled >= t.range };
 }
 
-/** The dagger's hit box: long along its flight, thin across it. */
-export function daggerBox(d: Dagger, t: DaggerTuning): Rect {
+/** A projectile's hit box: long along its flight, thin across it. */
+export function projectileBox(d: Projectile, t: ProjectileTuning): Rect {
   const sideways = d.dir === 'left' || d.dir === 'right';
   const w = sideways ? t.length : t.thickness;
   const h = sideways ? t.thickness : t.length;
   return { x: d.pos.x - w / 2, y: d.pos.y - h / 2, w, h };
 }
 
-/** Whether another dagger may be thrown now. */
+/** Whether another projectile may be launched now (at most `maxInFlight`, `cooldownMs` apart). */
 export function canThrow(
   inFlight: number,
   maxInFlight: number,

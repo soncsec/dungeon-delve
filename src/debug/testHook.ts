@@ -28,8 +28,15 @@ export interface TestHook {
   clearRobots(): void;
   /** Stop robots wandering (true) or let them wander again; knockback still moves them. */
   holdRobots(hold: boolean): void;
+  /** Set the mana level. */
+  setMana(current: number): void;
   /** What the status bar shows: each heart's state, and the gem count text. */
-  hud(): { hearts: ('full' | 'half' | 'empty')[]; gems: string; weapon: string };
+  hud(): {
+    hearts: ('full' | 'half' | 'empty')[];
+    gems: string;
+    weapon: string;
+    manaWidth: number;
+  };
 }
 
 declare global {
@@ -54,6 +61,7 @@ export function installTestHook(game: Phaser.Game): void {
     spawnPickup: (kind, x, y) => gameScene(game).testSpawnPickup(kind, x, y),
     clearRobots: () => gameScene(game).testClearRobots(),
     holdRobots: (hold) => gameScene(game).testHoldRobots(hold),
+    setMana: (current) => gameScene(game).testSetMana(current),
     hud: () => gameScene(game).hudShows(),
     missingTextures: () => ASSETS.filter((a) => !game.textures.exists(a.key)).map((a) => a.key),
   };
