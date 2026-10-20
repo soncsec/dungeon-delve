@@ -2,11 +2,15 @@ import Phaser from 'phaser';
 import { OBJECT_FRAMES, animKey } from '../assets/manifest';
 import {
   DAGGER,
+  DEATH,
   DEFAULT_SEED,
+  GAME_HEIGHT,
+  GAME_WIDTH,
   FIREBALL,
   DROPS,
   HEALTH,
   HERO,
+  HUD,
   HUD_HEIGHT,
   MANA,
   ROOM_COLS,
@@ -20,9 +24,12 @@ import {
   SWORD,
   TILE,
 } from '../config/tuning';
+import { Sfx } from '../audio/Sfx';
+import type { SfxName } from '../config/tuning';
 import { Hud } from '../entities/Hud';
 import { SpritePool } from '../entities/SpritePool';
 import { KeyInput } from '../input/keyboard';
+import { fallMessage, gemsAfterFalling } from '../logic/death';
 import { rollDrop, type Drop } from '../logic/drops';
 import {
   canThrow,
@@ -109,6 +116,12 @@ export interface GameSnapshot {
     charging: boolean;
     knocked: boolean;
   }[];
+  /** True while he is down after running out of hearts; and how often that has happened. */
+  falling: boolean;
+  falls: number;
+  /** How many times each sound has played, and whether sound is muted. */
+  sounds: Record<SfxName, number>;
+  muted: boolean;
   /** Enemy shots in the air, how many have been fired, and how many the shield has blocked. */
   enemyShots: { x: number; y: number }[];
   shotsFired: number;
@@ -196,6 +209,8 @@ const ATTACK_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ']);
 const SWITCH_KEYS: ReadonlySet<string> = new Set(['KeyX', 'KeyK']);
 /** Keys that cast the ready spell. */
 const SPELL_KEYS: ReadonlySet<string> = new Set(['KeyC', 'KeyL']);
+/** Mutes and unmutes the sound. */
+const MUTE_KEY = 'KeyM';
 /** Keys that open the inventory. */
 const INVENTORY_KEYS: ReadonlySet<string> = new Set(['KeyI', 'Tab']);
 /** Keys that drink a potion. */
@@ -215,6 +230,7 @@ const KEYS = new Set([
   ...SPELL_KEYS,
   ...Object.keys(POTION_KEYS),
   ...INVENTORY_KEYS,
+  MUTE_KEY,
 ]);
 
 /**
@@ -269,6 +285,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private lastCastAt: number | null = null;
   private potions: Potions = { ...POTIONS.start };
   private inv: Inventory = EMPTY_INVENTORY;
+  /** True from the moment he runs out of hearts until he is back on his feet. */
+  private falling = false;
+  private falls = 0;
+  private sfx!: Sfx;
+  /**
+   * The game's own mute switch. Phaser reports mute from the audio graph,
+   * which doesn't update while the browser holds audio back (before the
+   * player's first click or key), so the game keeps its own record.
+   */
+  private muted = false;
   private lastThrowAt: number | null = null;
   /** Jarrett stands still until this time after a throw. */
   private throwUntil = 0;
@@ -300,6 +326,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.mana = fullMana(MANA.max);
     this.lastCastAt = null;
     this.potions = { ...POTIONS.start };
+    this.falling = false;
+    this.falls = 0;
+    this.sfx = new Sfx(this);
+    // A restart (or a new game) keeps the player's mute choice.
+    this.muted = this.sound.mute;
     // M2: Jarrett starts with the whole kit so far; later Walker and the dungeons hand items out.
     this.inv = (['wooden-sword', 'daggers', 'fireball', 'wooden-shield'] as const).reduce(
       give,
@@ -337,12 +368,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.now = time;
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
-    if (this.sliding) return;
+    if (this.sliding || this.falling) return;
     if (presses.some((c) => INVENTORY_KEYS.has(c)) && this.heroKnockMs <= 0) {
       this.openInventory();
       return;
     }
     for (const code of presses) {
+      if (code === MUTE_KEY) {
+        this.muted = !this.muted;
+        this.sound.mute = this.muted;
+      }
       if (SWITCH_KEYS.has(code)) this.mode = otherMode(this.mode);
       const potion = POTION_KEYS[code];
       if (potion) this.drink(potion, time);
@@ -389,8 +424,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.placeSprite();
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
     if (isOut(this.health)) {
-      // M1: start again from the start room; the real death rules come in M2.7.
-      this.scene.restart();
+      this.fall();
       return;
     }
     if (!busy && this.heroKnockMs <= 0) {
@@ -498,10 +532,86 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(DEPTH.sorted + o.y + e.pos.y);
   }
 
+  /**
+   * Out of hearts: the screen goes dark with a message, and Jarrett is back on
+   * his feet in the start room (the village, once there is one) with full
+   * hearts and mana. He keeps his items and potions, and drops a share of his gems.
+   */
+  private fall(): void {
+    this.falling = true;
+    this.moving = false;
+    this.heroKnockMs = 0;
+    this.animate(false);
+    this.sfx.play('fall');
+    const kept = gemsAfterFalling(this.gems, DEATH.gemLossPercent);
+    const lost = this.gems - kept;
+    this.gems = kept;
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    const veil = this.add
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud + 10)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: veil,
+      alpha: 1,
+      duration: DEATH.fadeOutMs,
+      onComplete: () => {
+        const lines = fallMessage(lost);
+        const text = this.add
+          .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, lines.join('\n'), {
+            fontFamily: HUD.font,
+            fontSize: '8px',
+            color: '#e8f4f0',
+            align: 'center',
+            lineSpacing: 6,
+          })
+          .setOrigin(0.5)
+          .setScrollFactor(0)
+          .setDepth(DEPTH.hud + 11);
+        this.time.delayedCall(DEATH.darkMs, () => {
+          text.destroy();
+          this.respawn();
+          this.tweens.add({
+            targets: veil,
+            alpha: 0,
+            duration: DEATH.fadeInMs,
+            onComplete: () => veil.destroy(),
+          });
+        });
+      },
+    });
+  }
+
+  /** Back on his feet in the start room. */
+  private respawn(): void {
+    this.clearRoom();
+    for (const o of this.roomObjects) o.destroy();
+    this.room = { ...START_ROOM };
+    this.roomObjects = this.drawRoom(this.room.col, this.room.row);
+    this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
+    this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
+    this.facing = 'down';
+    this.enteredAt = null;
+    this.swing = { startedAt: null };
+    this.throwUntil = 0;
+    this.health = { ...this.health, points: this.health.max, invulnerableUntil: 0 };
+    this.mana = fullMana(this.mana.max);
+    this.animate(false);
+    this.placeSprite();
+    this.hero.setAlpha(1);
+    this.spawnEnemies();
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    this.falls += 1;
+    this.falling = false;
+  }
+
   /** Pauses the game and shows the inventory over it. */
   private openInventory(): void {
     this.moving = false;
     this.animate(false);
+    this.sfx.play('menu');
     this.scene.launch('Inventory', { host: this });
     this.scene.pause();
   }
@@ -541,6 +651,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private addEnemyShot(from: Point, dir: { x: number; y: number }): void {
     const s = fireShot(from, dir);
     this.shotsFired += 1;
+    this.sfx.play('enemyShot');
     const sprite = this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
     const live = { s, sprite };
     this.enemyShots.push(live);
@@ -561,6 +672,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
         const shieldUp = this.inv.equipped.shield !== null && !this.handsBusy(now);
         if (shieldUp && shieldBlocks(this.facing, live.s.dir, false, SHIELD.coverCos)) {
           this.blocked += 1;
+          this.sfx.play('block');
           this.effect('hit', live.s.pos.x, live.s.pos.y);
         } else {
           this.hurtHero(ENEMY_SHOT.damage, live.s.pos, now);
@@ -598,12 +710,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     if (live.e === before) return;
     this.effect('hit', live.e.pos.x, live.e.pos.y - stats.box.height / 2);
     if (isDefeated(live.e)) this.defeat(live);
+    else this.sfx.play('hit');
   }
 
   private defeat(live: LiveEnemy): void {
     this.enemies = this.enemies.filter((x) => x !== live);
     this.enemyPool.give(live.sprite);
     this.defeated += 1;
+    this.sfx.play('defeat');
     const { x, y } = live.e.pos;
     this.effect('puff', x, y - ENEMIES[live.e.kind].box.height / 2);
     const drop = rollDrop(this.rng, DROPS);
@@ -630,9 +744,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const body = this.heroBody();
     for (const p of [...this.pickups]) {
       if (!overlaps(body, { x: p.pos.x - 6, y: p.pos.y - 12, w: 12, h: 12 })) continue;
-      if (p.kind === 'gem') this.gems += PICKUPS.gemValue;
-      else if (p.kind === 'heart') this.health = heal(this.health, PICKUPS.heartHeals);
-      else {
+      let sound: SfxName = 'potion';
+      if (p.kind === 'gem') {
+        this.gems += PICKUPS.gemValue;
+        sound = 'gem';
+      } else if (p.kind === 'heart') {
+        this.health = heal(this.health, PICKUPS.heartHeals);
+        sound = 'heart';
+      } else {
         const got = addPotion(
           this.potions,
           p.kind === 'health-potion' ? 'health' : 'mana',
@@ -642,6 +761,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
         if (!got.taken) continue;
         this.potions = got.potions;
       }
+      this.sfx.play(sound);
       this.pickups = this.pickups.filter((x) => x !== p);
       this.pickupPool.give(p.sprite);
     }
@@ -661,6 +781,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private hurtHero(halfHearts: number, source: Point, now: number): void {
     if (isInvulnerable(this.health, now)) return;
     this.health = takeDamage(this.health, halfHearts, now, HEALTH.invulnerableMs);
+    this.sfx.play('hurt');
     this.heroKnockMs = HEALTH.knockback.ms;
     this.heroKnockDir = awayFrom(source, this.pos);
   }
@@ -688,6 +809,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       return;
     }
     this.thrown += 1;
+    this.sfx.play('throw');
     this.lastThrowAt = now;
     this.throwUntil = now + DAGGER.throwPauseMs;
     this.shoot('dagger');
@@ -695,7 +817,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
 
   /** Casts a Fireball, if there's enough mana and none is already flying. */
   private tryCast(now: number): void {
-    if (!canCast(this.mana, FIREBALL.cost)) return;
+    if (!canCast(this.mana, FIREBALL.cost)) {
+      this.sfx.play('noMana');
+      return;
+    }
     if (
       !canThrow(
         this.countShots('fireball'),
@@ -709,6 +834,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     }
     this.mana = spend(this.mana, FIREBALL.cost, now);
     this.casts += 1;
+    this.sfx.play('cast');
     this.lastCastAt = now;
     this.throwUntil = now + FIREBALL.castPauseMs;
     this.shoot('fireball');
@@ -774,6 +900,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const r = usePotion(this.potions, kind);
     if (!r.used) return;
     this.potions = r.potions;
+    this.sfx.play('potion');
     if (kind === 'health') this.health = heal(this.health, this.health.max);
     else this.mana = boost(this.mana, now, MANA.boostMs);
   }
@@ -818,6 +945,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
       blocked: this.blocked,
       shotsFired: this.shotsFired,
+      falling: this.falling,
+      falls: this.falls,
+      sounds: this.sfx.counts(),
+      muted: this.muted,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       defeated: this.defeated,
       mode: this.mode,
@@ -874,6 +1005,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.inv = give(this.inv, item);
   }
 
+  /** Test hook only: set his hearts (in half hearts) and gems. */
+  testSetHealth(points: number): void {
+    this.health = { ...this.health, points: Math.max(0, Math.min(this.health.max, points)) };
+  }
+
+  testSetGems(gems: number): void {
+    this.gems = Math.max(0, gems);
+  }
+
   /** Test hook only: set the mana level. */
   testSetMana(current: number): void {
     this.mana = { ...this.mana, current: Math.max(0, Math.min(this.mana.max, current)) };
@@ -928,6 +1068,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const next = startSwing(this.swing, now, SWORD.durationMs);
     if (next === this.swing) return;
     this.swing = next;
+    this.sfx.play('swing');
     this.animate(false);
     const box = swordBox(this.pos, this.facing, SWORD);
     this.swings += 1;

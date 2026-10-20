@@ -34,6 +34,9 @@ export interface TestHook {
   holdEnemies(hold: boolean): void;
   /** Set the mana level. */
   setMana(current: number): void;
+  /** Set his hearts (in half hearts) and gems. */
+  setHealth(points: number): void;
+  setGems(gems: number): void;
   /** Give Jarrett an item (it goes in the inventory). */
   giveItem(item: ItemId): void;
   /** What the inventory screen shows, or null when it isn't open. */
@@ -72,6 +75,8 @@ export function installTestHook(game: Phaser.Game): void {
     fireEnemyShot: (x, y, dx, dy) => gameScene(game).testFireEnemyShot(x, y, dx, dy),
     holdEnemies: (hold) => gameScene(game).testHoldEnemies(hold),
     setMana: (current) => gameScene(game).testSetMana(current),
+    setHealth: (points) => gameScene(game).testSetHealth(points),
+    setGems: (gems) => gameScene(game).testSetGems(gems),
     giveItem: (item) => gameScene(game).testGiveItem(item),
     inventory: () => {
       const s = game.scene.getScene('Inventory') as InventoryScene | null;
