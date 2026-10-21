@@ -172,17 +172,24 @@ describe('the real maps', () => {
     expect(r.keys).toBe(0); // every key has a door
   });
 
-  it('every overworld room can be walked to, and the archway into dungeon 1 and the shop door', () => {
+  it('every overworld room, door and secret cave can be reached (some caves need the Axe or Fireball)', () => {
     const world = buildWorld(OVERWORLD);
     const r = explore(world, { ...START_ROOM, cx: 10, cy: 5 });
     expect(r.rooms).toEqual([...world.rooms.keys()].sort());
-    // Hollow Oak's archway, the shop's door, and the holes down to every secret cave.
-    const holes = SECRET_CAVES.map(
-      (c) => `${c.room.col},${c.room.row}/${c.hole.col},${c.hole.row}`,
-    );
-    expect(r.exits).toEqual(['3,5/10,2', '3,5/9,2', '3,6/5,8', ...holes].sort());
-    // The false walls in front of some of them open on the way.
+    // Hollow Oak's archway, the shop's door, and the holes down to the secret caves that
+    // need no item; the false walls in front of some of them open on the way.
+    const hole = (c: (typeof SECRET_CAVES)[number]) =>
+      `${c.room.col},${c.room.row}/${c.hole.col},${c.hole.row}`;
+    const doors = ['3,5/10,2', '3,5/9,2', '3,6/5,8'];
+    const free = SECRET_CAVES.filter((c) => !c.opensWith).map(hole);
+    expect(free).toHaveLength(7);
+    expect(r.exits).toEqual([...doors, ...free].sort());
     expect(r.hollows).toHaveLength(4);
+    // With the Axe and Fireball, every cave: through thorns, boulders and rubble.
+    const all = explore(world, { ...START_ROOM, cx: 10, cy: 5 }, { axe: true, fireball: true });
+    expect(all.exits).toEqual([...doors, ...SECRET_CAVES.map(hole)].sort());
+    expect(SECRET_CAVES).toHaveLength(12);
+    expect(SECRET_CAVES.filter((c) => c.chests.some((k) => k.kind === 'heart'))).toHaveLength(3);
   });
 });
 

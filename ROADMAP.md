@@ -97,7 +97,7 @@
 
 ## M4 — The overworld
 
-**Playable result:** the whole map can be explored, with every dungeon entrance in place (2–8 show "coming soon" signs).
+**Playable result:** the whole map can be explored, with every dungeon entrance in place (2–8 sealed until built).
 
 - [x] M4.1 All five regions laid out (about 64 rooms; map and region art: owner 2026-10-20, see PROJECT.md decisions), one PR per region:
   - [x] M4.1a The 8×8 map, regions per room, and the village and meadows (Top-Down Town set); the start moves to the village
@@ -109,7 +109,7 @@
 - [ ] M4.3 Hidden passages and 12 secret caves (owner 2026-10-21), in two PRs:
   - [x] M4.3a Secret caves (gems, potions, three heart containers), false walls (sword), holes under pushable stones; the caves that need no item placed
   - [x] M4.3b Cracked walls and boulders (Axe) and thorn bushes (Fireball), built and tested; placed with M4.4 and M5
-- [ ] M4.4 Progression gates (water, thorns, boulders) tied to dungeon items
+- [x] M4.4 Progression gates: dungeon *n*'s entrance needs *n*−1 shards (owner 2026-10-21); the last five secret caves placed behind thorns, boulders and cracked walls
 - [ ] M4.5 Overworld enemies placed by region; respawn rules
 - [ ] M4.6 Reachability test for the overworld, given the items held
 

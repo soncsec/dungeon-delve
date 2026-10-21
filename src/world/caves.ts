@@ -1,7 +1,7 @@
 /**
  * Secret caves (owner 2026-10-21): 12 across the overworld, each down a hole
- * hidden behind a false wall, under a pushable stone, or (with M4.4 and M5)
- * behind a cracked wall, a boulder or thorns. Each cave is one small room on
+ * hidden behind a false wall, under a pushable stone, or behind thorns
+ * (Fireball), a boulder or rubble (the Axe). Each cave is one small room on
  * the `caves` map, with a chest or two; three caves hold heart containers.
  *
  * This list makes both sides: the cave rooms, and the holes' doorways in the
@@ -17,6 +17,8 @@ export interface SecretCave {
   landing: { col: number; row: number };
   /** What its chests hold: one or two. */
   chests: readonly ChestContents[];
+  /** The item that opens the way to its hole, if any (thorns: Fireball; boulders, rubble: the Axe). */
+  opensWith?: 'axe' | 'fireball';
 }
 
 export const SECRET_CAVES: readonly SecretCave[] = [
@@ -71,6 +73,49 @@ export const SECRET_CAVES: readonly SecretCave[] = [
     hole: { col: 8, row: 7 },
     landing: { col: 8, row: 6 },
     chests: [{ kind: 'potion', potion: 'health' }],
+  },
+  // Behind thorns in the heart of the marsh (Fireball): a heart container.
+  {
+    room: { col: 1, row: 6 },
+    hole: { col: 2, row: 7 },
+    landing: { col: 4, row: 7 },
+    chests: [{ kind: 'heart' }],
+    opensWith: 'fireball',
+  },
+  // Behind thorns in the forest west of the vault grounds (Fireball).
+  {
+    room: { col: 2, row: 3 },
+    hole: { col: 0, row: 7 },
+    landing: { col: 2, row: 7 },
+    chests: [{ kind: 'gems', amount: 30 }],
+    opensWith: 'fireball',
+  },
+  // Under a boulder in the far east meadow (Axe).
+  {
+    room: { col: 6, row: 7 },
+    hole: { col: 9, row: 8 },
+    landing: { col: 8, row: 7 },
+    chests: [{ kind: 'gems', amount: 50 }],
+    opensWith: 'axe',
+  },
+  // Behind rubble in the high pass (Axe): a heart container.
+  {
+    room: { col: 5, row: 0 },
+    hole: { col: 1, row: 2 },
+    landing: { col: 3, row: 2 },
+    chests: [{ kind: 'heart' }],
+    opensWith: 'axe',
+  },
+  // Behind rubble above the ruins (Axe).
+  {
+    room: { col: 6, row: 1 },
+    hole: { col: 18, row: 2 },
+    landing: { col: 16, row: 2 },
+    chests: [
+      { kind: 'potion', potion: 'health' },
+      { kind: 'potion', potion: 'mana' },
+    ],
+    opensWith: 'axe',
   },
 ];
 

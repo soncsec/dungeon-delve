@@ -8,6 +8,8 @@ import {
   openChest,
   unlockDoor,
   beatBoss,
+  canEnter,
+  shardsToEnter,
   heartContainers,
   markSeen,
   seenId,
@@ -99,5 +101,24 @@ describe('seen rooms', () => {
     expect(markSeen(p, id)).toBe(p);
     expect(shardsHeld(p)).toBe(0);
     expect(heartContainers(p)).toBe(0);
+  });
+});
+
+describe('shards as keys', () => {
+  it('dungeon n needs n−1 shards; other maps none', () => {
+    expect(shardsToEnter('dungeon1')).toBe(0);
+    expect(shardsToEnter('dungeon2')).toBe(1);
+    expect(shardsToEnter('dungeon8')).toBe(7);
+    expect(shardsToEnter('overworld')).toBe(0);
+    expect(shardsToEnter('caves')).toBe(0);
+    expect(shardsToEnter('dungeon0')).toBe(0);
+  });
+
+  it('lets Jarrett in with enough shards', () => {
+    const one = takeReward(NEW_PROGRESS, rewardId('dungeon1', 'shard'));
+    expect(canEnter(NEW_PROGRESS, 'dungeon1')).toBe(true);
+    expect(canEnter(NEW_PROGRESS, 'dungeon2')).toBe(false);
+    expect(canEnter(one, 'dungeon2')).toBe(true);
+    expect(canEnter(one, 'dungeon3')).toBe(false);
   });
 });

@@ -1578,3 +1578,22 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
   expect((await snapshot(page)).sounds.burn).toBe(1);
   expect(watched.errors).toEqual([]);
 });
+
+test('a Fireball burns the thorns in front of a secret cave in the forest', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // West of the vault grounds: thorns at column 1, row 7, with a hole behind them.
+  await page.evaluate(() => window.__game?.goToRoom(2, 3));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(44, 126, 'left'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('overworld/2,3/1,7');
+  await holdUntil(page, 'ArrowLeft', async () => (await snapshot(page)).map === 'caves');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const gems = (await snapshot(page)).gems;
+  await page.evaluate(() => window.__game?.placeHero(152, 86, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => (await snapshot(page)).gems === gems + 30);
+  expect(watched.errors).toEqual([]);
+});
