@@ -23,6 +23,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 
 - `assets/tiles/forest.png` — `TinyRPG/Environments/Top-Down-Forest/PNG/top-down-forest-tileset.png`
 - `assets/tiles/town.png` — `TinyRPG/Environments/Top-Down-Town/PNG/top-down-town-tileset.png`
+- `assets/tiles/dungeon.png` — `TinyRPG/Environments/single-dungeon-crawler/PNG/preview-simple-dungeon-crawler-set1.png` (the pack's example dungeon, used unchanged as a tile sheet)
 
 ### Effects
 

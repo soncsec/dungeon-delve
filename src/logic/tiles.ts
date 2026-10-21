@@ -7,7 +7,7 @@
  * just above its top edge.
  */
 import { TILE } from '../config/tuning';
-import { isForest, type PropKind, type Room } from './room';
+import { isForest, isWall, type PropKind, type Room } from './room';
 
 /** Columns in the forest sheet (432 px / 16). */
 export const FOREST_COLUMNS = 27;
@@ -94,5 +94,45 @@ export function roomArt(room: Room): RoomArt {
     });
   });
   art.props.sort((a, b) => a.y - b.y);
+  return art;
+}
+
+/** Columns in the dungeon sheet (the pack's example dungeon, 304 px / 16). */
+export const DUNGEON_COLUMNS = 19;
+const dframe = (col: number, row: number): number => row * DUNGEON_COLUMNS + col;
+
+export const DUNGEON_FRAMES = {
+  /** The lavender stone on top of a wall. */
+  top: dframe(0, 0),
+  /** The brick face of a wall, where it meets the floor. */
+  face: dframe(0, 3),
+  floor: dframe(0, 4),
+  /** Floor in the shadow of a wall to its left. */
+  shadow: dframe(11, 3),
+  /** Cracked floor stones, scattered for variety. */
+  cracks: [dframe(1, 4), dframe(2, 4), dframe(3, 4)],
+} as const;
+
+/** A fixed scatter: about one floor cell in nine gets cracks, the same every visit. */
+export function crackAt(x: number, y: number): number | null {
+  const h = (x * 73 + y * 151 + x * y * 7) % 9;
+  return h === 0 ? (DUNGEON_FRAMES.cracks[(x + y) % 3] as number) : null;
+}
+
+/** The frame for a dungeon cell: wall top or face, floor, shadowed floor or cracked floor. */
+export function dungeonFrame(room: Room, x: number, y: number): number {
+  if (isWall(room, x, y)) return isWall(room, x, y + 1) ? DUNGEON_FRAMES.top : DUNGEON_FRAMES.face;
+  if (isWall(room, x - 1, y)) return DUNGEON_FRAMES.shadow;
+  return crackAt(x, y) ?? DUNGEON_FRAMES.floor;
+}
+
+/** Everything to draw for a dungeon room: one tile per cell, no props or tree tops. */
+export function dungeonArt(room: Room): RoomArt {
+  const art: RoomArt = { ground: [], over: [], props: [] };
+  room.cells.forEach((rowCells, y) => {
+    rowCells.forEach((_cell, x) => {
+      art.ground.push({ frame: dungeonFrame(room, x, y), x: x * TILE, y: y * TILE });
+    });
+  });
   return art;
 }

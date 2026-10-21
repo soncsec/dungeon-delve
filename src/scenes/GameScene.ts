@@ -69,7 +69,7 @@ import {
   type Rect,
   type Swing,
 } from '../logic/sword';
-import { roomArt } from '../logic/tiles';
+import { dungeonArt, roomArt } from '../logic/tiles';
 import {
   buildWorld,
   enterFrom,
@@ -79,7 +79,7 @@ import {
   solidInWorld,
   type World,
 } from '../logic/world';
-import { OVERWORLD, START_ROOM } from '../world/overworld';
+import { DUNGEON_MAPS, MAPS, type MapId } from '../world/maps';
 import type { InventoryHost } from './InventoryScene';
 
 /** Read-only view of the game state, used by the e2e test hook. */
@@ -89,6 +89,8 @@ export interface GameSnapshot {
   facing: Facing;
   moving: boolean;
   seed: number;
+  /** The map he is on, and the room in it. */
+  map: MapId;
   room: { col: number; row: number };
   /** True while the view slides to the next room. */
   sliding: boolean;
@@ -246,7 +248,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private keys!: KeyInput;
   private seed = DEFAULT_SEED;
   private world!: World;
-  private room: { col: number; row: number } = { ...START_ROOM };
+  private mapId: MapId = 'overworld';
+  private room: { col: number; row: number } = { ...MAPS.overworld.start };
   private roomObjects: Phaser.GameObjects.GameObject[] = [];
   private sliding = false;
   private enteredAt: Point | null = null;
@@ -306,7 +309,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   create(): void {
     this.seed = seedFromUrl();
     this.rng = createRng(this.seed);
-    this.world = buildWorld(OVERWORLD);
+    this.mapId = mapFromUrl();
+    this.world = buildWorld(MAPS[this.mapId].rooms);
     this.health = fullHealth(HEALTH.startHearts);
     this.gems = 0;
     this.defeated = 0;
@@ -341,7 +345,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.enemyPool = new SpritePool(this);
     this.pickupPool = new SpritePool(this);
     this.fxPool = new SpritePool(this);
-    this.room = { ...START_ROOM };
+    this.room = { ...MAPS[this.mapId].start };
     this.sliding = false;
     this.enteredAt = null;
     this.roomObjects = this.drawRoom(this.room.col, this.room.row);
@@ -584,11 +588,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     });
   }
 
-  /** Back on his feet in the start room. */
+  /** Back on his feet at the start of the map he fell in (a dungeon's entrance; the start room outdoors). */
   private respawn(): void {
     this.clearRoom();
     for (const o of this.roomObjects) o.destroy();
-    this.room = { ...START_ROOM };
+    this.room = { ...MAPS[this.mapId].start };
     this.roomObjects = this.drawRoom(this.room.col, this.room.row);
     this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
     this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
@@ -921,6 +925,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       facing: this.facing,
       moving: this.moving,
       seed: this.seed,
+      map: this.mapId,
       room: { ...this.room },
       sliding: this.sliding,
       enteredAt: this.enteredAt ? { ...this.enteredAt } : null,
@@ -1116,12 +1121,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const room = this.world.rooms.get(roomKey(col, row));
     if (!room) throw new Error(`no room at ${col},${row}`);
     const o = this.origin(col, row);
-    const art = roomArt(room);
+    const dungeon = MAPS[this.mapId].theme === 'dungeon';
+    const art = dungeon ? dungeonArt(room) : roomArt(room);
+    const sheet = dungeon ? 'dungeon' : 'forest';
     const drawn: Phaser.GameObjects.GameObject[] = [];
     for (const t of art.ground) {
       drawn.push(
         this.add
-          .image(o.x + t.x, o.y + t.y, 'forest', t.frame)
+          .image(o.x + t.x, o.y + t.y, sheet, t.frame)
           .setOrigin(0)
           .setDepth(DEPTH.ground),
       );
@@ -1156,6 +1163,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       y: up === down ? 0 : up ? -1 : 1,
     };
   }
+}
+
+/**
+ * The map to start on: ?dungeon=n starts at dungeon n's entrance (a play-test
+ * skip, ROADMAP M3.5), otherwise the overworld.
+ */
+function mapFromUrl(): MapId {
+  const raw = new URLSearchParams(window.location.search).get('dungeon');
+  const n = raw === null ? Number.NaN : Number.parseInt(raw, 10);
+  return DUNGEON_MAPS[n] ?? 'overworld';
 }
 
 /** Seed from the URL (?seed=123) for repeatable runs, otherwise the default. */

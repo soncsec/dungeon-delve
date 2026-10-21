@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 
 /**
- * Decodes an 8-bit RGBA or 8-bit palette PNG (colour types 6 and 3, not
- * interlaced) into its size and alpha channel. Every sheet we ship is one of
+ * Decodes an 8-bit RGBA, RGB or palette PNG (colour types 6, 2 and 3, not
+ * interlaced) into its size and alpha channel (RGB pixels are all opaque). Every sheet we ship is one of
  * these; anything else fails the test.
  */
 export function pngAlpha(path: string): { width: number; height: number; alpha: Uint8Array } {
@@ -12,11 +12,11 @@ export function pngAlpha(path: string): { width: number; height: number; alpha: 
   const width = view.getUint32(16);
   const height = view.getUint32(20);
   const colourType = bytes[25];
-  if (bytes[24] !== 8 || (colourType !== 6 && colourType !== 3) || bytes[28] !== 0) {
-    throw new Error(`${path}: not an 8-bit RGBA or palette non-interlaced PNG`);
+  if (bytes[24] !== 8 || ![6, 2, 3].includes(colourType ?? -1) || bytes[28] !== 0) {
+    throw new Error(`${path}: not an 8-bit RGBA, RGB or palette non-interlaced PNG`);
   }
-  // Bytes per pixel: 4 for RGBA, 1 (a palette index) for palette images.
-  const bpp = colourType === 6 ? 4 : 1;
+  // Bytes per pixel: 4 for RGBA, 3 for RGB, 1 (a palette index) for palette images.
+  const bpp = colourType === 6 ? 4 : colourType === 2 ? 3 : 1;
   let transparency: Uint8Array = new Uint8Array();
   const chunks: Uint8Array[] = [];
   for (let pos = 8; pos < bytes.length;) {
@@ -50,7 +50,8 @@ export function pngAlpha(path: string): { width: number; height: number; alpha: 
   const alpha = new Uint8Array(width * height);
   for (let i = 0; i < alpha.length; i++) {
     // Palette entries without a tRNS value are fully opaque.
-    alpha[i] = bpp === 4 ? (out[i * 4 + 3] ?? 0) : (transparency[out[i] ?? 0] ?? 255);
+    alpha[i] =
+      bpp === 4 ? (out[i * 4 + 3] ?? 0) : bpp === 3 ? 255 : (transparency[out[i] ?? 0] ?? 255);
   }
   return { width, height, alpha };
 }

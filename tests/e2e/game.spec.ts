@@ -587,3 +587,20 @@ test('the sounds are built in the browser from code (Web Audio)', async ({ page 
   expect(watched.foreignRequests).toEqual([]);
   expect(watched.errors).toEqual([]);
 });
+
+test('?dungeon=1 starts at dungeon 1, whose walls stop Jarrett', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  const start = await snapshot(page);
+  expect(start.map).toBe('dungeon1');
+  // Straight up from the start: open floor until the wall face in row 1.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(38); // row 2's top (32) + his 6-px feet box
+  await page.keyboard.up('ArrowUp');
+  expect(watched.errors).toEqual([]);
+});
+
+test('without ?dungeon, the game starts on the overworld', async ({ page }) => {
+  await openGame(page, '?dungeon=99');
+  expect((await snapshot(page)).map).toBe('overworld');
+});
