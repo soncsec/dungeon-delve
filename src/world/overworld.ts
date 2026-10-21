@@ -1334,11 +1334,17 @@ const ROOMS: readonly RoomDef[] = [
       'FFFFFFFFFFFFFFFFFFFF',
     ],
   },
-  // Stonecrag Mine: the sealed cave of dungeon 4 (it opens in M5).
+  // Stonecrag Mine: the cave of dungeon 4 (it opens with three shards).
   {
     col: 3,
     row: 1,
     region: 'mountains',
+    exits: [
+      {
+        cells: [{ col: 10, row: 2 }],
+        to: { map: 'dungeon4', room: { col: 1, row: 3 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     enemies: [
       { kind: 'eye', col: 12, row: 6 },
       { kind: 'bird', col: 4, row: 2 },
@@ -1347,7 +1353,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
       'FFFFFF...V......FFFF',
-      'FFFF............FFFF',
+      'FFFF......D.....FFFF',
       'FFF...............FF',
       '....................',
       '....................',

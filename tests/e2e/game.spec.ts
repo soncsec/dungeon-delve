@@ -1091,6 +1091,81 @@ test('Sunken Crypt’s prize: Lightning, in hand at once; the hub’s crystal sw
   expect(watched.errors).toEqual([]);
 });
 
+test('Stonecrag Mine’s cave in the mountains opens once Jarrett holds three shards', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(3, 1);
+    window.__game?.clearEnemies();
+    window.__game?.takeShard(1);
+    window.__game?.takeShard(2);
+  });
+  expect((await snapshot(page)).shards).toBe(2);
+  // With two shards, he stands in the cave's mouth and nothing happens.
+  await page.evaluate(() => window.__game?.placeHero(168, 70, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(48);
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  // The third shard, and the way opens.
+  await page.evaluate(() => {
+    window.__game?.takeShard(3);
+    window.__game?.placeHero(168, 70, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const s = await snapshot(page);
+  expect(s.map).toBe('dungeon4');
+  expect(s.room).toEqual({ col: 1, row: 3 });
+  expect(s.enteredAt).toEqual({ x: 160, y: 140 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('Stonecrag Mine’s prize: the Axe behind thorns, which smashes the hub’s rubble', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=4'); // with the daggers, the Fireball and Lightning
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(2, 2); // the east drift
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(184, 94, 'right');
+  });
+  // A Fireball burns the thorns in the closet's doorway (column 12, row 5).
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon4/2,2/12,5');
+  // In, beside the chest (column 14, row 4), and it opens: the Axe drops.
+  await page.evaluate(() => window.__game?.placeHero(216, 78, 'right'));
+  await page.evaluate(() => window.__game?.bump(14, 4));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon4/2,2/14,4');
+  const axe = (await snapshot(page)).pickups.find((p) => p.kind === 'item');
+  expect(axe).toBeDefined();
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), axe ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
+  // In the hub, the Axe (in hand at once) smashes the rubble across the way north.
+  await page.evaluate(() => {
+    window.__game?.goToRoom(1, 2);
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(152, 46, 'up');
+  });
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon4/1,2/9,1');
+  await holdUntil(page, 'ArrowUp', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 1 && room.row === 1;
+  });
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {

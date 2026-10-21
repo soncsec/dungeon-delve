@@ -39,6 +39,7 @@ export const ITEMS: Readonly<Record<ItemId, { slot: Slot; name: string }>> = {
  */
 export const EARNED_BY_DUNGEON: Readonly<Record<number, readonly ItemId[]>> = {
   1: ['daggers', 'fireball'],
+  3: ['lightning'],
 };
 
 /**

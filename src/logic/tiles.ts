@@ -141,6 +141,8 @@ export const THORN_TINT = 0xe0704c;
 export const VOLCANO_TINT = 0xffa486;
 /** Sunken Crypt: the dungeon stone under a dry, sandy tint. */
 export const CRYPT_TINT = 0xe8d0a0;
+/** Stonecrag Mine: the dungeon stone under a warm, earthy tint. */
+export const MINE_TINT = 0xd0a880;
 
 /** Two tints at once, each channel multiplied: a thorn bush in a tinted room keeps its colour. */
 export function mixTint(a: number, b: number): number {
@@ -392,6 +394,11 @@ export function dungeonArt(
       const isOpen = cell.fixture === 'gate' ? gates : cell.fixture !== null && opened(x, y);
       const tile = { frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE };
       art.ground.push(cell.fixture === 'switch' && !isOpen ? { ...tile, dim: true } : tile);
+      // Rubble the Axe smashes: the mountain set's, on the floor.
+      if (cell.fixture === 'cracked' && !isOpen) {
+        const frame = MOUNTAIN_FRAMES.rubble[x % 2] as number;
+        art.ground.push({ frame, x: x * TILE, y: y * TILE, sheet: 'mountain' });
+      }
       if (cell.fixture === 'chest' && !isOpen) art.chests.push({ x: x * TILE, y: y * TILE });
       if (cell.prop && !isOpen) art.props.push(propDraw(cell.prop, x, y));
     });

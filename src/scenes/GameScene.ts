@@ -2168,6 +2168,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     while (this.talk) this.turnPage();
   }
 
+  /** Test hook only: count dungeon n's shard as found. */
+  testTakeShard(n: number): void {
+    this.progress = takeReward(this.progress, rewardId(`dungeon${n}`, 'shard'));
+  }
+
   /** Test hook only: give Jarrett a small key for this map. */
   testGiveKey(): void {
     this.progress = addKey(this.progress, this.mapId);
