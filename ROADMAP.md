@@ -82,6 +82,7 @@
   - [x] M3.1b Small keys, locked doors and chests
   - [x] M3.1c Pushable stones
 - [ ] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
+  - [x] M3.2a Doorways between maps: the stone archway into dungeon 1, and the way back out
 - [ ] M3.3 Boss framework (phases, health bar) and the Treant
 - [ ] M3.4 Shard pickup, heart container, the Star of Power display
 - [ ] M3.5 Save and continue (ADR-D04); `?dungeon=n` play-test skip that counts as a cheat

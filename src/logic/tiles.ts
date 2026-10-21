@@ -32,6 +32,18 @@ export const PROP_REGIONS: Readonly<
   boulder: { x: 224, y: 64, w: 32, h: 32 },
   rock: { x: 128, y: 96, w: 16, h: 16 },
   bush: { x: 128, y: 64, w: 16, h: 16 },
+  // The archway comes from the dungeon sheet (see PROP_SHEET).
+  arch: { x: 16, y: 16, w: 64, h: 48 },
+};
+
+/** Which sheet each prop's art is on. */
+export const PROP_SHEET: Readonly<Record<PropKind, 'forest' | 'dungeon'>> = {
+  pine: 'forest',
+  oak: 'forest',
+  boulder: 'forest',
+  rock: 'forest',
+  bush: 'forest',
+  arch: 'dungeon',
 };
 
 function mod3(n: number): number {
@@ -75,6 +87,8 @@ export function forestFrame(room: Room, x: number, y: number): number {
 export function propDraw(prop: PropKind, x: number, y: number): PropDraw {
   // The boulder's anchor is its top-left cell; the others stand on their anchor cell.
   if (prop === 'boulder') return { prop, x: (x + 1) * TILE, y: (y + 2) * TILE };
+  // The archway's anchor is its top-left cell; it is 4 cells wide and 3 tall.
+  if (prop === 'arch') return { prop, x: (x + 2) * TILE, y: (y + 3) * TILE };
   return { prop, x: x * TILE + TILE / 2, y: (y + 1) * TILE };
 }
 

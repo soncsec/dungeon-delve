@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { KEY_COLOURS, KEY_PIXELS } from '../assets/keyArt';
 import { ASSETS, animKey } from '../assets/manifest';
-import { PROP_REGIONS } from '../logic/tiles';
+import type { PropKind } from '../logic/room';
+import { PROP_REGIONS, PROP_SHEET } from '../logic/tiles';
 
 /**
  * Loads every asset in the manifest and makes its animations, then starts the
@@ -32,10 +33,10 @@ export class PreloadScene extends Phaser.Scene {
         });
       }
     }
-    // Props span several cells, so each gets its own frame on the forest sheet.
-    const forest = this.textures.get('forest');
-    for (const [name, r] of Object.entries(PROP_REGIONS))
-      forest.add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
+    // Props span several cells, so each gets its own frame on its sheet.
+    for (const [name, r] of Object.entries(PROP_REGIONS)) {
+      this.textures.get(PROP_SHEET[name as PropKind]).add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
+    }
 
     // The small key is drawn in code: the art pack has none (owner, 2026-10-20).
     const g = this.make.graphics({}, false);

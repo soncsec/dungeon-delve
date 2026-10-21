@@ -21,6 +21,7 @@ import {
   ENEMY_SHOT,
   ROOM_SLIDE_MS,
   STONE,
+  TRAVEL,
   SHIELD,
   SWORD,
   TILE,
@@ -82,16 +83,18 @@ import {
   type Rect,
   type Swing,
 } from '../logic/sword';
-import { dungeonArt, roomArt } from '../logic/tiles';
+import { PROP_SHEET, dungeonArt, roomArt } from '../logic/tiles';
 import {
   buildWorld,
   cellsAhead,
   enterFrom,
+  exitAt,
   exitDirection,
   neighbour,
   roomKey,
   solidInWorld,
   type ChestContents,
+  type MapExit,
   type World,
 } from '../logic/world';
 import { DUNGEON_MAPS, MAPS, type MapId } from '../world/maps';
@@ -107,8 +110,9 @@ export interface GameSnapshot {
   /** The map he is on, and the room in it. */
   map: MapId;
   room: { col: number; row: number };
-  /** True while the view slides to the next room. */
+  /** True while the view slides to the next room, and while travelling to another map. */
   sliding: boolean;
+  travelling: boolean;
   /** Where Jarrett's feet were when he entered the current room (null in the start room). */
   enteredAt: Point | null;
   /** The area the sword covers, while a swing is under way. */
@@ -318,6 +322,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private stones: readonly Stone[] = [];
   private stoneSprites: Phaser.GameObjects.Image[] = [];
   private lean: Lean = NO_LEAN;
+  /** True while the screen is dark, travelling through a doorway to another map. */
+  private travelling = false;
   /** True from the moment he runs out of hearts until he is back on his feet. */
   private falling = false;
   private falls = 0;
@@ -361,6 +367,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.lastCastAt = null;
     this.potions = { ...POTIONS.start };
     this.progress = NEW_PROGRESS;
+    this.travelling = false;
     this.falling = false;
     this.falls = 0;
     this.sfx = new Sfx(this);
@@ -404,7 +411,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.now = time;
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
-    if (this.sliding || this.falling) return;
+    if (this.sliding || this.falling || this.travelling) return;
     if (presses.some((c) => INVENTORY_KEYS.has(c)) && this.heroKnockMs <= 0) {
       this.openInventory();
       return;
@@ -464,6 +471,17 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       return;
     }
     if (!busy && this.heroKnockMs <= 0) {
+      // A doorway to another map under his feet takes him there.
+      const way = exitAt(
+        this.world,
+        roomKey(this.room.col, this.room.row),
+        Math.floor(this.pos.x / TILE),
+        Math.floor((this.pos.y - 1) / TILE),
+      );
+      if (way) {
+        this.travel(way);
+        return;
+      }
       const dir = exitDirection(this.pos, HERO.box.height);
       if (dir) this.slideTo(dir);
     }
@@ -773,6 +791,55 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
     this.falls += 1;
     this.falling = false;
+  }
+
+  /** Through a doorway: the screen goes dark, and he is on the other map. */
+  private travel(way: MapExit): void {
+    this.travelling = true;
+    this.moving = false;
+    this.animate(false);
+    const veil = this.add
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud - 1)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: veil,
+      alpha: 1,
+      duration: TRAVEL.fadeMs,
+      onComplete: () => {
+        this.arrive(way);
+        this.tweens.add({
+          targets: veil,
+          alpha: 0,
+          duration: TRAVEL.fadeMs,
+          onComplete: () => {
+            veil.destroy();
+            this.travelling = false;
+          },
+        });
+      },
+    });
+  }
+
+  /** Puts Jarrett on the far side of a doorway, on its map. */
+  private arrive(way: MapExit): void {
+    this.clearRoom();
+    for (const o of this.roomObjects) o.destroy();
+    this.mapId = way.to.map as MapId;
+    this.world = buildWorld(MAPS[this.mapId].rooms);
+    this.room = { ...way.to.room };
+    this.resetStones();
+    this.roomObjects = this.drawRoom(this.room.col, this.room.row);
+    this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
+    this.pos = { ...way.to.feet };
+    this.facing = way.to.facing;
+    this.enteredAt = { ...this.pos };
+    this.animate(false);
+    this.placeSprite();
+    this.spawnEnemies();
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
   }
 
   /** Pauses the game and shows the inventory over it. */
@@ -1103,6 +1170,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       map: this.mapId,
       room: { ...this.room },
       sliding: this.sliding,
+      travelling: this.travelling,
       enteredAt: this.enteredAt ? { ...this.enteredAt } : null,
       sword: isSwinging(this.swing, this.now, SWORD.durationMs)
         ? swordBox(this.pos, this.facing, SWORD)
@@ -1341,7 +1409,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     for (const p of art.props) {
       drawn.push(
         this.add
-          .image(o.x + p.x, o.y + p.y, 'forest', `prop:${p.prop}`)
+          .image(o.x + p.x, o.y + p.y, PROP_SHEET[p.prop], `prop:${p.prop}`)
           .setOrigin(0.5, 1)
           .setDepth(DEPTH.sorted + o.y + p.y),
       );

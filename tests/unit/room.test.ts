@@ -3,6 +3,7 @@ import {
   cellAt,
   edgeOpenings,
   isForest,
+  exitsIn,
   fixturesIn,
   isPassage,
   isSolid,
@@ -26,6 +27,7 @@ describe('parseRoom', () => {
       wall: false,
       prop: null,
       fixture: null,
+      exit: false,
     });
     expect(cellAt(r, 0, 1)).toEqual({
       solid: false,
@@ -33,6 +35,7 @@ describe('parseRoom', () => {
       wall: false,
       prop: null,
       fixture: null,
+      exit: false,
     });
   });
 
@@ -44,6 +47,7 @@ describe('parseRoom', () => {
       wall: true,
       prop: null,
       fixture: null,
+      exit: false,
     });
     expect(isWall(r, 3, 0)).toBe(true);
     expect(isWall(r, 3, 1)).toBe(false);
@@ -68,6 +72,36 @@ describe('parseRoom', () => {
     expect(isPassage(r, 3, 3)).toBe(true);
     expect(isPassage(r, 30, 3)).toBe(true);
     expect(edgeOpenings(r, 'north').filter(Boolean)).toHaveLength(2);
+  });
+
+  it('reads an archway and its doorway', () => {
+    const r = parseRoom(
+      room({
+        1: '........A...........',
+        2: '.........DD.........',
+      }),
+    );
+    expect(cellAt(r, 8, 1)?.prop).toBe('arch');
+    // Lintel and pillars are solid; the opening is not.
+    for (const [x, y] of [
+      [8, 1],
+      [11, 1],
+      [8, 2],
+      [11, 2],
+      [8, 3],
+      [11, 3],
+    ] as const) {
+      expect(isSolid(r, x, y), `${x},${y}`).toBe(true);
+    }
+    expect(isSolid(r, 9, 2)).toBe(false);
+    expect(isSolid(r, 9, 3)).toBe(false);
+    expect(cellAt(r, 9, 2)).toMatchObject({ solid: false, exit: true });
+    expect(exitsIn(r)).toEqual([
+      { x: 9, y: 2 },
+      { x: 10, y: 2 },
+    ]);
+    // A doorway to another map is not a way into the room next door.
+    expect(isPassage(r, 9, 2)).toBe(false);
   });
 
   it('lists pushable stones, with open floor under them', () => {
