@@ -17,10 +17,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_4_START = { col: 1, row: 3 } as const;
 
 export const DUNGEON_4: readonly RoomDef[] = [
-  // The boss room: empty until the Ogre comes (M5.3b).
+  // The boss room: the Ogre.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'ogre', col: 10, row: 6 },
     lines: [
       '####################',
       '####################',

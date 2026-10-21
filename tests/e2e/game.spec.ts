@@ -1546,6 +1546,98 @@ test('the beaten Mummy leaves a heart container and Sunken Crypt’s shard', asy
   expect(watched.errors).toEqual([]);
 });
 
+/** Into Stonecrag Mine's boss room from the deep shaft (a key given), sword in hand. */
+async function enterOgreRoom(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=4');
+  await page.evaluate(() => {
+    window.__game?.giveItem('axe'); // the mine's prize, in the bag beside the sword
+    window.__game?.goToRoom(1, 1); // the deep shaft
+    window.__game?.clearEnemies();
+    window.__game?.giveKey();
+    window.__game?.placeHero(160, 60, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).sliding, { timeout: 15_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).room).toEqual({ col: 1, row: 0 });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('ogre');
+}
+
+/** Takes the Axe in hand: in the bag, the near weapon (the first slot), Space to switch. */
+async function takeAxeInHand(page: Page): Promise<void> {
+  const inv = () => page.evaluate(() => window.__game?.inventory());
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await inv())?.cursor).toBe(0);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await inv())?.slots['near']).toBe('Axe');
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+}
+
+test('the Ogre: the sword glances off its hide, the Axe bites; it winds up, then slams a ring of eight', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterOgreRoom(page);
+  const boss = async () => (await snapshot(page)).boss;
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  const b = await boss();
+  expect(b).toMatchObject({ health: 10, crouching: false });
+  const at = { x: b?.x ?? 0, y: b?.y ?? 0 };
+  // The sword glances off.
+  await expect.poll(() => settled(page)).toBe(true);
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 25, 'up'), at);
+  await swingOnce(page);
+  expect((await boss())?.health).toBe(10);
+  expect((await snapshot(page)).sounds.block).toBeGreaterThanOrEqual(1);
+  // The Axe bites.
+  await takeAxeInHand(page);
+  await swingOnce(page);
+  await expect.poll(async () => (await boss())?.health).toBe(9);
+  // Let go: it winds up (standing still), then slams down a ring of eight shockwaves.
+  await page.evaluate(() => window.__game?.placeHero(40, 126, 'up'));
+  const fired = (await snapshot(page)).shotsFired;
+  await page.evaluate(() => window.__game?.holdEnemies(false));
+  await expect
+    .poll(async () => (await boss())?.crouching, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await expect
+    .poll(async () => (await snapshot(page)).shotsFired, { timeout: 10_000 })
+    .toBe(fired + 8);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Ogre leaves a heart container and Stonecrag Mine’s shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterOgreRoom(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(1);
+  });
+  const b = (await snapshot(page)).boss;
+  await takeAxeInHand(page);
+  await expect.poll(() => settled(page)).toBe(true);
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 25, 'up'), {
+    x: b?.x ?? 0,
+    y: b?.y ?? 0,
+  });
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const kinds = async () => (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(await kinds()).toEqual(['heart-container', 'shard']);
+  const shard = (await snapshot(page)).pickups.find((p) => p.kind === 'shard');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard ?? { x: 0, y: 0 });
+  await expect.poll(kinds).toEqual(['heart-container']);
+  const s = await snapshot(page);
+  expect(s.shards).toBe(1);
+  expect(s.opened).toEqual(expect.arrayContaining(['dungeon4/1,0/boss', 'dungeon4/shard']));
+  expect(s.sealed).toBe(false);
+  expect(watched.errors).toEqual([]);
+});
+
 test('a reward left behind is still there when Jarrett comes back', async ({ page }) => {
   await beatTreant(page);
   // Out through the south gap without picking anything up, and back in.

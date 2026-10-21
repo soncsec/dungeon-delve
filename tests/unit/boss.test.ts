@@ -6,7 +6,7 @@ import {
   isAirborne,
   isBeaten,
   isFierce,
-  isWrapped,
+  glancesOff,
   leapHeight,
   leapTarget,
   spawnBoss,
@@ -240,11 +240,11 @@ describe('the Mummy: shambling, and wrapped tight', () => {
   });
 
   it('hits glance off until a Lightning bolt stuns it; then they land', () => {
-    expect(isWrapped(mummy(), m)).toBe(true);
+    expect(glancesOff(mummy(), m, 'wooden-sword')).toBe(true);
     expect(hitBoss(mummy(), 1, 7, 100, m)).toEqual(mummy());
     const stunned = stunBoss(mummy(), 40, m);
     expect(stunned).toMatchObject({ stunMs: 3000, lastHitBy: 40 });
-    expect(isWrapped(stunned, m)).toBe(false);
+    expect(glancesOff(stunned, m, 'wooden-sword')).toBe(false);
     expect(hitBoss(stunned, 1, 41, 100, m).health).toBe(9);
     expect(stunBoss(stunned, 40, m)).toBe(stunned); // the same bolt counts once
   });
@@ -261,6 +261,55 @@ describe('the Mummy: shambling, and wrapped tight', () => {
 
   it('a boss not wrapped shrugs a bolt off', () => {
     expect(stunBoss(boss(), 40, s)).toEqual(boss());
-    expect(isWrapped(boss(), s)).toBe(false);
+    expect(glancesOff(boss(), s, 'wooden-sword')).toBe(false);
+  });
+});
+
+describe('the Ogre: a wind-up, a ring of shockwaves, and a hide only the Axe gets through', () => {
+  const o: BossStats = {
+    ...s,
+    moves: { style: 'shuffle', speed: 20, range: 40 },
+    windUpMs: 700,
+    ring: true,
+    calm: { shots: 8, spreadDeg: 45, everyMs: { min: 2400, max: 2400 } },
+    fierce: { shots: 12, spreadDeg: 30, everyMs: { min: 1600, max: 1600 } },
+    hide: 'axe',
+  };
+  const ogre = (over: Partial<Boss> = {}): Boss => boss({ kind: 'ogre', ...over });
+
+  it('when its timer runs out it winds up first, standing still, and fires nothing yet', () => {
+    const r = stepBoss(ogre({ shootInMs: 10 }), 20, hero, o, firstRng);
+    expect(r.boss).toMatchObject({ phase: 'crouch', shootInMs: 700 });
+    expect(r.shots).toEqual([]);
+    const still = stepBoss(r.boss, 300, hero, o, firstRng);
+    expect(still.boss.pos).toEqual(r.boss.pos);
+    expect(still.boss.shootInMs).toBe(400);
+  });
+
+  it('then slams: a ring of eight, the first straight at Jarrett; it moves on after', () => {
+    const r = stepBoss(ogre({ phase: 'crouch', shootInMs: 10 }), 20, hero, o, firstRng);
+    expect(r.shots).toHaveLength(8);
+    expect(r.shots[0]?.y).toBeCloseTo(1);
+    expect(r.boss).toMatchObject({ phase: 'sit', shootInMs: 2400 });
+    expect(stepBoss(r.boss, 1000, hero, o, firstRng).boss.pos.x).toBe(180);
+  });
+
+  it('fiercer below half health: twelve in the ring', () => {
+    const r = stepBoss(ogre({ health: 5, phase: 'crouch', shootInMs: 0 }), 10, hero, o, firstRng);
+    expect(r.shots).toHaveLength(12);
+  });
+
+  it('only the Axe’s blows land; the sword and every shot glance off', () => {
+    expect(glancesOff(ogre(), o, 'wooden-sword')).toBe(true);
+    expect(glancesOff(ogre(), o, null)).toBe(true);
+    expect(glancesOff(ogre(), o, 'axe')).toBe(false);
+    expect(hitBoss(ogre(), 1, 5, 100, o, 'wooden-sword')).toEqual(ogre());
+    expect(hitBoss(ogre(), 1, 5, 100, o, 'axe').health).toBe(9);
+  });
+
+  it('a boss without a wind-up fires its spread at once, as before', () => {
+    const r = stepBoss(boss({ shootInMs: 10 }), 20, hero, s, firstRng);
+    expect(r.shots).toHaveLength(3);
+    expect(r.boss.phase).toBe('sit');
   });
 });
