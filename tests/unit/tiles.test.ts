@@ -14,6 +14,10 @@ import {
   propDraw,
   POND_FRAMES,
   pondFrame,
+  MOUNTAIN_COLUMNS,
+  MOUNTAIN_FRAMES,
+  MOUNTAIN_PROP_REGIONS,
+  cliffFrame,
   propSheet,
   roomArt,
   TOWN_COLUMNS,
@@ -340,5 +344,67 @@ describe('ruins', () => {
     for (const t of paving) {
       expect([DUNGEON_FRAMES.floor, ...DUNGEON_FRAMES.cracks]).toContain(t.frame);
     }
+  });
+});
+
+describe('mountains', () => {
+  // A cliff four rows deep across the top, then open dirt.
+  const valley = parseRoom(
+    Array.from({ length: 10 }, (_, y) => (y < 4 ? 'FFFFFFFFFFFFFFFFFFFF' : '....................')),
+  );
+
+  it('draws cliffs by depth: rock face at the foot, then the ledge, then the grassy top', () => {
+    const [face, faceMid, faceTop, ledge, top] = MOUNTAIN_FRAMES.cliff;
+    expect(cliffFrame(valley, 0, 3)).toBe(face?.[0]);
+    expect(cliffFrame(valley, 1, 3)).toBe(face?.[1]); // alternating columns
+    expect(cliffFrame(valley, 0, 2)).toBe(faceMid?.[0]);
+    expect(cliffFrame(valley, 0, 1)).toBe(faceTop?.[0]);
+    expect(cliffFrame(valley, 0, 0)).toBe(ledge?.[0]);
+    // Deeper than the face and ledge: the top (a wall running on down to the room's edge).
+    const plateau = parseRoom(Array.from({ length: 10 }, () => 'F...................'));
+    expect(cliffFrame(plateau, 0, 2)).toBe(top?.[0]);
+  });
+
+  it('draws dirt with cliffs on the mountain sheet, and no forest tops', () => {
+    const art = roomArt(valley, 'mountains');
+    expect(art.over).toEqual([]);
+    expect(art.ground.every((t) => t.sheet === 'mountain')).toBe(true);
+    const dirt = art.ground.filter((t) => t.y >= 64).map((t) => t.frame);
+    expect(dirt).toContain(MOUNTAIN_FRAMES.dirt);
+    expect(dirt).toContain(MOUNTAIN_FRAMES.dirtPatch);
+    // The volcano edge is drawn the same way (the scene adds its tint).
+    expect(roomArt(valley, 'volcano')).toEqual(art);
+  });
+
+  it('every mountain frame has art', () => {
+    const png = pngAlpha(`${process.cwd()}/public/assets/tiles/mountain.png`);
+    const frames = [
+      MOUNTAIN_FRAMES.dirt,
+      MOUNTAIN_FRAMES.dirtPatch,
+      ...MOUNTAIN_FRAMES.cliff.flat(),
+    ];
+    for (const f of frames) {
+      const x = (f % MOUNTAIN_COLUMNS) * 16;
+      const y = Math.floor(f / MOUNTAIN_COLUMNS) * 16;
+      expect(hasPixels(png, x, y, 16, 16), `frame ${f}`).toBe(true);
+    }
+  });
+
+  it('draws boulders and rocks from the mountain sheet in the mountains only', () => {
+    expect(propSheet('boulder', 'mountains')).toBe('mountain');
+    expect(propSheet('rock', 'volcano')).toBe('mountain');
+    expect(propSheet('pine', 'mountains')).toBe('forest');
+    expect(propSheet('boulder', 'forest')).toBe('forest');
+    // Same size as the forest's, so the same anchors fit.
+    for (const [k, r] of Object.entries(MOUNTAIN_PROP_REGIONS)) {
+      const forest = PROP_REGIONS[k as keyof typeof PROP_REGIONS];
+      expect([r.w, r.h]).toEqual([forest.w, forest.h]);
+      const png = pngAlpha(`${process.cwd()}/public/assets/tiles/mountain.png`);
+      expect(hasPixels(png, r.x, r.y, r.w, r.h)).toBe(true);
+    }
+  });
+
+  it('places the cave by its top-left cell', () => {
+    expect(propDraw('cave', 8, 1)).toEqual({ prop: 'cave', x: 152, y: 64 });
   });
 });

@@ -374,8 +374,13 @@ test('C casts a Fireball: it costs mana, which then refills by itself', async ({
   expect((await snapshot(page)).mana).toEqual({ current: 100, max: 100 });
   await page.keyboard.press('c');
   await expect.poll(async () => (await snapshot(page)).casts).toBe(1);
-  expect((await snapshot(page)).mana.current).toBe(75);
-  await expect.poll(async () => (await hud())?.manaWidth).toBe(32); // 75% of the bar's 42-px fill, rounded
+  // Mana and the bar read together, from the same frame: on a slow machine mana can refill
+  // between two separate reads.
+  const after = await page.evaluate(() => ({
+    mana: window.__game?.snapshot()?.mana.current,
+    width: window.__game?.hud().manaWidth,
+  }));
+  expect(after).toEqual({ mana: 75, width: 32 }); // 75% of the bar's 42-px fill, rounded
   await expect.poll(async () => (await snapshot(page)).fireballs).toEqual([]);
   // After a short pause it refills to full by itself (25 mana at 12 per second).
   await expect.poll(async () => (await snapshot(page)).mana.current, { timeout: 15_000 }).toBe(100);
@@ -1323,5 +1328,38 @@ test('east of the vault grounds lie the ruins, whose broken walls stop Jarrett',
   await page.waitForTimeout(300);
   await page.keyboard.up('ArrowUp');
   expect((await snapshot(page)).player.y).toBe(134);
+  expect(watched.errors).toEqual([]);
+});
+
+test('north of the forest rise the mountains; the mine cave is sealed rock', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // From the forest edge north of the vault grounds, up through its new north gap.
+  await page.evaluate(() => window.__game?.goToRoom(3, 2));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 3, row: 1 });
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  expect((await snapshot(page)).region).toBe('mountains');
+
+  // Stonecrag Mine's cave (columns 9–11, rows 1–3): its rock stops him beside the doorway.
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(184, 90, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(70); // row 4's top + his 6-px feet box
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).player.y).toBe(70);
+
+  // The far north-east is the volcano edge.
+  await page.evaluate(() => window.__game?.goToRoom(7, 0));
+  expect((await snapshot(page)).region).toBe('volcano');
   expect(watched.errors).toEqual([]);
 });

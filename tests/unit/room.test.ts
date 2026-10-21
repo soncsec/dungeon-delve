@@ -303,3 +303,22 @@ describe('ponds', () => {
     expect(() => parseRoom(room(rows), 'pond')).toThrow("isn't a rectangle at least 2×2");
   });
 });
+
+describe('caves', () => {
+  it('blocks the rock round a cave but not its doorway', () => {
+    const r = parseRoom(room({ 1: '........V...........' }));
+    for (const [x, y] of [
+      [8, 1],
+      [9, 1],
+      [10, 1],
+      [8, 2],
+      [10, 2],
+      [8, 3],
+      [10, 3],
+    ] as const) {
+      expect(isSolid(r, x, y), `${x},${y}`).toBe(true);
+    }
+    expect(isSolid(r, 9, 2)).toBe(false);
+    expect(isSolid(r, 9, 3)).toBe(false);
+  });
+});
