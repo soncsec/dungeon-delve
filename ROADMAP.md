@@ -8,8 +8,8 @@
 |---|---|
 | M0 Setup | Done |
 | M1 Walking skeleton | Done (owner play-tested on staging 2026-10-20: "feels good") |
-| M2 Combat, inventory and mana | Built; M2.9 in review |
-| M3 First dungeon, end to end | Not started |
+| M2 Combat, inventory and mana | Done (2026-10-20) |
+| M3 First dungeon, end to end | In progress |
 | M4 The overworld | Not started |
 | M5 Dungeons 2–4 | Not started |
 | M6 Dungeons 5–8 | Not started |
@@ -77,7 +77,10 @@
 
 **Playable result:** walk from the village to dungeon 1, solve it, beat the Treant, collect shard 1 and a heart container, and come back. Progress survives a page reload.
 
-- [ ] M3.1 Dungeon tiles, doors, small keys and locked doors, pushable stones, chests
+- [ ] M3.1 Dungeon tiles, doors, small keys and locked doors, pushable stones, chests, in three PRs:
+  - [x] M3.1a Dungeon walls and floors drawn automatically; maps (overworld, dungeon 1); `?dungeon=n` starts in a dungeon
+  - [ ] M3.1b Small keys, locked doors and chests
+  - [ ] M3.1c Pushable stones
 - [ ] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
 - [ ] M3.3 Boss framework (phases, health bar) and the Treant
 - [ ] M3.4 Shard pickup, heart container, the Star of Power display
