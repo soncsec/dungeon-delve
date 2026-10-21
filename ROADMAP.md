@@ -81,8 +81,9 @@
   - [x] M3.1a Dungeon walls and floors drawn automatically; maps (overworld, dungeon 1); `?dungeon=n` starts in a dungeon
   - [x] M3.1b Small keys, locked doors and chests
   - [x] M3.1c Pushable stones
-- [ ] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
+- [x] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
   - [x] M3.2a Doorways between maps: the stone archway into dungeon 1, and the way back out
+  - [x] M3.2b Six rooms (entrance, hub, west, east, great hall, boss room), two keys, the daggers behind a stone; Jarrett no longer starts with the daggers
 - [ ] M3.3 Boss framework (phases, health bar) and the Treant
 - [ ] M3.4 Shard pickup, heart container, the Star of Power display
 - [ ] M3.5 Save and continue (ADR-D04); `?dungeon=n` play-test skip that counts as a cheat

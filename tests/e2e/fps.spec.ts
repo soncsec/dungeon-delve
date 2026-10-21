@@ -23,6 +23,7 @@ test('a crowded fight keeps each frame within the 60 fps budget (M2.9)', async (
     });
   });
   // Jarrett throws daggers (far weapon) non-stop, and casts when he can.
+  await page.evaluate(() => window.__game?.giveItem('daggers'));
   await page.keyboard.press('x');
   await page.keyboard.down('Space');
   await page.evaluate(() => window.__game?.frameTimes(true));

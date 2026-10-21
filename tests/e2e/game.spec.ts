@@ -290,6 +290,8 @@ test('a thrown dagger flies until a wall stops it, and two daggers defeat a robo
   page,
 }) => {
   await openGame(page);
+  // The daggers are dungeon 1's prize; this test starts with them.
+  await page.evaluate(() => window.__game?.giveItem('daggers'));
   await page.keyboard.press('x');
   await expect.poll(async () => (await snapshot(page)).mode).toBe('far');
 
@@ -491,7 +493,8 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
   await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Inventory');
   expect(await page.evaluate(() => window.__game?.inventory())).toEqual({
     cursor: 0,
-    slots: { near: 'Wooden Sword', far: 'Daggers', spell: 'Fireball', shield: 'Wooden Shield' },
+    // No far weapon yet: the daggers are dungeon 1's prize.
+    slots: { near: 'Wooden Sword', far: '', spell: 'Fireball', shield: 'Wooden Shield' },
   });
   // The game is paused: holding a direction doesn't move Jarrett.
   await page.keyboard.down('ArrowRight');
@@ -505,7 +508,10 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
 
 test('in the inventory, arrows choose a slot and Space switches its item', async ({ page }) => {
   await openGame(page);
-  await page.evaluate(() => window.__game?.giveItem('steel-sword'));
+  await page.evaluate(() => {
+    window.__game?.giveItem('steel-sword');
+    window.__game?.giveItem('daggers');
+  });
   await page.keyboard.press('Tab');
   await expect.poll(() => page.evaluate(() => window.__game?.inventory()?.cursor)).toBe(0);
   const inv = () => page.evaluate(() => window.__game?.inventory());
@@ -606,11 +612,12 @@ test('without ?dungeon, the game starts on the overworld', async ({ page }) => {
   expect((await snapshot(page)).map).toBe('overworld');
 });
 
-test('in dungeon 1: a chest gives a key, the key opens the locked door, and the next chest gives gems', async ({
+test('in dungeon 1: a chest gives a key, and the key opens the locked door into the hub', async ({
   page,
 }) => {
   const watched = watchPage(page);
   await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
   const hud = () => page.evaluate(() => window.__game?.hud());
   await expect.poll(async () => (await hud())?.keys).toBe('0'); // the key count shows in dungeons
   // The key chest is at column 4, row 3: walk up into it from just below.
@@ -618,7 +625,7 @@ test('in dungeon 1: a chest gives a key, the key opens the locked door, and the 
   await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).keys).toBe(1); // opened, and the key picked up
   await page.keyboard.up('ArrowUp');
-  expect((await snapshot(page)).opened).toEqual(['dungeon1/0,1/4,3']);
+  expect((await snapshot(page)).opened).toEqual(['dungeon1/1,3/4,3']);
   await expect.poll(async () => (await hud())?.keys).toBe('1');
 
   // The locked door is at columns 9–10, row 1: walk up into it, and on through.
@@ -626,17 +633,11 @@ test('in dungeon 1: a chest gives a key, the key opens the locked door, and the 
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 0, row: 0 });
+    .toEqual({ col: 1, row: 2 }); // the hub
   await page.keyboard.up('ArrowUp');
   const s = await snapshot(page);
   expect(s.keys).toBe(0);
-  expect(s.opened).toEqual(expect.arrayContaining(['dungeon1/0,1/9,1', 'dungeon1/0,1/10,1']));
-  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
-
-  // Straight on up to the gem chest at column 9, row 3.
-  await page.keyboard.down('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).gems, { timeout: 15_000 }).toBe(20);
-  await page.keyboard.up('ArrowUp');
+  expect(s.opened).toEqual(expect.arrayContaining(['dungeon1/1,3/9,1', 'dungeon1/1,3/10,1']));
   expect(watched.errors).toEqual([]);
 });
 
@@ -648,7 +649,7 @@ test('without a key, the locked door stays shut', async ({ page }) => {
   await page.keyboard.up('ArrowUp');
   const s = await snapshot(page);
   expect(s.opened).toEqual([]);
-  expect(s.room).toEqual({ col: 0, row: 1 });
+  expect(s.room).toEqual({ col: 1, row: 3 });
   expect(s.player.y).toBe(38); // flush below the gate (row 2's top + his 6-px feet box)
 });
 
@@ -673,7 +674,7 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const inside = await snapshot(page);
-  expect(inside.room).toEqual({ col: 0, row: 1 });
+  expect(inside.room).toEqual({ col: 1, row: 3 });
   expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived (the arrow was still held after)
 
   // Back down through the doorway in the south wall.
@@ -684,5 +685,31 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   const outside = await snapshot(page);
   expect(outside.room).toEqual({ col: 1, row: 0 });
   expect(outside.facing).toBe('down');
+  expect(watched.errors).toEqual([]);
+});
+
+test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.goToRoom(0, 2)); // the west room
+  expect((await snapshot(page)).stones).toEqual([{ cx: 6, cy: 5 }]);
+  // East of the stone that blocks the closet's doorway, pushing west.
+  await page.evaluate(() => window.__game?.placeHero(118, 94, 'left'));
+  await page.keyboard.down('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).stones).toEqual([{ cx: 5, cy: 5 }]);
+  await page.keyboard.up('ArrowLeft');
+  // Into the closet, and up into the chest at column 3, row 3.
+  await page.evaluate(() => window.__game?.placeHero(56, 78, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon1/0,2/3,3');
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]); // picked up
+  // He can throw them now.
+  await page.keyboard.press('x');
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).thrown).toBe(1);
   expect(watched.errors).toEqual([]);
 });
