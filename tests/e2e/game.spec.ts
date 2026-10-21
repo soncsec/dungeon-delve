@@ -813,15 +813,18 @@ test('Bog Grotto’s archway in the marsh opens once Jarrett holds a shard', asy
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.goToRoom(1, 5));
   await page.evaluate(() => window.__game?.clearEnemies());
-  // Up into the archway's opening with no shard: he stands in it, and nothing happens.
+  // Up into the archway's opening with no shard: he reaches the doorway's row (it ends
+  // at y 48) and stands in it a while, and nothing happens. (Waiting for him to get there,
+  // rather than a fixed time: a slow browser walks him less far in the same time.)
   await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
   await page.keyboard.down('ArrowUp');
-  await page.waitForTimeout(800);
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(48);
+  await page.waitForTimeout(500);
   await page.keyboard.up('ArrowUp');
   let s = await snapshot(page);
   expect(s.map).toBe('overworld');
   expect(s.travelling).toBe(false);
-  expect(s.player.y).toBeLessThan(48); // in the doorway's row
+  expect(s.player.y).toBeLessThan(48); // still in the doorway's row
   // With one shard (dungeon 1's), the way opens.
   await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), { x: 160, y: 70 });
