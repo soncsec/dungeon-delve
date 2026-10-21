@@ -37,6 +37,8 @@ async function talkToWalker(page: Page): Promise<string[][]> {
   const w = (await snapshot(page)).walker;
   if (!w) throw new Error('Walker is not here');
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), w);
+  // A press is ignored while he is being knocked back.
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).talking).not.toBeNull();
   const pages: string[][] = [];
@@ -64,7 +66,8 @@ async function openGame(page: Page, query = ''): Promise<void> {
   if ((await sceneNow(page)) === 'Title') await page.keyboard.press('Enter');
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Game');
   const start = await snapshot(page);
-  if (start.walker) {
+  // Only the village talk: Walker at a dungeon entrance is left for the test.
+  if (start.map === 'overworld' && start.walker) {
     await talkToWalker(page);
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), start.player);
   }
@@ -1149,5 +1152,57 @@ test('Walker waits in the village, tells the story and hands over the sword and 
   expect((await snapshot(page)).walker).toBeNull();
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).swings).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('Walker gives a hint at dungeon 1, and waits outside once its shard is found', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  expect((await snapshot(page)).walker).toEqual({ x: 232, y: 111 });
+  const hint = await talkToWalker(page);
+  expect(hint[0]?.join(' ')).toContain('THIS IS HOLLOW OAK.');
+  expect(hint.flat().join(' ')).toContain('THROWING DAGGERS');
+  let s = await snapshot(page);
+  expect(s.walker).toBeNull();
+  expect(s.opened).toContain('walker/dungeon1');
+
+  // Beat the Treant and take the shard.
+  await page.evaluate(() => window.__game?.goToRoom(1, 1));
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 0 });
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('treant');
+  await page.evaluate(() => window.__game?.setBossHealth(1));
+  const bx = (await snapshot(page)).boss?.x ?? 0;
+  await page.evaluate((x) => window.__game?.placeHero(x, 120, 'up'), bx);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const shard = (await snapshot(page)).pickups.find((p) => p.kind === 'shard');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
+
+  // Out through the entrance's doorway: Walker is waiting by the archway.
+  await page.evaluate(() => window.__game?.goToRoom(1, 3));
+  await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
+  await page.keyboard.down('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
+  await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  // The archway room's enemies appear where he comes out; this test is about Walker.
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  expect((await snapshot(page)).walker).toEqual({ x: 216, y: 79 });
+  const after = await talkToWalker(page);
+  expect(after[0]?.join(' ')).toContain('SEVEN MORE TO FIND.');
+  expect(after.flat().join(' ')).toContain('PRESS X TO SWITCH');
+  s = await snapshot(page);
+  expect(s.walker).toBeNull();
+  expect(s.opened).toContain('walker/dungeon1-done');
   expect(watched.errors).toEqual([]);
 });
