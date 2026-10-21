@@ -167,6 +167,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-21 | Magic: Jarrett starts with no spell and no mana bar. After Hollow Oak, Walker thanks him for taking on the quest and teaches him the Fireball. Bog Grotto's prize becomes the bigger mana bar (a Mana Crystal: the pack's second Rocky Pass crystal recoloured blue, ADR-D05); Sunken Crypt's prize is to be decided |
 | 2026-10-21 | Touch controls and the phone layout (M8.2) come right after M5.2, so the owner can play-test on a phone |
 | 2026-10-21 | Sunken Crypt's prize is the Lightning spell (moved from Thunder Spire, whose prize is to be decided): a bolt that stuns enemies and powers crystal switches, which open barred gates. The bolt is the pack's "Warped shooting fx" bolt; a switch is the dungeon's pillar orb, dim until powered (runtime tint) |
+| 2026-10-21 | Bosses each fight their own way: the Treant shuffles and spits seeds; the Giant Frog crouches and leaps at Jarrett, out of reach in the air, and each landing throws a ring of shots; the Mummy shambles after him firing spreads, and only a Lightning bolt's stun lets blows land on it |
 | 2026-10-20 | A small title screen arrives with the save game (M3.5): CONTINUE when there is a save, and NEW GAME, which asks before wiping it. `?dungeon=n` skips the title and starts a new run marked as a cheat |
 | 2026-10-20 | Each beaten boss leaves a heart container and a shard of the Star of Power; a shard is the pack's crystal recoloured gold |
 
