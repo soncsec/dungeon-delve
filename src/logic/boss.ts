@@ -1,14 +1,34 @@
 /**
- * Bosses (engine-free, unit tested). A boss stands its ground in its room,
- * shuffling from side to side, and fires spreads of shots at Jarrett. Below
- * half health it turns fiercer: wider spreads, more often. A hit (by id, so
- * each lands once) costs it health; at zero it is beaten.
+ * Bosses (engine-free, unit tested). The Treant stands its ground, shuffling
+ * from side to side, and fires spreads of shots at Jarrett. The Giant Frog
+ * sits, crouches, and leaps at him; each landing throws a ring of shots, and
+ * in the air it can't be hit. Below half health a boss turns fiercer: more
+ * shots, more often. A hit (by id, so each lands once) costs it health; at
+ * zero it is beaten.
  */
 import type { Point } from './movement';
 import type { Rng } from './rng';
 import type { Vec } from './enemies';
 
-export type BossKind = 'treant';
+export type BossKind = 'treant' | 'frog';
+
+/** How a boss moves. */
+export type BossMoves =
+  /** Shuffling side to side: speed, and how far either side of where it starts. */
+  | { style: 'shuffle'; speed: number; range: number }
+  /**
+   * Leaping at Jarrett: it crouches for `crouchMs` (the warning), then leaps
+   * up to `reach` px towards him over `leapMs`, rising `peak` px, and lands
+   * with its feet inside `arena` (room pixels).
+   */
+  | {
+      style: 'hop';
+      crouchMs: number;
+      leapMs: number;
+      reach: number;
+      peak: number;
+      arena: { x: number; y: number; w: number; h: number };
+    };
 
 export interface BossStats {
   health: number;
@@ -16,11 +36,21 @@ export interface BossStats {
   contactDamage: number;
   /** Its body (for hits and touching), around its feet. */
   box: { halfWidth: number; height: number };
-  /** Shuffling side to side: speed, and how far either side of where it starts. */
-  shuffle: { speed: number; range: number };
-  /** Calm, then fierce (at or below half health): shots per spread, the angle between them, and time between spreads. */
+  moves: BossMoves;
+  /**
+   * Calm, then fierce (at or below half health): shots per spread, the angle
+   * between them, and the time between attacks (a spread; for a leaper, the
+   * time sitting before the next leap, whose landing throws the spread).
+   */
   calm: { shots: number; spreadDeg: number; everyMs: { min: number; max: number } };
   fierce: { shots: number; spreadDeg: number; everyMs: { min: number; max: number } };
+}
+
+/** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
+export interface Leap {
+  from: Point;
+  to: Point;
+  ms: number;
 }
 
 export interface Boss {
@@ -35,6 +65,9 @@ export interface Boss {
   lastHitBy: number | null;
   /** Time left flashing after a hit (ms). */
   flashMs: number;
+  /** A leaper sits, then crouches (its timer counts down the crouch), then leaps (`leap`). */
+  phase: 'sit' | 'crouch';
+  leap: Leap | null;
 }
 
 export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): Boss {
@@ -47,6 +80,8 @@ export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): B
     shootInMs: rng.int(s.calm.everyMs.min, s.calm.everyMs.max),
     lastHitBy: null,
     flashMs: 0,
+    phase: 'sit',
+    leap: null,
   };
 }
 
@@ -64,7 +99,25 @@ export function spread(aim: Vec, n: number, spreadDeg: number): Vec[] {
   });
 }
 
-/** Advances a boss by `dtMs`: shuffles, and fires a spread at `hero` when its timer runs out. */
+/** `n` shots `stepDeg` apart, the first along `aim` (a whole ring when n × stepDeg is 360). */
+export function ring(aim: Vec, n: number, stepDeg: number): Vec[] {
+  const base = Math.atan2(aim.y, aim.x);
+  const step = (stepDeg * Math.PI) / 180;
+  return Array.from({ length: n }, (_, i) => ({
+    x: Math.cos(base + i * step),
+    y: Math.sin(base + i * step),
+  }));
+}
+
+/** The unit vector from `from` towards `to` (straight down if they meet). */
+function aimAt(from: Point, to: Point): Vec {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  return len === 0 ? { x: 0, y: 1 } : { x: dx / len, y: dy / len };
+}
+
+/** Advances a boss by `dtMs`: it moves its way, and attacks when its timer runs out. */
 export function stepBoss(
   b: Boss,
   dtMs: number,
@@ -72,25 +125,23 @@ export function stepBoss(
   s: BossStats,
   rng: Rng,
 ): { boss: Boss; shots: Vec[] } {
+  const m = s.moves;
+  if (m.style === 'hop') return stepLeaper(b, dtMs, hero, s, m, rng);
   const mood = isFierce(b, s) ? s.fierce : s.calm;
-  let x = b.pos.x + (b.heading * s.shuffle.speed * dtMs) / 1000;
+  let x = b.pos.x + (b.heading * m.speed * dtMs) / 1000;
   let heading = b.heading;
-  if (x > b.home.x + s.shuffle.range) {
-    x = b.home.x + s.shuffle.range;
+  if (x > b.home.x + m.range) {
+    x = b.home.x + m.range;
     heading = -1;
-  } else if (x < b.home.x - s.shuffle.range) {
-    x = b.home.x - s.shuffle.range;
+  } else if (x < b.home.x - m.range) {
+    x = b.home.x - m.range;
     heading = 1;
   }
   let shootInMs = b.shootInMs - dtMs;
   let shots: Vec[] = [];
   if (shootInMs <= 0) {
     const from = { x, y: b.pos.y - s.box.height / 2 };
-    const dx = hero.x - from.x;
-    const dy = hero.y - from.y;
-    const len = Math.hypot(dx, dy);
-    const aim = len === 0 ? { x: 0, y: 1 } : { x: dx / len, y: dy / len };
-    shots = spread(aim, mood.shots, mood.spreadDeg);
+    shots = spread(aimAt(from, hero), mood.shots, mood.spreadDeg);
     shootInMs = rng.int(mood.everyMs.min, mood.everyMs.max);
   }
   return {
@@ -105,9 +156,70 @@ export function stepBoss(
   };
 }
 
-/** A hit by id (each lands once): costs health and makes it flash. */
+type HopMoves = Extract<BossMoves, { style: 'hop' }>;
+
+/** Where a leap lands: towards Jarrett, at most `reach` away, with its feet inside the arena. */
+export function leapTarget(from: Point, hero: Point, m: HopMoves): Point {
+  const dx = hero.x - from.x;
+  const dy = hero.y - from.y;
+  const len = Math.hypot(dx, dy);
+  const k = len > m.reach ? m.reach / len : 1;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  return {
+    x: clamp(from.x + dx * k, m.arena.x, m.arena.x + m.arena.w),
+    y: clamp(from.y + dy * k, m.arena.y, m.arena.y + m.arena.h),
+  };
+}
+
+/** A leaper: sit (its timer), crouch, leap; the landing throws a ring of shots, one aimed at Jarrett. */
+function stepLeaper(
+  b: Boss,
+  dtMs: number,
+  hero: Point,
+  s: BossStats,
+  m: HopMoves,
+  rng: Rng,
+): { boss: Boss; shots: Vec[] } {
+  const flashMs = Math.max(0, b.flashMs - dtMs);
+  if (b.leap) {
+    const ms = b.leap.ms + dtMs;
+    if (ms < m.leapMs) {
+      const t = ms / m.leapMs;
+      const { from, to } = b.leap;
+      const pos = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+      return { boss: { ...b, pos, leap: { ...b.leap, ms }, flashMs }, shots: [] };
+    }
+    const mood = isFierce(b, s) ? s.fierce : s.calm;
+    const pos = { ...b.leap.to };
+    const shots = ring(aimAt(bossShotOrigin({ ...b, pos }, s), hero), mood.shots, mood.spreadDeg);
+    const shootInMs = rng.int(mood.everyMs.min, mood.everyMs.max);
+    return { boss: { ...b, pos, phase: 'sit', leap: null, shootInMs, flashMs }, shots };
+  }
+  const left = b.shootInMs - dtMs;
+  if (left > 0) return { boss: { ...b, shootInMs: left, flashMs }, shots: [] };
+  if (b.phase === 'sit') {
+    return { boss: { ...b, phase: 'crouch', shootInMs: m.crouchMs, flashMs }, shots: [] };
+  }
+  const leap = { from: { ...b.pos }, to: leapTarget(b.pos, hero, m), ms: 0 };
+  return { boss: { ...b, phase: 'sit', leap, shootInMs: 0, flashMs }, shots: [] };
+}
+
+/** Whether it is in the air: no hits land on it, and it can't hurt by touch. */
+export function isAirborne(b: Boss): boolean {
+  return b.leap !== null;
+}
+
+/** How high above the ground it is drawn, mid-leap (a parabola peaking halfway). */
+export function leapHeight(b: Boss, s: BossStats): number {
+  const m = s.moves;
+  if (m.style !== 'hop' || !b.leap) return 0;
+  const t = b.leap.ms / m.leapMs;
+  return 4 * m.peak * t * (1 - t);
+}
+
+/** A hit by id (each lands once): costs health and makes it flash. Nothing lands in the air. */
 export function hitBoss(b: Boss, damage: number, hitId: number, flashMs: number): Boss {
-  if (b.lastHitBy === hitId || b.health <= 0) return b;
+  if (b.lastHitBy === hitId || b.health <= 0 || isAirborne(b)) return b;
   return { ...b, health: Math.max(0, b.health - damage), lastHitBy: hitId, flashMs };
 }
 

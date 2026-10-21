@@ -43,8 +43,10 @@ import {
   bossBody,
   bossShotOrigin,
   hitBoss,
+  isAirborne,
   isBeaten,
   isFierce,
+  leapHeight,
   spawnBoss,
   stepBoss,
   type Boss,
@@ -238,7 +240,16 @@ export interface GameSnapshot {
   thrown: number;
   throwReady: boolean;
   /** The current room's boss, if one is there and not yet beaten. */
-  boss: { kind: BossKind; x: number; y: number; health: number; fierce: boolean } | null;
+  /** A leaper (the Giant Frog) also crouches before a leap, and is airborne during it. */
+  boss: {
+    kind: BossKind;
+    x: number;
+    y: number;
+    health: number;
+    fierce: boolean;
+    crouching: boolean;
+    airborne: boolean;
+  } | null;
   /** True while a boss fight has the room's ways out shut. */
   sealed: boolean;
   /** Shards of the Star of Power found, and messages shown (finding a shard). */
@@ -291,6 +302,8 @@ interface LiveBoss {
   /** Its health bar, along the bottom of the room. */
   back: Phaser.GameObjects.Rectangle;
   fill: Phaser.GameObjects.Rectangle;
+  /** A leaper's shadow on the ground, under it while it is in the air. */
+  shadow: Phaser.GameObjects.Ellipse | null;
 }
 
 interface LiveWalker {
@@ -1072,8 +1085,22 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       .rectangle(x, y, BOSS_FX.barWidth, BOSS_FX.barHeight, 0xd04040)
       .setOrigin(0)
       .setDepth(DEPTH.over + 2);
-    this.boss = { b: spawnBoss(kind, feet, BOSSES[kind], this.rng), sprite, back, fill };
+    const stats = BOSSES[kind];
+    const shadow =
+      stats.moves.style === 'hop'
+        ? this.add
+            .ellipse(0, 0, stats.box.halfWidth * 2, BOSS_FX.shadow.height, 0x000000)
+            .setAlpha(BOSS_FX.shadow.alpha)
+            .setVisible(false)
+        : null;
+    this.boss = { b: spawnBoss(kind, feet, stats, this.rng), sprite, back, fill, shadow };
     this.drawBoss(this.boss);
+  }
+
+  /** Whether the boss's body overlaps `box`. In the air it is out of reach: nothing hits it, and it hurts no one. */
+  private bossAt(box: Rect): boolean {
+    const live = this.boss;
+    return !!live && !isAirborne(live.b) && overlaps(box, bossBody(live.b, BOSSES[live.b.kind]));
   }
 
   /**
@@ -1103,9 +1130,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     }
   }
 
-  private drawBoss({ b, sprite, fill }: LiveBoss): void {
+  private drawBoss({ b, sprite, fill, shadow }: LiveBoss): void {
     const o = this.origin(this.room.col, this.room.row);
-    sprite.setPosition(o.x + b.pos.x, o.y + b.pos.y).setDepth(DEPTH.sorted + o.y + b.pos.y);
+    // A leaper rises off the ground mid-leap, and squats while it crouches (the warning).
+    const lift = leapHeight(b, BOSSES[b.kind]);
+    const crouching = b.phase === 'crouch' && !isAirborne(b);
+    sprite
+      .setPosition(o.x + b.pos.x, o.y + b.pos.y - lift)
+      .setDepth(DEPTH.sorted + o.y + b.pos.y)
+      .setScale(crouching ? BOSS_FX.crouch.x : 1, crouching ? BOSS_FX.crouch.y : 1);
+    shadow
+      ?.setPosition(o.x + b.pos.x, o.y + b.pos.y)
+      .setDepth(DEPTH.sorted + o.y + b.pos.y - 1)
+      .setVisible(lift > 0);
     if (b.flashMs > 0) sprite.setTint(0xff7070);
     else sprite.clearTint();
     fill.setSize((BOSS_FX.barWidth * b.health) / BOSSES[b.kind].health, BOSS_FX.barHeight);
@@ -1209,9 +1246,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   private dropBoss(): void {
     if (!this.boss) return;
-    this.enemyPool.give(this.boss.sprite.clearTint());
+    this.enemyPool.give(this.boss.sprite.clearTint().setScale(1));
     this.boss.back.destroy();
     this.boss.fill.destroy();
+    this.boss.shadow?.destroy();
     this.boss = null;
   }
 
@@ -1499,9 +1537,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       if (!overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind]))) continue;
       this.strike(live, SWORD.damage, this.swings, this.facing);
     }
-    if (this.boss && overlaps(box, bossBody(this.boss.b, BOSSES[this.boss.b.kind]))) {
-      this.strikeBoss(SWORD.damage, this.swings);
-    }
+    if (this.bossAt(box)) this.strikeBoss(SWORD.damage, this.swings);
     this.strikeFalseWalls(box);
     this.strikeBreakables(box);
   }
@@ -1706,7 +1742,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       overlaps(body, enemyBody(live.e, ENEMIES[live.e.kind])),
     );
     if (toucher) this.hurtHero(ENEMIES[toucher.e.kind].contactDamage, toucher.e.pos, now);
-    else if (this.boss && overlaps(body, bossBody(this.boss.b, BOSSES[this.boss.b.kind]))) {
+    else if (this.boss && this.bossAt(body)) {
       this.hurtHero(BOSSES[this.boss.b.kind].contactDamage, this.boss.b.pos, now);
     }
   }
@@ -1815,10 +1851,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind])),
       );
       if (target) this.strike(target, t.damage, shot.d.id, shot.d.dir);
-      const boss =
-        !target &&
-        this.boss !== null &&
-        overlaps(box, bossBody(this.boss.b, BOSSES[this.boss.b.kind]));
+      const boss = !target && this.bossAt(box);
       if (boss) this.strikeBoss(t.damage, shot.d.id);
       const burned = shot.kind === 'fireball' && this.burnThorns(box);
       if (target || boss || burned || step.stopped) this.dropShot(shot);
@@ -1935,6 +1968,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             y: this.boss.b.pos.y,
             health: this.boss.b.health,
             fierce: isFierce(this.boss.b, BOSSES[this.boss.b.kind]),
+            crouching: this.boss.b.phase === 'crouch' && !isAirborne(this.boss.b),
+            airborne: isAirborne(this.boss.b),
           }
         : null,
       sealed: this.sealed.length > 0,

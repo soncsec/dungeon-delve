@@ -1,7 +1,7 @@
 /**
  * Dungeon 2, Bog Grotto (PROJECT.md §3c): seven rooms under the marsh.
  *
- *             [boss room]            the Giant Frog (M5.1b)
+ *             [boss room]            the Giant Frog
  *             [bog hall]             a Mana Brew; locked door north (needs key 2)
  *   [west]    [hub]      [east]      west: key 2 behind thorns; east: the Fireball behind a stone
  *   [cellar]  [entrance]             cellar: key 1; locked door north (needs key 1)
@@ -16,10 +16,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_2_START = { col: 1, row: 3 } as const;
 
 export const DUNGEON_2: readonly RoomDef[] = [
-  // The boss room: empty until the Giant Frog moves in (M5.1b).
+  // The boss room: the Giant Frog.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'frog', col: 10, row: 5 },
     lines: [
       '####################',
       '####################',
