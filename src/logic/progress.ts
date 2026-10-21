@@ -55,3 +55,40 @@ export function unlockDoor(
     unlocked: true,
   };
 }
+
+/** What a beaten boss leaves: a heart container and a shard of the Star of Power. */
+export type Reward = 'heart' | 'shard';
+
+/** A reward's id: one of each per map. */
+export const rewardId = (map: string, reward: Reward): string => `${map}/${reward}`;
+
+/** Records a reward as taken (once). */
+export function takeReward(p: Progress, id: string): Progress {
+  return openChest(p, id);
+}
+
+function countOf(p: Progress, reward: Reward): number {
+  return p.opened.filter((id) => id.endsWith(`/${reward}`)).length;
+}
+
+/** Shards of the Star of Power found. */
+export function shardsHeld(p: Progress): number {
+  return countOf(p, 'shard');
+}
+
+/** Heart containers found: each one is an extra heart. */
+export function heartContainers(p: Progress): number {
+  return countOf(p, 'heart');
+}
+
+/** What the screen says when Jarrett finds a shard (`held` includes the new one). */
+export function shardMessage(held: number, total: number): string[] {
+  const left = total - held;
+  if (left <= 0) return ['THE STAR OF POWER', 'IS WHOLE!'];
+  return [
+    'A SHARD OF THE',
+    'STAR OF POWER!',
+    '',
+    left === 1 ? '1 MORE TO FIND.' : `${left} MORE TO FIND.`,
+  ];
+}

@@ -130,6 +130,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('items', 'sword-icon', 16, 16, 1, 1),
   // The Mana Brew: the pack's potion with its liquid recoloured blue (tools/art/mana_brew.py).
   sheet('items', 'mana-brew', 16, 16, 1, 1),
+  // A shard of the Star of Power: a crystal from Gothicvania's Rocky Pass.
+  sheet('items', 'shard', 25, 25, 1, 1),
 ];
 
 /** Animation key for one of a sheet's named animations. */

@@ -798,3 +798,65 @@ test('the boss room shuts behind Jarrett, and opens for good once the Treant is 
   expect(s.sealed).toBe(false);
   expect(watched.errors).toEqual([]);
 });
+
+/** Into the boss room, and the Treant beaten with one swing (its health set to 1). */
+async function beatTreant(page: Page): Promise<void> {
+  await enterBossRoom(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.setBossHealth(1));
+  const bx = (await snapshot(page)).boss?.x ?? 0;
+  await page.evaluate((x) => window.__game?.placeHero(x, 120, 'up'), bx);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+}
+
+test('the beaten Treant leaves a heart container (+1 heart) and a shard of the Star of Power', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await beatTreant(page);
+  const kinds = async () => (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(await kinds()).toEqual(['heart-container', 'shard']);
+  const at = (kind: string) =>
+    snapshot(page).then((s) => s.pickups.find((p) => p.kind === kind) ?? { x: 0, y: 0 });
+
+  await page.evaluate(() => window.__game?.setHealth(3));
+  const heart = await at('heart-container');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), heart);
+  await expect.poll(kinds).toEqual(['shard']);
+  let s = await snapshot(page);
+  expect(s.health).toEqual({ points: 8, max: 8 }); // four hearts, all full
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.hud()))?.hearts.length)
+    .toBe(4);
+
+  const shard = await at('shard');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard);
+  await expect.poll(kinds).toEqual([]);
+  s = await snapshot(page);
+  expect(s.shards).toBe(1);
+  expect(s.announced).toBe(1);
+  expect(s.sounds.shard).toBe(1);
+  expect(s.opened).toEqual(expect.arrayContaining(['dungeon1/heart', 'dungeon1/shard']));
+  expect(watched.errors).toEqual([]);
+});
+
+test('a reward left behind is still there when Jarrett comes back', async ({ page }) => {
+  await beatTreant(page);
+  // Out through the south gap without picking anything up, and back in.
+  await page.evaluate(() => window.__game?.placeHero(160, 120, 'down'));
+  await page.keyboard.down('ArrowDown');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 1 });
+  await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 0 });
+  await page.keyboard.up('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).pickups.map((p) => p.kind).sort())
+    .toEqual(['heart-container', 'shard']);
+});

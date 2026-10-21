@@ -19,6 +19,8 @@ import {
   POTIONS,
   BOSSES,
   BOSS_FX,
+  BOSS_REWARDS,
+  STAR,
   ENEMIES,
   ENEMY_SHOT,
   ROOM_SLIDE_MS,
@@ -68,6 +70,12 @@ import {
   beatBoss,
   bossId,
   fixtureId,
+  heartContainers,
+  rewardId,
+  shardMessage,
+  shardsHeld,
+  takeReward,
+  type Reward,
   isOpened,
   keysIn,
   openChest,
@@ -187,6 +195,9 @@ export interface GameSnapshot {
   boss: { kind: BossKind; x: number; y: number; health: number; fierce: boolean } | null;
   /** True while a boss fight has the room's ways out shut. */
   sealed: boolean;
+  /** Shards of the Star of Power found, and messages shown (finding a shard). */
+  shards: number;
+  announced: number;
 }
 
 type ShotKind = 'dagger' | 'fireball';
@@ -214,7 +225,8 @@ interface LiveEnemy {
 }
 
 /** Things on the ground: drops, and potions. */
-export type PickupKind = Drop | 'health-potion' | 'mana-brew' | 'key' | 'item';
+export type PickupKind =
+  Drop | 'health-potion' | 'mana-brew' | 'key' | 'item' | 'heart-container' | 'shard';
 
 interface LiveBoss {
   b: Boss;
@@ -327,6 +339,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private boss: LiveBoss | null = null;
   /** The cells shut while a boss fight is on, and the gates drawn over them. */
   private sealed: { x: number; y: number }[] = [];
+  /** Messages shown so far (finding a shard). */
+  private announced = 0;
   private gates: Phaser.GameObjects.Image[] = [];
   private blocked = 0;
   private shotsFired = 0;
@@ -386,6 +400,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.enemyShots = [];
     this.boss = null;
     this.sealed = [];
+    this.announced = 0;
     this.gates = [];
     this.blocked = 0;
     this.shotsFired = 0;
@@ -707,6 +722,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     if (boss && !isOpened(this.progress, bossId(this.mapId, key))) {
       this.addBoss(boss.kind, { x: boss.col * TILE + TILE / 2, y: (boss.row + 1) * TILE - 1 });
     }
+    this.placeRewards();
   }
 
   /** A boss, with its health bar along the bottom of the room. */
@@ -817,6 +833,45 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     for (const shot of [...this.enemyShots]) this.dropEnemyShot(shot);
     this.dropBoss();
     this.unseal();
+    this.placeRewards();
+  }
+
+  /**
+   * A beaten boss's heart container and shard, where it stood; they wait there
+   * until Jarrett picks them up, even if he leaves the room first.
+   */
+  private placeRewards(): void {
+    const key = roomKey(this.room.col, this.room.row);
+    const boss = this.world.bosses.get(key);
+    if (!boss || !isOpened(this.progress, bossId(this.mapId, key))) return;
+    const feet = { x: boss.col * TILE + TILE / 2, y: (boss.row + 1) * TILE - 1 };
+    for (const reward of ['heart', 'shard'] as const satisfies readonly Reward[]) {
+      if (isOpened(this.progress, rewardId(this.mapId, reward))) continue;
+      const at = BOSS_REWARDS[reward];
+      this.addPickup(reward === 'heart' ? 'heart-container' : 'shard', {
+        x: feet.x + at.dx,
+        y: feet.y + at.dy,
+      });
+    }
+  }
+
+  /** A message in the middle of the screen for a moment (finding a shard). */
+  private announce(lines: readonly string[]): void {
+    const text = this.add
+      .text(GAME_WIDTH / 2, HUD_HEIGHT + ROOM_H / 2, lines.join('\n'), {
+        fontFamily: HUD.font,
+        fontSize: '8px',
+        color: '#ffd166',
+        align: 'center',
+        lineSpacing: 4,
+        backgroundColor: '#101018',
+        padding: { x: 8, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud - 2);
+    this.announced += 1;
+    this.time.delayedCall(STAR.messageMs, () => text.destroy());
   }
 
   private dropBoss(): void {
@@ -1028,13 +1083,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     return this.gems;
   }
 
-  /** Shards and keys arrive with the dungeons (M3); none yet. */
   heldShards(): number {
-    return 0;
+    return shardsHeld(this.progress);
   }
 
+  /** Small keys for the map he's on. */
   heldKeys(): number {
-    return 0;
+    return keysIn(this.progress, this.mapId);
   }
 
   /** Swinging, throwing, casting, or being knocked back: the shield isn't up. */
@@ -1134,10 +1189,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
             ? this.pickupPool.take('key')
             : kind === 'item'
               ? this.pickupPool.take(icon?.texture ?? 'sword-icon', icon?.frame ?? 0)
-              : this.pickupPool.take(
-                  'objects',
-                  kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
-                );
+              : kind === 'shard'
+                ? this.pickupPool.take('shard')
+                : this.pickupPool.take(
+                    'objects',
+                    kind === 'heart'
+                      ? OBJECT_FRAMES.smallHeart
+                      : kind === 'heart-container'
+                        ? OBJECT_FRAMES.heart
+                        : OBJECT_FRAMES.potion,
+                  );
     sprite.setOrigin(0.5, 1);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);
@@ -1155,6 +1216,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       } else if (p.kind === 'key') {
         this.progress = addKey(this.progress, this.mapId);
         sound = 'chest';
+      } else if (p.kind === 'heart-container') {
+        // One more heart, and every heart filled.
+        this.progress = takeReward(this.progress, rewardId(this.mapId, 'heart'));
+        const max = (HEALTH.startHearts + heartContainers(this.progress)) * 2;
+        this.health = { ...this.health, max, points: max };
+        sound = 'heart';
+      } else if (p.kind === 'shard') {
+        this.progress = takeReward(this.progress, rewardId(this.mapId, 'shard'));
+        this.announce(shardMessage(shardsHeld(this.progress), STAR.shards));
+        sound = 'shard';
       } else if (p.kind === 'item') {
         if (p.item) this.inv = give(this.inv, p.item);
         sound = 'chest';
@@ -1401,6 +1472,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
           }
         : null,
       sealed: this.sealed.length > 0,
+      shards: shardsHeld(this.progress),
+      announced: this.announced,
     };
   }
 

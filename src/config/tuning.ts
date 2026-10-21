@@ -197,6 +197,12 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
   },
 };
 
+/** The Star of Power: one shard per dungeon. The message on finding one stays up this long (ms). */
+export const STAR = { shards: 8, messageMs: 2500 } as const;
+
+/** Where a beaten boss's heart container and shard appear, from where it stood (px). */
+export const BOSS_REWARDS = { heart: { dx: -24, dy: 24 }, shard: { dx: 24, dy: 24 } } as const;
+
 /** A boss flashes this long (ms) when hit; its health bar sits along the bottom of the room. */
 export const BOSS_FX = { flashMs: 150, barWidth: 120, barHeight: 4 } as const;
 
@@ -256,7 +262,8 @@ export type SfxName =
   | 'menu'
   | 'unlock'
   | 'chest'
-  | 'push';
+  | 'push'
+  | 'shard';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -323,6 +330,16 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
       attack: 0.005,
       volume: 0.4,
       steps: [1, 1.26, 1.5, 2, 2.52],
+    },
+    // A shard of the Star of Power: a longer, rising fanfare.
+    shard: {
+      wave: 'square',
+      seconds: 1.2,
+      from: 392,
+      to: 392,
+      attack: 0.005,
+      volume: 0.35,
+      steps: [1, 1.26, 1.5, 2, 1.5, 2, 2.52, 3],
     },
   },
 };
