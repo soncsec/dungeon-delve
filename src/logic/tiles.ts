@@ -103,7 +103,42 @@ export const TOWN_FRAMES = {
  * The overworld's regions (PROJECT.md decisions, 2026-10-20). More arrive with
  * M4.1c–e. The vault grounds are drawn like a dungeon (stone walls and floor).
  */
-export type Region = 'forest' | 'village' | 'vault';
+export type Region = 'forest' | 'village' | 'vault' | 'marsh';
+
+/** The marsh is the forest's art, darkened and greened by a tint over everything in the room. */
+export const MARSH_TINT = 0x9cae8c;
+
+/** The pond tiles on marsh-water.png, in order (tools/art/marsh_water.py). */
+export const POND_FRAMES = {
+  water: 0,
+  n: [1, 2],
+  s: [3, 4],
+  w: 5,
+  e: 6,
+  nw: 7,
+  ne: 8,
+  sw: 9,
+  se: 10,
+} as const;
+
+/** The pond piece for a water cell: its edges and corners face the land around it. */
+export function pondFrame(room: Room, x: number, y: number): number {
+  const water = (dx: number, dy: number): boolean => room.cells[y + dy]?.[x + dx]?.water === true;
+  const n = !water(0, -1);
+  const s = !water(0, 1);
+  const w = !water(-1, 0);
+  const e = !water(1, 0);
+  if (n && w) return POND_FRAMES.nw;
+  if (n && e) return POND_FRAMES.ne;
+  if (s && w) return POND_FRAMES.sw;
+  if (s && e) return POND_FRAMES.se;
+  // Long edges alternate between two pieces, so they don't repeat too plainly.
+  if (n) return POND_FRAMES.n[x % 2] as number;
+  if (s) return POND_FRAMES.s[x % 2] as number;
+  if (w) return POND_FRAMES.w;
+  if (e) return POND_FRAMES.e;
+  return POND_FRAMES.water;
+}
 
 function mod3(n: number): number {
   return ((n % 3) + 3) % 3;
@@ -114,7 +149,7 @@ export interface TileDraw {
   frame: number;
   x: number;
   y: number;
-  sheet?: 'town' | 'forest-village';
+  sheet?: 'town' | 'forest-village' | 'marsh-water';
 }
 
 /** A prop drawn with its bottom-centre at (x, y) in room pixels; sorted by y for depth. */
@@ -175,6 +210,8 @@ export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
           art.over.push({ frame: FOREST_FRAMES.top(x), x: px, y: py - TILE, ...walls });
         }
       }
+      if (cell.water)
+        art.ground.push({ frame: pondFrame(room, x, y), x: px, y: py, sheet: 'marsh-water' });
       if (cell.prop) art.props.push(propDraw(cell.prop, x, y));
     });
   });

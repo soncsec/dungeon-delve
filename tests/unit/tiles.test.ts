@@ -12,6 +12,8 @@ import {
   dungeonFrame,
   forestFrame,
   propDraw,
+  POND_FRAMES,
+  pondFrame,
   propSheet,
   roomArt,
   TOWN_COLUMNS,
@@ -270,5 +272,41 @@ describe('village art', () => {
 
   it('forest rooms keep the forest grass', () => {
     expect(roomArt(villageRoom).ground[0]).toEqual({ frame: FOREST_FRAMES.grass, x: 0, y: 0 });
+  });
+});
+
+describe('ponds', () => {
+  const pond = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y >= 2 && y <= 4 ? '..WWWW..............' : '....................',
+    ),
+  );
+
+  it('picks corners, edges and open water by the land around each cell', () => {
+    expect(pondFrame(pond, 2, 2)).toBe(POND_FRAMES.nw);
+    expect(pondFrame(pond, 5, 2)).toBe(POND_FRAMES.ne);
+    expect(pondFrame(pond, 2, 4)).toBe(POND_FRAMES.sw);
+    expect(pondFrame(pond, 5, 4)).toBe(POND_FRAMES.se);
+    expect(pondFrame(pond, 3, 2)).toBe(POND_FRAMES.n[1]);
+    expect(pondFrame(pond, 4, 2)).toBe(POND_FRAMES.n[0]);
+    expect(pondFrame(pond, 3, 4)).toBe(POND_FRAMES.s[1]);
+    expect(pondFrame(pond, 4, 4)).toBe(POND_FRAMES.s[0]);
+    expect(pondFrame(pond, 2, 3)).toBe(POND_FRAMES.w);
+    expect(pondFrame(pond, 5, 3)).toBe(POND_FRAMES.e);
+    expect(pondFrame(pond, 3, 3)).toBe(POND_FRAMES.water);
+  });
+
+  it('draws water over the ground, from the pond sheet', () => {
+    const art = roomArt(pond, 'marsh');
+    const water = art.ground.filter((t) => t.sheet === 'marsh-water');
+    expect(water).toHaveLength(12);
+    expect(water[0]).toEqual({ frame: POND_FRAMES.nw, x: 32, y: 32, sheet: 'marsh-water' });
+    // Under it, and everywhere else, the forest's grass.
+    expect(art.ground.filter((t) => t.frame === FOREST_FRAMES.grass)).toHaveLength(200);
+  });
+
+  it('every pond tile has art', () => {
+    const png = pngAlpha(`${process.cwd()}/public/assets/tiles/marsh-water.png`);
+    for (let f = 0; f <= POND_FRAMES.se; f++) expect(hasPixels(png, f * 16, 0, 16, 16)).toBe(true);
   });
 });
