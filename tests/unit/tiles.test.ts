@@ -408,3 +408,52 @@ describe('mountains', () => {
     expect(propDraw('cave', 8, 1)).toEqual({ prop: 'cave', x: 152, y: 64 });
   });
 });
+
+describe('secrets', () => {
+  // A false wall (h) in a forest wall, with a hole (o) behind it, and a stone on a hole (Q).
+  const secret = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 2
+        ? 'FohFF...............'
+        : y === 5
+          ? '......Q.............'
+          : y < 4
+            ? 'FFFFF...............'
+            : '....................',
+    ),
+  );
+  const at = (art: ReturnType<typeof roomArt>, x: number, y: number) =>
+    art.ground.filter((t) => t.x === x * 16 && t.y === y * 16);
+
+  it('draws a false wall as the wall around it until it is opened', () => {
+    const closed = roomArt(secret);
+    expect(at(closed, 2, 2)).toHaveLength(2); // grass, then the forest wall
+    const open = roomArt(secret, 'forest', (x, y) => x === 2 && y === 2);
+    expect(at(open, 2, 2)).toEqual([{ frame: FOREST_FRAMES.grass, x: 32, y: 32 }]);
+  });
+
+  it('grows no tree top over a hole', () => {
+    // A forest wall along row 3, with open ground above it and a hole at (1, 2).
+    const edge = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        y === 2
+          ? '.o..................'
+          : y === 3
+            ? 'FFFF................'
+            : '....................',
+      ),
+    );
+    const tops = roomArt(edge).over.map((t) => t.x / 16);
+    expect(tops).toEqual([0, 2, 3]); // every wall cell but the one under the hole
+  });
+
+  it('draws holes from the mountain sheet, in any region', () => {
+    for (const region of ['forest', 'village', 'ruins'] as const) {
+      const art = roomArt(secret, region);
+      expect(at(art, 1, 2)).toEqual([
+        { frame: MOUNTAIN_FRAMES.hole, x: 16, y: 32, sheet: 'mountain' },
+      ]);
+      expect(at(art, 6, 5)[0]?.frame).toBe(MOUNTAIN_FRAMES.hole);
+    }
+  });
+});

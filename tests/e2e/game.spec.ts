@@ -1435,3 +1435,96 @@ test('the village shop: in through the house door, buy from the shopkeeper, and 
   expect((await snapshot(page)).room).toEqual({ col: 3, row: 6 });
   expect(watched.errors).toEqual([]);
 });
+
+/** Walks Jarrett into a cell until a test passes (a chest opens, a map changes). */
+async function holdUntil(page: Page, key: string, done: () => Promise<boolean>): Promise<void> {
+  await page.keyboard.down(key);
+  await expect.poll(done, { timeout: 10_000 }).toBe(true);
+  await page.keyboard.up(key);
+}
+
+test('a false wall sounds hollow, opens on a second strike, and hides a secret cave', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // The forest's dead end: a false wall at column 2, row 4, with a hole behind it.
+  await page.evaluate(() => window.__game?.goToRoom(0, 3));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(56, 78, 'left'));
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).sounds.hollow).toBe(1);
+  expect((await snapshot(page)).opened).not.toContain('overworld/0,3/2,4');
+  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('overworld/0,3/2,4');
+  expect((await snapshot(page)).sounds.crumble).toBe(1);
+
+  // Through it and down the hole: a cave with two chests.
+  await holdUntil(page, 'ArrowLeft', async () => (await snapshot(page)).map === 'caves');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const before = await snapshot(page);
+  for (const x of [120, 200]) {
+    await page.evaluate((cx) => window.__game?.placeHero(cx, 86, 'up'), x);
+    const opened = (await snapshot(page)).opened.length;
+    await holdUntil(page, 'ArrowUp', async () => (await snapshot(page)).opened.length > opened);
+    await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
+  }
+  const s = await snapshot(page);
+  expect(s.potions.mana).toBe(before.potions.mana + 1);
+  expect(s.gems).toBe(before.gems + 20);
+
+  // Back up, beside the false wall, which stays open.
+  await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
+  await holdUntil(page, 'ArrowDown', async () => (await snapshot(page)).map === 'overworld');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  expect((await snapshot(page)).room).toEqual({ col: 0, row: 3 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('a secret cave in the ruins holds a heart container, kept in the save', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.goToRoom(7, 4));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  // The false wall at column 16, row 3, struck twice from the left.
+  await page.evaluate(() => window.__game?.placeHero(248, 62, 'right'));
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).sounds.hollow).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).sounds.crumble).toBe(1);
+  await holdUntil(page, 'ArrowRight', async () => (await snapshot(page)).map === 'caves');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  // The chest in the middle: a heart container.
+  await page.evaluate(() => window.__game?.placeHero(152, 86, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => (await snapshot(page)).health.max === 8);
+  const room = (await snapshot(page)).room;
+  expect((await snapshot(page)).opened).toContain(`caves/${room.col},${room.row}/heart`);
+  // Saved on the way out (the village's save point), and kept on continuing.
+  await page.evaluate(() => window.__game?.goToRoom(0, 0));
+  await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
+  await holdUntil(page, 'ArrowDown', async () => (await snapshot(page)).map === 'overworld');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  await page.evaluate(() => window.__game?.goToRoom(4, 7));
+  await reloadToTitle(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  expect((await snapshot(page)).health.max).toBe(8);
+});
+
+test('a stone in the east meadow hides a hole down to a cave', async ({ page }) => {
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.goToRoom(5, 7));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  expect((await snapshot(page)).stones).toEqual([{ cx: 14, cy: 6 }]);
+  // Lean on it from the west: it slides east, off the hole, and walking on takes him down.
+  await page.evaluate(() => window.__game?.placeHero(218, 110, 'right'));
+  await holdUntil(page, 'ArrowRight', async () => (await snapshot(page)).map === 'caves');
+  expect((await snapshot(page)).sounds.push).toBe(1);
+});

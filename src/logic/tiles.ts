@@ -116,7 +116,7 @@ export const TOWN_FRAMES = {
   /** Grass with a little texture, scattered for variety. */
   grassLight: tframe(19, 1),
   ground: { path: tframe(22, 5), flowers: tframe(21, 1), tall: tframe(20, 1) } satisfies Record<
-    Exclude<Ground, 'paving'>,
+    Exclude<Ground, 'paving' | 'hole'>,
     number
   >,
 } as const;
@@ -143,6 +143,8 @@ const mframe = (col: number, row: number): number => row * MOUNTAIN_COLUMNS + co
  */
 export const MOUNTAIN_FRAMES = {
   dirt: mframe(3, 1),
+  /** A dark hole in the ground: the way down to a secret cave. */
+  hole: mframe(3, 2),
   /** Dirt with a pale patch, scattered for variety. */
   dirtPatch: mframe(5, 6),
   /** By depth: the face's bottom row (open ground below), up through the face and ledge to the top. */
@@ -248,14 +250,21 @@ function villageGrass(x: number, y: number): number {
 }
 
 /** Everything to draw for an outdoor room, in its region's look. */
-export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
+export function roomArt(
+  room: Room,
+  region: Region = 'forest',
+  opened: (x: number, y: number) => boolean = () => false,
+): RoomArt {
   const art: RoomArt = { ground: [], over: [], props: [], chests: [] };
   const mountains = region === 'mountains' || region === 'volcano';
   room.cells.forEach((rowCells, y) => {
     rowCells.forEach((cell, x) => {
       const px = x * TILE;
       const py = y * TILE;
-      if (cell.ground === 'paving') {
+      if (cell.ground === 'hole') {
+        // The way down to a secret cave, in any region.
+        art.ground.push({ frame: MOUNTAIN_FRAMES.hole, x: px, y: py, sheet: 'mountain' });
+      } else if (cell.ground === 'paving') {
         // Stone paving, from the dungeon's floor (ruins).
         const frame = crackAt(x, y) ?? DUNGEON_FRAMES.floor;
         art.ground.push({ frame, x: px, y: py, sheet: 'dungeon' });
@@ -270,6 +279,8 @@ export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
       // A ruined wall: the dungeon's wall top or face, on the grass.
       if (cell.wall)
         art.ground.push({ frame: dungeonFrame(room, x, y), x: px, y: py, sheet: 'dungeon' });
+      // A false wall that has been opened is just ground now.
+      if (cell.fixture === 'hollow' && opened(x, y)) return;
       if (cell.forest && mountains) {
         // In the mountains, walls are cliffs.
         art.ground.push({ frame: cliffFrame(room, x, y), x: px, y: py, sheet: 'mountain' });
@@ -277,7 +288,8 @@ export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
         // Village rooms use the forest walls recoloured to suit their light grass.
         const walls = region === 'village' ? { sheet: 'forest-village' as const } : {};
         art.ground.push({ frame: forestFrame(room, x, y), x: px, y: py, ...walls });
-        if (y > 0 && !isForest(room, x, y - 1)) {
+        // Tree tops grow over the ground above a wall, but not over a hole (it must show).
+        if (y > 0 && !isForest(room, x, y - 1) && !room.cells[y - 1]?.[x]?.exit) {
           art.over.push({ frame: FOREST_FRAMES.top(x), x: px, y: py - TILE, ...walls });
         }
       }

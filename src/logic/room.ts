@@ -30,6 +30,11 @@
  *   #  a ruined wall (solid; drawn with the dungeon's wall tops and faces)
  *   q  stone paving (open)
  *
+ * Secrets (outdoors):
+ *   h  false wall  (looks and blocks like the room's wall until struck twice with the sword)
+ *   o  hole        (stairs down to a secret cave; the room lists where it leads)
+ *   Q  a pushable stone on top of a hole
+ *
  * Mountains:
  *   V  cave entrance (3×3, anchored top-left: rock all round, the doorway in the middle column open)
  *
@@ -55,7 +60,7 @@ export type PropKind =
   | 'cave';
 
 /** Open ground drawn with something on it (village). */
-export type Ground = 'path' | 'flowers' | 'tall' | 'paving';
+export type Ground = 'path' | 'flowers' | 'tall' | 'paving' | 'hole';
 
 export interface Cell {
   solid: boolean;
@@ -75,7 +80,8 @@ export interface Cell {
   water?: boolean;
 }
 
-export type Fixture = 'door' | 'chest';
+/** Things that block until opened: a locked door (a key), a chest, a false wall (the sword). */
+export type Fixture = 'door' | 'chest' | 'hollow';
 
 export interface Room {
   cells: readonly (readonly Cell[])[];
@@ -163,6 +169,12 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       const plain = { forest: false, wall: false, prop: null, fixture: null, exit: false };
       if (ch === '.') return { ...plain, solid: false };
       if (ch === 'W') return { ...plain, solid: true, water: true };
+      if (ch === 'h') return { ...plain, solid: true, forest: true, fixture: 'hollow' };
+      if (ch === 'o') return { ...plain, solid: false, exit: true, ground: 'hole' };
+      if (ch === 'Q') {
+        stones.push({ cx: x, cy: y });
+        return { ...plain, solid: false, exit: true, ground: 'hole' };
+      }
       const ground = GROUND_CHARS[ch];
       if (ground) return { ...plain, solid: false, ground };
       if (ch === 'F') return { ...plain, solid: true, forest: true };

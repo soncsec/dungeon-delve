@@ -8,11 +8,12 @@
  * test checks every gap lines up with the room next door.
  */
 import type { RoomDef } from '../logic/world';
+import { caveDoors } from './caves';
 
 /** The room the game starts in: the village gate. */
 export const START_ROOM = { col: 4, row: 7 } as const;
 
-export const OVERWORLD: readonly RoomDef[] = [
+const ROOMS: readonly RoomDef[] = [
   // The archway into dungeon 1, Hollow Oak (the forest).
   {
     col: 3,
@@ -200,7 +201,7 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FF...............FFF',
       '...........O........',
       '....................',
-      'FF.....b........FFFF',
+      'FF.....b......Q.FFFF',
       'FFF.............FFFF',
       'FFFFFF........FFFFFF',
       'FFFFFFFFFFFFFFFFFFFF',
@@ -324,7 +325,7 @@ export const OVERWORLD: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
       'FFFFFF......R..FFFFF',
-      'FFFF.......T.....FFF',
+      'FFoh.......T.....FFF',
       'FFF...........T...FF',
       '....................',
       '....................',
@@ -389,9 +390,9 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFFFFF.........FFFFF',
       'FFF.............bFFF',
       'FFT.T...........rFFF',
-      'FFF.................',
+      'Foh.................',
       'FFFF................',
-      'FF.O..........R...FF',
+      'FF............R...FF',
       'FFF..r......T...FFFF',
       'FFFFFFF........FFFFF',
       'FFFFFFFFFFFFFFFFFFFF',
@@ -661,7 +662,7 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFF......WWWW.......',
       'FF.......WWWW.......',
       'FFF......WWWW...FFFF',
-      'FFFF.............FFF',
+      'FFFF.Q...........FFF',
       'FFFFFFF......b.FFFFF',
       'FFFFFFFFF..FFFFFFFFF',
     ],
@@ -793,7 +794,7 @@ export const OVERWORLD: readonly RoomDef[] = [
       '..b.R.q#q###q#......',
       '.......#..qqq#......',
       'FFF.......qqq#...FFF',
-      'FF..T...........FFFF',
+      'FF..T...Q.......FFFF',
       'FFFFFF........rFFFFF',
       'FFFFFFFFF..FFFFFFFFF',
     ],
@@ -987,7 +988,7 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
       'FFFFF..r.......FFFFF',
       'FFF..T......#....FFF',
-      'FF#####.....#R..FFFF',
+      'FF#####.....#R..hoFF',
       '..#####q..b.#...rFFF',
       '...qqqqq....#.#..FFF',
       'FFFqqqqq......#..FFF',
@@ -1096,7 +1097,7 @@ export const OVERWORLD: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
       'FFFFF.........FFFFFF',
-      'FFFF.............FFF',
+      'FFFF.............hoF',
       'FF................FF',
       'FF....R.............',
       'FFFr......R.........',
@@ -1393,3 +1394,9 @@ export const OVERWORLD: readonly RoomDef[] = [
     ],
   },
 ];
+
+/** The rooms, with the doorways down to the secret caves (src/world/caves.ts) added. */
+export const OVERWORLD: readonly RoomDef[] = ROOMS.map((room) => {
+  const doors = caveDoors(room.col, room.row);
+  return doors.length > 0 ? { ...room, exits: [...(room.exits ?? []), ...doors] } : room;
+});
