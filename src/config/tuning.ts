@@ -327,6 +327,9 @@ export const HUD = {
   maxGems: 999,
 } as const;
 
+/** The on-screen pad (phones and tablets): no arrow is held within this share of its radius. */
+export const TOUCH = { deadZone: 0.25 } as const;
+
 /** Every sound effect, by name. */
 export type SfxName =
   | 'swing'
