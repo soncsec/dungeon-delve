@@ -113,7 +113,7 @@ import {
   type Rect,
   type Swing,
 } from '../logic/sword';
-import { DUNGEON_FRAMES, PROP_SHEET, dungeonArt, roomArt } from '../logic/tiles';
+import { DUNGEON_FRAMES, dungeonArt, propSheet, roomArt } from '../logic/tiles';
 import {
   buildWorld,
   cellsAhead,
@@ -1910,9 +1910,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const o = this.origin(col, row);
     const dungeon = MAPS[this.mapId].theme === 'dungeon';
     const key = roomKey(col, row);
+    const region = this.world.regions.get(key) ?? 'forest';
     const art = dungeon
       ? dungeonArt(room, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)))
-      : roomArt(room, this.world.regions.get(key));
+      : roomArt(room, region);
     const sheet = dungeon ? 'dungeon' : 'forest';
     const drawn: Phaser.GameObjects.GameObject[] = [];
     for (const t of art.ground) {
@@ -1943,7 +1944,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     for (const p of art.props) {
       drawn.push(
         this.add
-          .image(o.x + p.x, o.y + p.y, PROP_SHEET[p.prop], `prop:${p.prop}`)
+          .image(o.x + p.x, o.y + p.y, propSheet(p.prop, region), `prop:${p.prop}`)
           .setOrigin(0.5, 1)
           .setDepth(DEPTH.sorted + o.y + p.y),
       );
@@ -1951,7 +1952,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     for (const t of art.over) {
       drawn.push(
         this.add
-          .image(o.x + t.x, o.y + t.y, 'forest', t.frame)
+          .image(o.x + t.x, o.y + t.y, t.sheet ?? 'forest', t.frame)
           .setOrigin(0)
           .setDepth(DEPTH.over),
       );

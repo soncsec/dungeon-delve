@@ -36,8 +36,13 @@ export class PreloadScene extends Phaser.Scene {
       }
     }
     // Props span several cells, so each gets its own frame on its sheet.
+    // Forest props also get a frame on the village copy of the forest sheet.
     for (const [name, r] of Object.entries(PROP_REGIONS)) {
-      this.textures.get(PROP_SHEET[name as PropKind]).add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
+      const sheet = PROP_SHEET[name as PropKind];
+      this.textures.get(sheet).add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
+      if (sheet === 'forest') {
+        this.textures.get('forest-village').add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
+      }
     }
 
     // The small key is drawn in code: the art pack has none (owner, 2026-10-20).

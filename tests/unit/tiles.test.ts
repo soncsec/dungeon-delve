@@ -12,6 +12,7 @@ import {
   dungeonFrame,
   forestFrame,
   propDraw,
+  propSheet,
   roomArt,
   TOWN_COLUMNS,
   TOWN_FRAMES,
@@ -240,6 +241,31 @@ describe('village art', () => {
     expect(propDraw('stump', 0, 0)).toEqual({ prop: 'stump', x: 16, y: 16 });
     expect(propDraw('cone', 0, 0)).toEqual({ prop: 'cone', x: 8, y: 16 });
     expect(propDraw('shrub', 1, 1)).toEqual({ prop: 'shrub', x: 24, y: 32 });
+  });
+
+  it('draws village walls from the recoloured forest sheet', () => {
+    const walled = parseRoom(
+      // A band of forest across rows 3–5, with tree tops drawn above it.
+      Array.from({ length: 10 }, (_, y) =>
+        y >= 3 && y <= 5 ? 'FFFFFFFFFFFFFFFFFFFF' : '....................',
+      ),
+    );
+    const art = roomArt(walled, 'village');
+    const walls = art.ground.filter((t) => t.sheet === 'forest-village');
+    expect(walls).toHaveLength(60);
+    expect(art.over.length).toBeGreaterThan(0);
+    expect(art.over.every((t) => t.sheet === 'forest-village')).toBe(true);
+    // In the forest, walls and tops come from the map's own sheet.
+    const forest = roomArt(walled);
+    expect(forest.ground.some((t) => t.sheet !== undefined)).toBe(false);
+    expect(forest.over.some((t) => t.sheet !== undefined)).toBe(false);
+  });
+
+  it('draws forest props from the recoloured sheet in the village only', () => {
+    expect(propSheet('pine', 'village')).toBe('forest-village');
+    expect(propSheet('pine', 'forest')).toBe('forest');
+    expect(propSheet('house', 'village')).toBe('town');
+    expect(propSheet('arch', 'forest')).toBe('dungeon');
   });
 
   it('forest rooms keep the forest grass', () => {

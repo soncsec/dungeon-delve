@@ -77,6 +77,15 @@ const PROP_ANCHOR: Readonly<Record<PropKind, { dx: number; dy: number }>> = {
   house: { dx: 2.5 * TILE, dy: 4 * TILE },
 };
 
+/** The sheet to draw a prop from in a region: village rooms use the recoloured forest art. */
+export function propSheet(
+  prop: PropKind,
+  region: Region,
+): 'forest' | 'forest-village' | 'dungeon' | 'town' {
+  const sheet = PROP_SHEET[prop];
+  return sheet === 'forest' && region === 'village' ? 'forest-village' : sheet;
+}
+
 /** Columns in the Top-Down Town sheet (384 px / 16). */
 export const TOWN_COLUMNS = 24;
 const tframe = (col: number, row: number): number => row * TOWN_COLUMNS + col;
@@ -102,7 +111,7 @@ export interface TileDraw {
   frame: number;
   x: number;
   y: number;
-  sheet?: 'town';
+  sheet?: 'town' | 'forest-village';
 }
 
 /** A prop drawn with its bottom-centre at (x, y) in room pixels; sorted by y for depth. */
@@ -156,9 +165,11 @@ export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
         art.ground.push({ frame: FOREST_FRAMES.grass, x: px, y: py });
       }
       if (cell.forest) {
-        art.ground.push({ frame: forestFrame(room, x, y), x: px, y: py });
+        // Village rooms use the forest walls recoloured to suit their light grass.
+        const walls = region === 'village' ? { sheet: 'forest-village' as const } : {};
+        art.ground.push({ frame: forestFrame(room, x, y), x: px, y: py, ...walls });
         if (y > 0 && !isForest(room, x, y - 1)) {
-          art.over.push({ frame: FOREST_FRAMES.top(x), x: px, y: py - TILE });
+          art.over.push({ frame: FOREST_FRAMES.top(x), x: px, y: py - TILE, ...walls });
         }
       }
       if (cell.prop) art.props.push(propDraw(cell.prop, x, y));
