@@ -19,6 +19,10 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/enemies/ghost.png` — `Gothicvania/Characters/enemy-ghost/Spritesheets/no-particles.png`
 - `assets/enemies/wolf.png` — `Gothicvania/Characters/wolf-runing-cycle/spritesheets/wolf-runing-cycle-skin.png`
 
+### Bosses
+
+- `assets/bosses/treant.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/Treant.png`
+
 ### Tiles
 
 - `assets/tiles/forest.png` — `TinyRPG/Environments/Top-Down-Forest/PNG/top-down-forest-tileset.png`

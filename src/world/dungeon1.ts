@@ -1,7 +1,7 @@
 /**
  * Dungeon 1, Hollow Oak (PROJECT.md §3c): six rooms in a cross.
  *
- *             [boss room]            the Treant (M3.3)
+ *             [boss room]            the Treant
  *             [great hall]           potion; locked door south (needs key 2)
  *   [west]    [hub]      [east]      west: the Throwing Daggers behind a stone; east: key 2
  *             [entrance]             key 1, a stone to try; locked door north (needs key 1)
@@ -15,10 +15,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_1_START = { col: 1, row: 3 } as const;
 
 export const DUNGEON_1: readonly RoomDef[] = [
-  // The boss room: empty until the Treant arrives in M3.3.
+  // The boss room: the Treant.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'treant', col: 10, row: 5 },
     lines: [
       '####################',
       '####################',

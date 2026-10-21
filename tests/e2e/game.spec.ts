@@ -713,3 +713,88 @@ test('the daggers: push the stone into the closet, open the chest, and throw one
   await expect.poll(async () => (await snapshot(page)).thrown).toBe(1);
   expect(watched.errors).toEqual([]);
 });
+
+/** From the great hall, north into dungeon 1's boss room. */
+async function enterBossRoom(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.goToRoom(1, 1)); // the great hall
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 0 });
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('treant');
+}
+
+test('the Treant fires spreads of three seeds, and five once it is down to half health', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterBossRoom(page);
+  const fired = async () => (await snapshot(page)).shotsFired;
+  // Each spread arrives in one frame, so the count jumps by a whole spread at a time.
+  let before = await fired();
+  await expect.poll(fired, { timeout: 10_000 }).toBeGreaterThan(before);
+  expect((await fired()) - before).toBe(3);
+  await page.evaluate(() => window.__game?.setBossHealth(5));
+  expect((await snapshot(page)).boss?.fierce).toBe(true);
+  // The spread already on its way may still be three; the next is five.
+  before = await fired();
+  await expect.poll(fired, { timeout: 10_000 }).toBeGreaterThan(before);
+  before = await fired();
+  await expect.poll(fired, { timeout: 10_000 }).toBeGreaterThan(before);
+  expect((await fired()) - before).toBe(5);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the boss room shuts behind Jarrett, and opens for good once the Treant is beaten', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterBossRoom(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  expect((await snapshot(page)).boss?.health).toBe(10);
+  // All the way in: the gates shut.
+  await page.evaluate(() => window.__game?.placeHero(80, 110, 'down'));
+  await expect.poll(async () => (await snapshot(page)).sealed).toBe(true);
+  // The south way out is barred (its gate is row 8, from y 128).
+  await page.evaluate(() => window.__game?.placeHero(160, 120, 'down'));
+  await page.keyboard.down('ArrowDown');
+  await page.waitForTimeout(600);
+  await page.keyboard.up('ArrowDown');
+  let s = await snapshot(page);
+  expect(s.room).toEqual({ col: 1, row: 0 });
+  expect(s.player.y).toBeLessThanOrEqual(128);
+
+  // One hit left: stand below it and swing up.
+  await page.evaluate(() => window.__game?.setBossHealth(1));
+  const bx = (await snapshot(page)).boss?.x ?? 0;
+  await page.evaluate((x) => window.__game?.placeHero(x, 120, 'up'), bx);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  s = await snapshot(page);
+  expect(s.sealed).toBe(false);
+  expect(s.opened).toContain('dungeon1/1,0/boss');
+  expect(s.sounds.defeat).toBeGreaterThanOrEqual(1);
+
+  // Out through the south gap, and back: it stays beaten.
+  await page.evaluate(() => window.__game?.placeHero(160, 120, 'down'));
+  await page.keyboard.down('ArrowDown');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 1 });
+  await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 0 });
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await page.waitForTimeout(300);
+  s = await snapshot(page);
+  expect(s.boss).toBeNull();
+  expect(s.sealed).toBe(false);
+  expect(watched.errors).toEqual([]);
+});

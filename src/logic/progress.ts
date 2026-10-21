@@ -17,6 +17,14 @@ export const NEW_PROGRESS: Progress = { opened: [], keys: {} };
 export const fixtureId = (map: string, roomKey: string, x: number, y: number): string =>
   `${map}/${roomKey}/${x},${y}`;
 
+/** A boss's id: its map and room. Beaten bosses are kept with the opened doors and chests. */
+export const bossId = (map: string, roomKey: string): string => `${map}/${roomKey}/boss`;
+
+/** Records a boss as beaten (once). */
+export function beatBoss(p: Progress, id: string): Progress {
+  return openChest(p, id);
+}
+
 export function isOpened(p: Progress, id: string): boolean {
   return p.opened.includes(id);
 }

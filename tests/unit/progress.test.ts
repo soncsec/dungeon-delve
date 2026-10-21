@@ -7,6 +7,8 @@ import {
   keysIn,
   openChest,
   unlockDoor,
+  beatBoss,
+  bossId,
 } from '../../src/logic/progress';
 
 const door = fixtureId('dungeon1', '0,0', 9, 1);
@@ -45,5 +47,15 @@ describe('progress', () => {
     const p = openChest(NEW_PROGRESS, chest);
     expect(isOpened(p, chest)).toBe(true);
     expect(openChest(p, chest)).toBe(p);
+  });
+});
+
+describe('bosses', () => {
+  it('records a beaten boss once, by map and room', () => {
+    const id = bossId('dungeon1', '1,0');
+    expect(id).toBe('dungeon1/1,0/boss');
+    const p = beatBoss(NEW_PROGRESS, id);
+    expect(isOpened(p, id)).toBe(true);
+    expect(beatBoss(p, id)).toBe(p);
   });
 });

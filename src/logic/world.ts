@@ -3,6 +3,7 @@
  * Engine-free and unit tested.
  */
 import { ROOM_COLS, ROOM_ROWS, TILE } from '../config/tuning';
+import type { BossKind } from './boss';
 import type { EnemyKind } from './enemies';
 import type { ItemId } from './inventory';
 import type { PotionKind } from './potions';
@@ -28,6 +29,8 @@ export interface RoomDef {
   chests?: readonly ChestPlacement[];
   /** Where each doorway (`D` cells) leads. */
   exits?: readonly MapExit[];
+  /** The room's boss, standing with its feet at this cell's bottom-centre. */
+  boss?: { kind: BossKind; col: number; row: number };
 }
 
 /** A doorway to another map: its cells here, and where Jarrett arrives. */
@@ -63,6 +66,8 @@ export interface World {
   chests: ReadonlyMap<string, readonly ChestPlacement[]>;
   /** Doorways to other maps per room key. */
   exits: ReadonlyMap<string, readonly MapExit[]>;
+  /** Bosses per room key. */
+  bosses: ReadonlyMap<string, { kind: BossKind; col: number; row: number }>;
 }
 
 export interface EnemyPlacement {
@@ -93,6 +98,7 @@ export function buildWorld(defs: readonly RoomDef[]): World {
   const enemies = new Map<string, readonly EnemyPlacement[]>();
   const chests = new Map<string, readonly ChestPlacement[]>();
   const exits = new Map<string, readonly MapExit[]>();
+  const bosses = new Map<string, { kind: BossKind; col: number; row: number }>();
   for (const d of defs) {
     const key = roomKey(d.col, d.row);
     if (rooms.has(key)) throw new Error(`two rooms at ${key}`);
@@ -111,8 +117,16 @@ export function buildWorld(defs: readonly RoomDef[]): World {
     enemies.set(key, d.enemies ?? []);
     chests.set(key, d.chests ?? []);
     exits.set(key, d.exits ?? []);
+    if (d.boss) {
+      if (cellAt(room, d.boss.col, d.boss.row)?.solid !== false) {
+        throw new Error(
+          `room ${key}: the boss at column ${d.boss.col}, row ${d.boss.row} is not on open ground`,
+        );
+      }
+      bosses.set(key, d.boss);
+    }
   }
-  return { rooms, enemies, chests, exits };
+  return { rooms, enemies, chests, exits, bosses };
 }
 
 /** Every chest in a room has exactly one entry of contents, and every entry is on a chest. */

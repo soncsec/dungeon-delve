@@ -197,3 +197,24 @@ export function edgeOpenings(room: Room, dir: Dir): boolean[] {
     }
   });
 }
+
+/**
+ * The cells that close when a room seals (a boss fight): each way out, one
+ * cell in from the room's edge, so whoever is inside stays inside.
+ */
+export function sealCells(room: Room): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = [];
+  for (let y = 1; y < ROOM_ROWS - 1; y += 1) {
+    for (let x = 1; x < ROOM_COLS - 1; x += 1) {
+      if (isSolid(room, x, y)) continue;
+      const ways: [boolean, number, number][] = [
+        [y === 1, x, 0],
+        [y === ROOM_ROWS - 2, x, ROOM_ROWS - 1],
+        [x === 1, 0, y],
+        [x === ROOM_COLS - 2, ROOM_COLS - 1, y],
+      ];
+      if (ways.some(([edge, ox, oy]) => edge && isPassage(room, ox, oy))) out.push({ x, y });
+    }
+  }
+  return out;
+}

@@ -17,6 +17,8 @@ import {
   ROOM_ROWS,
   PICKUPS,
   POTIONS,
+  BOSSES,
+  BOSS_FX,
   ENEMIES,
   ENEMY_SHOT,
   ROOM_SLIDE_MS,
@@ -33,6 +35,17 @@ import { Hud } from '../entities/Hud';
 import { SpritePool } from '../entities/SpritePool';
 import { KeyInput } from '../input/keyboard';
 import { fallMessage, gemsAfterFalling } from '../logic/death';
+import {
+  bossBody,
+  bossShotOrigin,
+  hitBoss,
+  isBeaten,
+  isFierce,
+  spawnBoss,
+  stepBoss,
+  type Boss,
+  type BossKind,
+} from '../logic/boss';
 import { rollDrop, type Drop } from '../logic/drops';
 import {
   canThrow,
@@ -52,6 +65,8 @@ import { EMPTY_INVENTORY, give, type Inventory, type ItemId } from '../logic/inv
 import {
   NEW_PROGRESS,
   addKey,
+  beatBoss,
+  bossId,
   fixtureId,
   isOpened,
   keysIn,
@@ -72,7 +87,7 @@ import {
   type EnemyKind,
 } from '../logic/enemies';
 import { fireShot, shotBox, stepShot, type EnemyShot } from '../logic/enemyShots';
-import { isSolid, type Dir } from '../logic/room';
+import { isSolid, sealCells, type Dir } from '../logic/room';
 import {
   centre,
   facingVector,
@@ -83,7 +98,7 @@ import {
   type Rect,
   type Swing,
 } from '../logic/sword';
-import { PROP_SHEET, dungeonArt, roomArt } from '../logic/tiles';
+import { DUNGEON_FRAMES, PROP_SHEET, dungeonArt, roomArt } from '../logic/tiles';
 import {
   buildWorld,
   cellsAhead,
@@ -168,6 +183,10 @@ export interface GameSnapshot {
   /** Daggers thrown so far, and whether another may be thrown now. */
   thrown: number;
   throwReady: boolean;
+  /** The current room's boss, if one is there and not yet beaten. */
+  boss: { kind: BossKind; x: number; y: number; health: number; fierce: boolean } | null;
+  /** True while a boss fight has the room's ways out shut. */
+  sealed: boolean;
 }
 
 type ShotKind = 'dagger' | 'fireball';
@@ -196,6 +215,14 @@ interface LiveEnemy {
 
 /** Things on the ground: drops, and potions. */
 export type PickupKind = Drop | 'health-potion' | 'mana-brew' | 'key' | 'item';
+
+interface LiveBoss {
+  b: Boss;
+  sprite: Phaser.GameObjects.Sprite;
+  /** Its health bar, along the bottom of the room. */
+  back: Phaser.GameObjects.Rectangle;
+  fill: Phaser.GameObjects.Rectangle;
+}
 
 interface LiveEnemyShot {
   s: EnemyShot;
@@ -297,6 +324,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private heroKnockDir: Facing = 'down';
   private enemies: LiveEnemy[] = [];
   private enemyShots: LiveEnemyShot[] = [];
+  private boss: LiveBoss | null = null;
+  /** The cells shut while a boss fight is on, and the gates drawn over them. */
+  private sealed: { x: number; y: number }[] = [];
+  private gates: Phaser.GameObjects.Image[] = [];
   private blocked = 0;
   private shotsFired = 0;
   private pickups: Pickup[] = [];
@@ -353,6 +384,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.heroKnockMs = 0;
     this.enemies = [];
     this.enemyShots = [];
+    this.boss = null;
+    this.sealed = [];
+    this.gates = [];
     this.blocked = 0;
     this.shotsFired = 0;
     this.pickups = [];
@@ -430,6 +464,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const cast = presses.some((c) => SPELL_KEYS.has(c));
     this.mana = refill(this.mana, time, deltaMs, MANA);
     this.stepEnemies(deltaMs);
+    this.stepBoss(deltaMs);
     this.stepEnemyShots(deltaMs, time);
     this.stepShots(deltaMs);
     if (attack && this.heroKnockMs <= 0) {
@@ -561,6 +596,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   /** Walls, props, and doors and chests not yet opened, reaching into the rooms next door. */
   private solidAt(col: number, row: number, cx: number, cy: number): boolean {
     if (stoneAt(this.stones, cx, cy) >= 0) return true;
+    const here = col === this.room.col && row === this.room.row;
+    if (here && this.sealed.some((c) => c.x === cx && c.y === cy)) return true;
     return solidInWorld(this.world, col, row, cx, cy, (key, x, y) =>
       isOpened(this.progress, fixtureId(this.mapId, key, x, y)),
     );
@@ -665,6 +702,129 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     for (const p of this.world.enemies.get(roomKey(this.room.col, this.room.row)) ?? []) {
       this.addEnemy(p.kind, { x: p.col * TILE + TILE / 2, y: (p.row + 1) * TILE - 1 });
     }
+    const key = roomKey(this.room.col, this.room.row);
+    const boss = this.world.bosses.get(key);
+    if (boss && !isOpened(this.progress, bossId(this.mapId, key))) {
+      this.addBoss(boss.kind, { x: boss.col * TILE + TILE / 2, y: (boss.row + 1) * TILE - 1 });
+    }
+  }
+
+  /** A boss, with its health bar along the bottom of the room. */
+  private addBoss(kind: BossKind, feet: Point): void {
+    const sprite = this.enemyPool.take(kind).setOrigin(0.5, 1).play(animKey(kind, 'sway'));
+    const o = this.origin(this.room.col, this.room.row);
+    const x = o.x + (ROOM_W - BOSS_FX.barWidth) / 2;
+    const y = o.y + ROOM_H - TILE / 2;
+    const back = this.add
+      .rectangle(x - 1, y - 1, BOSS_FX.barWidth + 2, BOSS_FX.barHeight + 2, 0x101018)
+      .setOrigin(0)
+      .setDepth(DEPTH.over + 1);
+    const fill = this.add
+      .rectangle(x, y, BOSS_FX.barWidth, BOSS_FX.barHeight, 0xd04040)
+      .setOrigin(0)
+      .setDepth(DEPTH.over + 2);
+    this.boss = { b: spawnBoss(kind, feet, BOSSES[kind], this.rng), sprite, back, fill };
+    this.drawBoss(this.boss);
+  }
+
+  /**
+   * The boss shuffles and shoots. Once Jarrett is all the way into its room,
+   * the ways out shut behind him until it is beaten.
+   */
+  private stepBoss(deltaMs: number): void {
+    const live = this.boss;
+    if (!live) return;
+    const stats = BOSSES[live.b.kind];
+    if (!this.enemiesHold) {
+      const step = stepBoss(live.b, deltaMs, this.pos, stats, this.rng);
+      live.b = step.boss;
+      const from = bossShotOrigin(live.b, stats);
+      for (const dir of step.shots) this.addEnemyShot(from, dir);
+    }
+    this.drawBoss(live);
+    if (this.sealed.length === 0) {
+      const inside = { x: 2 * TILE, y: 2 * TILE, w: ROOM_W - 4 * TILE, h: ROOM_H - 4 * TILE };
+      const body = this.heroBody();
+      const within =
+        body.x >= inside.x &&
+        body.y >= inside.y &&
+        body.x + body.w <= inside.x + inside.w &&
+        body.y + body.h <= inside.y + inside.h;
+      if (within) this.seal();
+    }
+  }
+
+  private drawBoss({ b, sprite, fill }: LiveBoss): void {
+    const o = this.origin(this.room.col, this.room.row);
+    sprite.setPosition(o.x + b.pos.x, o.y + b.pos.y).setDepth(DEPTH.sorted + o.y + b.pos.y);
+    if (b.flashMs > 0) sprite.setTint(0xff7070);
+    else sprite.clearTint();
+    fill.setSize((BOSS_FX.barWidth * b.health) / BOSSES[b.kind].health, BOSS_FX.barHeight);
+  }
+
+  /** Shuts the room's ways out (barred gates). */
+  private seal(): void {
+    const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
+    if (!room) return;
+    this.sealed = sealCells(room);
+    const o = this.origin(this.room.col, this.room.row);
+    this.gates = this.sealed.map((c) =>
+      this.add
+        .image(o.x + c.x * TILE, o.y + c.y * TILE, 'dungeon', DUNGEON_FRAMES.gate)
+        .setOrigin(0)
+        .setDepth(DEPTH.ground + 1),
+    );
+    if (this.sealed.length > 0) this.sfx.play('unlock');
+  }
+
+  private unseal(): void {
+    for (const g of this.gates) g.destroy();
+    this.gates = [];
+    this.sealed = [];
+  }
+
+  /** One hit (by id, so each lands once) on the boss. */
+  private strikeBoss(damage: number, hitId: number): void {
+    const live = this.boss;
+    if (!live) return;
+    const before = live.b;
+    live.b = hitBoss(live.b, damage, hitId, BOSS_FX.flashMs);
+    if (live.b === before) return;
+    const stats = BOSSES[live.b.kind];
+    this.effect('hit', live.b.pos.x, live.b.pos.y - stats.box.height / 2);
+    if (isBeaten(live.b)) {
+      this.beat(live);
+      return;
+    }
+    this.sfx.play('hit');
+    this.drawBoss(live);
+  }
+
+  /** The boss is beaten: it vanishes in puffs, its shots fizzle, and the gates open for good. */
+  private beat(live: LiveBoss): void {
+    const stats = BOSSES[live.b.kind];
+    const key = roomKey(this.room.col, this.room.row);
+    this.progress = beatBoss(this.progress, bossId(this.mapId, key));
+    this.sfx.play('defeat');
+    const { x, y } = live.b.pos;
+    for (const [dx, dy] of [
+      [0, stats.box.height / 2],
+      [-stats.box.halfWidth, stats.box.height / 4],
+      [stats.box.halfWidth, stats.box.height * 0.75],
+    ] as const) {
+      this.effect('puff', x + dx, y - dy);
+    }
+    for (const shot of [...this.enemyShots]) this.dropEnemyShot(shot);
+    this.dropBoss();
+    this.unseal();
+  }
+
+  private dropBoss(): void {
+    if (!this.boss) return;
+    this.enemyPool.give(this.boss.sprite.clearTint());
+    this.boss.back.destroy();
+    this.boss.fill.destroy();
+    this.boss = null;
   }
 
   private addEnemy(kind: EnemyKind, feet: Point): void {
@@ -936,6 +1096,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       if (!overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind]))) continue;
       this.strike(live, SWORD.damage, this.swings, this.facing);
     }
+    if (this.boss && overlaps(box, bossBody(this.boss.b, BOSSES[this.boss.b.kind]))) {
+      this.strikeBoss(SWORD.damage, this.swings);
+    }
   }
 
   /** One hit (by id, so each lands once) on an enemy, pushing it the way given. */
@@ -1022,6 +1185,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       overlaps(body, enemyBody(live.e, ENEMIES[live.e.kind])),
     );
     if (toucher) this.hurtHero(ENEMIES[toucher.e.kind].contactDamage, toucher.e.pos, now);
+    else if (this.boss && overlaps(body, bossBody(this.boss.b, BOSSES[this.boss.b.kind]))) {
+      this.hurtHero(BOSSES[this.boss.b.kind].contactDamage, this.boss.b.pos, now);
+    }
   }
 
   /** Damage, a push away from `source`, and a moment of invulnerability (ignored while invulnerable). */
@@ -1123,7 +1289,12 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
         overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind])),
       );
       if (target) this.strike(target, t.damage, shot.d.id, shot.d.dir);
-      if (target || step.stopped) this.dropShot(shot);
+      const boss =
+        !target &&
+        this.boss !== null &&
+        overlaps(box, bossBody(this.boss.b, BOSSES[this.boss.b.kind]));
+      if (boss) this.strikeBoss(t.damage, shot.d.id);
+      if (target || boss || step.stopped) this.dropShot(shot);
       else this.drawShot(shot);
     }
   }
@@ -1160,6 +1331,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     for (const p of this.pickups) this.pickupPool.give(p.sprite);
     this.enemies = [];
     this.pickups = [];
+    this.dropBoss();
+    this.unseal();
   }
 
   snapshot(): GameSnapshot {
@@ -1218,6 +1391,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
         this.now,
         DAGGER.cooldownMs,
       ),
+      boss: this.boss
+        ? {
+            kind: this.boss.b.kind,
+            x: this.boss.b.pos.x,
+            y: this.boss.b.pos.y,
+            health: this.boss.b.health,
+            fierce: isFierce(this.boss.b, BOSSES[this.boss.b.kind]),
+          }
+        : null,
+      sealed: this.sealed.length > 0,
     };
   }
 
@@ -1282,6 +1465,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
 
   testSetGems(gems: number): void {
     this.gems = Math.max(0, gems);
+  }
+
+  /** Test hook only: set the boss's health (it still needs a hit to be beaten). */
+  testSetBossHealth(health: number): void {
+    if (this.boss) this.boss.b = { ...this.boss.b, health: Math.max(1, health) };
   }
 
   /** Test hook only: set the mana level. */

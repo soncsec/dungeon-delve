@@ -3,11 +3,12 @@
  * All art is from the Ansimuz Legacy Collection (CC0); see CREDITS.md.
  * tests/unit/manifest.test.ts checks these numbers against the real PNG files.
  */
-export type AssetGroup = 'characters' | 'enemies' | 'tiles' | 'effects' | 'items';
+export type AssetGroup = 'characters' | 'enemies' | 'bosses' | 'tiles' | 'effects' | 'items';
 
 export const ASSET_GROUPS: readonly AssetGroup[] = [
   'characters',
   'enemies',
+  'bosses',
   'tiles',
   'effects',
   'items',
@@ -91,6 +92,9 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('enemies', 'eye', 48, 48, 8, 1, [anim('fly', range(0, 8), 10)]),
   sheet('enemies', 'ghost', 64, 64, 6, 1, [anim('fly', range(0, 6), 8)]),
   sheet('enemies', 'wolf', 56, 32, 4, 1, [anim('run', range(0, 4), 10)]),
+
+  // Bosses (TinyRPG Monster Pack): the Treant, dungeon 1's boss, swaying.
+  sheet('bosses', 'treant', 80, 84, 4, 1, [anim('sway', range(0, 4), 6)]),
 
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),

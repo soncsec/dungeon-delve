@@ -1,3 +1,4 @@
+import type { BossKind, BossStats } from '../logic/boss';
 import type { EnemyKind, EnemyStats } from '../logic/enemies';
 import type { SoundRecipe } from '../logic/sfx';
 
@@ -182,6 +183,22 @@ export const SHIELD = {
   /** Cosine of the widest angle it still covers (cos 60° = 0.5). */
   coverCos: 0.5,
 } as const;
+
+/** Bosses (PROJECT.md §3c). Their shots are the flying eye's (ENEMY_SHOT). */
+export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
+  // Dungeon 1: a rooted plant that shuffles and spits seeds. Ten hits of the sword; a full heart on touch.
+  treant: {
+    health: 10,
+    contactDamage: 2,
+    box: { halfWidth: 18, height: 60 },
+    shuffle: { speed: 14, range: 48 },
+    calm: { shots: 3, spreadDeg: 18, everyMs: { min: 2200, max: 2800 } },
+    fierce: { shots: 5, spreadDeg: 16, everyMs: { min: 1500, max: 1900 } },
+  },
+};
+
+/** A boss flashes this long (ms) when hit; its health bar sits along the bottom of the room. */
+export const BOSS_FX = { flashMs: 150, barWidth: 120, barHeight: 4 } as const;
 
 /** The flying eye's shot. */
 export const ENEMY_SHOT = {
