@@ -2,20 +2,27 @@
  * Bosses (engine-free, unit tested). The Treant stands its ground, shuffling
  * from side to side, and fires spreads of shots at Jarrett. The Giant Frog
  * sits, crouches, and leaps at him; each landing throws a ring of shots, and
- * in the air it can't be hit. Below half health a boss turns fiercer: more
- * shots, more often. A hit (by id, so each lands once) costs it health; at
- * zero it is beaten.
+ * in the air it can't be hit. The Mummy shambles after him, firing spreads;
+ * wrapped tight, it takes hits only while a Lightning bolt has it stunned.
+ * Below half health a boss turns fiercer: more shots, more often. A hit (by
+ * id, so each lands once) costs it health; at zero it is beaten.
  */
 import type { Point } from './movement';
 import type { Rng } from './rng';
 import type { Vec } from './enemies';
 
-export type BossKind = 'treant' | 'frog';
+export type BossKind = 'treant' | 'frog' | 'mummy';
 
 /** How a boss moves. */
 export type BossMoves =
   /** Shuffling side to side: speed, and how far either side of where it starts. */
   | { style: 'shuffle'; speed: number; range: number }
+  /** Shambling straight at Jarrett, keeping its feet inside `arena` (room pixels). */
+  | {
+      style: 'shamble';
+      speed: number;
+      arena: { x: number; y: number; w: number; h: number };
+    }
   /**
    * Leaping at Jarrett: it crouches for `crouchMs` (the warning), then leaps
    * up to `reach` px towards him over `leapMs`, rising `peak` px, and lands
@@ -44,6 +51,8 @@ export interface BossStats {
    */
   calm: { shots: number; spreadDeg: number; everyMs: { min: number; max: number } };
   fierce: { shots: number; spreadDeg: number; everyMs: { min: number; max: number } };
+  /** Wrapped tight (the Mummy): hits land only while a Lightning bolt has it stunned, for `stunMs`. */
+  wrapped?: { stunMs: number };
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -68,6 +77,8 @@ export interface Boss {
   /** A leaper sits, then crouches (its timer counts down the crouch), then leaps (`leap`). */
   phase: 'sit' | 'crouch';
   leap: Leap | null;
+  /** Time left stunned by Lightning (ms): it stands still and fires nothing. */
+  stunMs: number;
 }
 
 export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): Boss {
@@ -82,6 +93,7 @@ export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): B
     flashMs: 0,
     phase: 'sit',
     leap: null,
+    stunMs: 0,
   };
 }
 
@@ -125,29 +137,49 @@ export function stepBoss(
   s: BossStats,
   rng: Rng,
 ): { boss: Boss; shots: Vec[] } {
+  if (b.stunMs > 0) {
+    const stunMs = Math.max(0, b.stunMs - dtMs);
+    return { boss: { ...b, stunMs, flashMs: Math.max(0, b.flashMs - dtMs) }, shots: [] };
+  }
   const m = s.moves;
   if (m.style === 'hop') return stepLeaper(b, dtMs, hero, s, m, rng);
   const mood = isFierce(b, s) ? s.fierce : s.calm;
-  let x = b.pos.x + (b.heading * m.speed * dtMs) / 1000;
+  let x = b.pos.x;
+  let y = b.pos.y;
   let heading = b.heading;
-  if (x > b.home.x + m.range) {
-    x = b.home.x + m.range;
-    heading = -1;
-  } else if (x < b.home.x - m.range) {
-    x = b.home.x - m.range;
-    heading = 1;
+  if (m.style === 'shuffle') {
+    x += (b.heading * m.speed * dtMs) / 1000;
+    if (x > b.home.x + m.range) {
+      x = b.home.x + m.range;
+      heading = -1;
+    } else if (x < b.home.x - m.range) {
+      x = b.home.x - m.range;
+      heading = 1;
+    }
+  } else {
+    // Straight at Jarrett (no further than he is), its feet kept inside the arena.
+    const dx = hero.x - x;
+    const dy = hero.y - y;
+    const len = Math.hypot(dx, dy);
+    const step = Math.min(len, (m.speed * dtMs) / 1000);
+    if (len > 0) {
+      x += (dx / len) * step;
+      y += (dy / len) * step;
+    }
+    x = Math.min(m.arena.x + m.arena.w, Math.max(m.arena.x, x));
+    y = Math.min(m.arena.y + m.arena.h, Math.max(m.arena.y, y));
   }
   let shootInMs = b.shootInMs - dtMs;
   let shots: Vec[] = [];
   if (shootInMs <= 0) {
-    const from = { x, y: b.pos.y - s.box.height / 2 };
+    const from = { x, y: y - s.box.height / 2 };
     shots = spread(aimAt(from, hero), mood.shots, mood.spreadDeg);
     shootInMs = rng.int(mood.everyMs.min, mood.everyMs.max);
   }
   return {
     boss: {
       ...b,
-      pos: { x, y: b.pos.y },
+      pos: { x, y },
       heading,
       shootInMs,
       flashMs: Math.max(0, b.flashMs - dtMs),
@@ -217,9 +249,29 @@ export function leapHeight(b: Boss, s: BossStats): number {
   return 4 * m.peak * t * (1 - t);
 }
 
-/** A hit by id (each lands once): costs health and makes it flash. Nothing lands in the air. */
-export function hitBoss(b: Boss, damage: number, hitId: number, flashMs: number): Boss {
-  if (b.lastHitBy === hitId || b.health <= 0 || isAirborne(b)) return b;
+/** Whether hits glance off it: wrapped tight, and not stunned. */
+export function isWrapped(b: Boss, s: BossStats): boolean {
+  return s.wrapped !== undefined && b.stunMs <= 0;
+}
+
+/** A Lightning bolt (by id, so each lands once) stuns a wrapped boss; others shrug it off. */
+export function stunBoss(b: Boss, hitId: number, s: BossStats): Boss {
+  if (!s.wrapped || b.lastHitBy === hitId) return b;
+  return { ...b, stunMs: s.wrapped.stunMs, lastHitBy: hitId };
+}
+
+/**
+ * A hit by id (each lands once): costs health and makes it flash. Nothing lands
+ * in the air, or on a wrapped boss that isn't stunned.
+ */
+export function hitBoss(
+  b: Boss,
+  damage: number,
+  hitId: number,
+  flashMs: number,
+  s: BossStats,
+): Boss {
+  if (b.lastHitBy === hitId || b.health <= 0 || isAirborne(b) || isWrapped(b, s)) return b;
   return { ...b, health: Math.max(0, b.health - damage), lastHitBy: hitId, flashMs };
 }
 

@@ -240,6 +240,26 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     calm: { shots: 4, spreadDeg: 90, everyMs: { min: 1400, max: 2000 } },
     fierce: { shots: 8, spreadDeg: 45, everyMs: { min: 900, max: 1300 } },
   },
+  // Dungeon 3: a Mummy, wrapped tight, that shambles after Jarrett firing spreads. Sword,
+  // daggers and fire glance off until a Lightning bolt stuns it (3 s); then ten hits beat it.
+  mummy: {
+    health: 10,
+    contactDamage: 2,
+    box: { halfWidth: 14, height: 44 },
+    moves: {
+      style: 'shamble',
+      speed: 16,
+      arena: {
+        x: 2 * TILE + 14,
+        y: 2 * TILE + 44,
+        w: ROOM_COLS * TILE - 4 * TILE - 28,
+        h: 8 * TILE - (2 * TILE + 44),
+      },
+    },
+    calm: { shots: 3, spreadDeg: 20, everyMs: { min: 2000, max: 2600 } },
+    fierce: { shots: 5, spreadDeg: 18, everyMs: { min: 1400, max: 1800 } },
+    wrapped: { stunMs: 3000 },
+  },
 };
 
 /** Overworld enemies come back once Jarrett has been through this many other rooms (owner 2026-10-21). */
