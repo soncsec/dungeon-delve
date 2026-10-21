@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { explore } from '../../src/logic/reach';
 import { buildWorld, type RoomDef } from '../../src/logic/world';
 import { DUNGEON_1, DUNGEON_1_START } from '../../src/world/dungeon1';
+import { SECRET_CAVES } from '../../src/world/caves';
 import { OVERWORLD, START_ROOM } from '../../src/world/overworld';
 
 const WALL = '####################';
@@ -175,7 +176,33 @@ describe('the real maps', () => {
     const world = buildWorld(OVERWORLD);
     const r = explore(world, { ...START_ROOM, cx: 10, cy: 5 });
     expect(r.rooms).toEqual([...world.rooms.keys()].sort());
-    // Hollow Oak's archway, and the shop's door.
-    expect(r.exits).toEqual(['3,5/10,2', '3,5/9,2', '3,6/5,8']);
+    // Hollow Oak's archway, the shop's door, and the holes down to every secret cave.
+    const holes = SECRET_CAVES.map(
+      (c) => `${c.room.col},${c.room.row}/${c.hole.col},${c.hole.row}`,
+    );
+    expect(r.exits).toEqual(['3,5/10,2', '3,5/9,2', '3,6/5,8', ...holes].sort());
+    // The false walls in front of some of them open on the way.
+    expect(r.hollows).toHaveLength(4);
+  });
+});
+
+describe('explore, with false walls', () => {
+  it('opens a false wall in reach, to reach what it hides', () => {
+    // A closet in the top-left corner, sealed by a false wall (h) at column 4, row 2.
+    const defs: RoomDef[] = [
+      {
+        col: 0,
+        row: 0,
+        lines: room({
+          1: '#..C#..............#',
+          2: '#...h..............#',
+          3: '#####..............#',
+        }),
+        chests: [{ col: 3, row: 1, contents: { kind: 'gems', amount: 5 } }],
+      },
+    ];
+    const r = explore(buildWorld(defs), { col: 0, row: 0, cx: 10, cy: 5 });
+    expect(r.hollows).toEqual(['0,0/4,2']);
+    expect(r.chests).toEqual(['0,0/3,1']);
   });
 });

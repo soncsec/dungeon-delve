@@ -315,6 +315,8 @@ interface Pickup {
   amount: number;
   /** For an item from a chest: which one. */
   item: ItemId | null;
+  /** For a heart container: its progress id, recorded when taken. */
+  reward?: string;
 }
 
 /** Jarrett's body, for touching enemies and pickups: 10 px wide, 20 px tall above his feet. */
@@ -391,6 +393,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private enemyShots: LiveEnemyShot[] = [];
   private boss: LiveBoss | null = null;
   private walker: LiveWalker | null = null;
+  /** False walls struck once (in this room visit), by id, with the swing that struck them. */
+  private struckWalls = new Map<string, number>();
   /** The shopkeeper (in the shop), and his feet. */
   private shopkeeper: { sprite: Phaser.GameObjects.Sprite; feet: Point } | null = null;
   private talk: Talk | null = null;
@@ -469,6 +473,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.boss = null;
     this.walker = null;
     this.shopkeeper = null;
+    this.struckWalls = new Map();
     this.talk = null;
     this.sealed = [];
     this.announced = 0;
@@ -805,7 +810,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (c.kind === 'key') this.addPickup('key', at);
     else if (c.kind === 'gems') this.addPickup('gem', at, c.amount);
     else if (c.kind === 'item') this.addPickup('item', at, 1, c.item);
-    else this.addPickup(c.potion === 'health' ? 'health-potion' : 'mana-brew', at);
+    else if (c.kind === 'heart') {
+      // Each cave's heart has its own id, so the save keeps every one.
+      const key = roomKey(this.room.col, this.room.row);
+      this.addPickup('heart-container', at, 1, null, `${this.mapId}/${key}/heart`);
+    } else this.addPickup(c.potion === 'health' ? 'health-potion' : 'mana-brew', at);
   }
 
   /** Draws the current room again (after a door or chest opens). */
@@ -1456,6 +1465,42 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (this.boss && overlaps(box, bossBody(this.boss.b, BOSSES[this.boss.b.kind]))) {
       this.strikeBoss(SWORD.damage, this.swings);
     }
+    this.strikeFalseWalls(box);
+  }
+
+  /**
+   * A false wall under the blade: the first swing sounds hollow; a second
+   * swing crumbles it open, for good.
+   */
+  private strikeFalseWalls(box: Rect): void {
+    const key = roomKey(this.room.col, this.room.row);
+    const room = this.world.rooms.get(key);
+    if (!room) return;
+    const x0 = Math.floor(box.x / TILE);
+    const x1 = Math.floor((box.x + box.w - 1) / TILE);
+    const y0 = Math.floor(box.y / TILE);
+    const y1 = Math.floor((box.y + box.h - 1) / TILE);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (room.cells[y]?.[x]?.fixture !== 'hollow') continue;
+        const id = fixtureId(this.mapId, key, x, y);
+        if (isOpened(this.progress, id)) continue;
+        const struck = this.struckWalls.get(id);
+        if (struck === this.swings) continue;
+        const at = { x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 };
+        if (struck === undefined) {
+          this.struckWalls.set(id, this.swings);
+          this.sfx.play('hollow');
+          this.effect('hit', at.x, at.y);
+        } else {
+          this.struckWalls.delete(id);
+          this.progress = openChest(this.progress, id);
+          this.sfx.play('crumble');
+          this.effect('puff', at.x, at.y);
+          this.redrawRoom();
+        }
+      }
+    }
   }
 
   /** One hit (by id, so each lands once) on an enemy, pushing it the way given. */
@@ -1480,7 +1525,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (drop) this.addPickup(drop, live.e.pos);
   }
 
-  private addPickup(kind: PickupKind, pos: Point, amount = 1, item: ItemId | null = null): void {
+  private addPickup(
+    kind: PickupKind,
+    pos: Point,
+    amount = 1,
+    item: ItemId | null = null,
+    reward?: string,
+  ): void {
     const icon = item ? ITEM_ICON[item] : undefined;
     const sprite =
       kind === 'gem'
@@ -1504,7 +1555,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     sprite.setOrigin(0.5, 1);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);
-    this.pickups.push({ kind, pos: { ...pos }, sprite, amount, item });
+    this.pickups.push({
+      kind,
+      pos: { ...pos },
+      sprite,
+      amount,
+      item,
+      ...(reward ? { reward } : {}),
+    });
   }
 
   private collectPickups(): void {
@@ -1520,7 +1578,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         sound = 'chest';
       } else if (p.kind === 'heart-container') {
         // One more heart, and every heart filled.
-        this.progress = takeReward(this.progress, rewardId(this.mapId, 'heart'));
+        this.progress = takeReward(this.progress, p.reward ?? rewardId(this.mapId, 'heart'));
         const max = (HEALTH.startHearts + heartContainers(this.progress)) * 2;
         this.health = { ...this.health, max, points: max };
         sound = 'heart';
@@ -1710,6 +1768,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.walker = null;
     if (this.shopkeeper) this.enemyPool.give(this.shopkeeper.sprite);
     this.shopkeeper = null;
+    this.struckWalls.clear();
   }
 
   snapshot(): GameSnapshot {
@@ -1976,7 +2035,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const dungeon = theme === 'dungeon' || theme === 'indoors' || region === 'vault';
     const art = dungeon
       ? dungeonArt(room, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)))
-      : roomArt(room, region);
+      : roomArt(room, region, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)));
     const sheet = dungeon ? 'dungeon' : 'forest';
     const drawn: Phaser.GameObjects.GameObject[] = [];
     for (const t of art.ground) {

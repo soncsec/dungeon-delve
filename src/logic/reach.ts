@@ -1,8 +1,8 @@
 /**
  * Can a map be finished? (engine-free, unit tested; ROADMAP M3.7). Explores
  * a map the way a player would, a cell at a time: walking, pushing stones,
- * opening every chest in reach, and spending small keys on locked doors in
- * reach, until nothing new opens. If that reaches every room, chest and door,
+ * opening every false wall and chest in reach, and spending small keys on
+ * locked doors in reach, until nothing new opens. If that reaches every room, chest and door,
  * there is a valid order to do it in.
  *
  * Simplifications, on the safe side for hand-made rooms:
@@ -21,9 +21,10 @@ import { roomKey, solidInWorld, type World } from './world';
 export interface Reach {
   /** Room keys reached. */
   rooms: string[];
-  /** Chests and locked doors opened, as `room/x,y`. */
+  /** Chests, locked doors and false walls opened, as `room/x,y`. */
   chests: string[];
   doors: string[];
+  hollows: string[];
   /** Doorways to other maps reached, as `room/x,y`. */
   exits: string[];
   /** Small keys found but never needed. */
@@ -154,12 +155,20 @@ function parse(fixture: string): { key: string; x: number; y: number } {
 export function explore(world: World, start: ReachStart): Reach {
   const chests = new Set<string>();
   const doors = new Set<string>();
+  const hollows = new Set<string>();
   const opened = new Set<string>();
   let keys = 0;
   for (;;) {
     const w = walk(world, start, opened);
     const touched = [...w.touched].sort(([a], [b]) => (a < b ? -1 : 1));
-    // Every chest in reach first: they cost nothing.
+    // Every false wall in reach first: two strikes of the sword open one.
+    const walls = touched.filter(([, f]) => f === 'hollow').map(([c]) => c);
+    for (const wall of walls) {
+      hollows.add(wall);
+      opened.add(wall);
+    }
+    if (walls.length > 0) continue;
+    // Then every chest in reach: they cost nothing.
     const found = touched.filter(([, f]) => f === 'chest').map(([c]) => c);
     for (const chest of found) {
       chests.add(chest);
@@ -183,6 +192,7 @@ export function explore(world: World, start: ReachStart): Reach {
       rooms: [...w.rooms].sort(),
       chests: [...chests].sort(),
       doors: [...doors].sort(),
+      hollows: [...hollows].sort(),
       exits: [...w.exits].sort(),
       keys,
     };

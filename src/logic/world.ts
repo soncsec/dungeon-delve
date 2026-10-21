@@ -53,7 +53,9 @@ export type ChestContents =
   | { kind: 'key' }
   | { kind: 'gems'; amount: number }
   | { kind: 'item'; item: ItemId }
-  | { kind: 'potion'; potion: PotionKind };
+  | { kind: 'potion'; potion: PotionKind }
+  /** A heart container (secret caves). */
+  | { kind: 'heart' };
 
 export interface ChestPlacement {
   col: number;

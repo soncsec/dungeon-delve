@@ -236,12 +236,12 @@ export const HUD = {
   /** First heart's left edge, and the distance between hearts (the small heart art is 11 px wide). */
   heartX: 1,
   heartSpacing: 12,
-  /** Hearts per row; a second row starts below (11 hearts fit in 72 × 20 px). */
-  heartsPerRow: 6,
+  /** Hearts per row; a second row starts below (all 14 hearts fit in 84 × 20 px). */
+  heartsPerRow: 7,
   /** Where each row of hearts sits: the top of the 16-px heart frame (the art is 9 px tall). */
   heartRowY: [-4, 6],
   /** The small-key count, shown in dungeons only, right of the hearts. */
-  keyX: 84,
+  keyX: 92,
   /** Left edges of the mana bar, the potion counts and the weapon box. */
   manaBarX: 142,
   manaBarWidth: 44,
@@ -271,7 +271,9 @@ export type SfxName =
   | 'unlock'
   | 'chest'
   | 'push'
-  | 'shard';
+  | 'shard'
+  | 'hollow'
+  | 'crumble';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -349,6 +351,10 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
       volume: 0.35,
       steps: [1, 1.26, 1.5, 2, 1.5, 2, 2.52, 3],
     },
+    // A false wall struck with the sword: a hollow wooden tok.
+    hollow: { wave: 'triangle', seconds: 0.12, from: 260, to: 180, attack: 0.002, volume: 0.45 },
+    // A false wall crumbling open: a rumble of noise falling away.
+    crumble: { wave: 'noise', seconds: 0.45, from: 1200, to: 120, attack: 0.005, volume: 0.45 },
   },
 };
 

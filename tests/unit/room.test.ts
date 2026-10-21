@@ -322,3 +322,13 @@ describe('caves', () => {
     expect(isSolid(r, 9, 3)).toBe(false);
   });
 });
+
+describe('secrets in rooms', () => {
+  it('reads false walls, holes, and stones on holes', () => {
+    const r = parseRoom(room({ 3: 'hoQ.................' }));
+    expect(r.cells[3]?.[0]).toMatchObject({ solid: true, forest: true, fixture: 'hollow' });
+    expect(r.cells[3]?.[1]).toMatchObject({ solid: false, exit: true, ground: 'hole' });
+    expect(r.cells[3]?.[2]).toMatchObject({ solid: false, exit: true, ground: 'hole' });
+    expect(r.stones).toEqual([{ cx: 2, cy: 3 }]);
+  });
+});

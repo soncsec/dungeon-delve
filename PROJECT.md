@@ -28,7 +28,7 @@ It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff 
 | World | An **overworld of about 8×8 rooms** across five regions (village and meadows, forest, marsh, mountains, ruins), plus caves and secret rooms |
 | Dungeons | **8 dungeons**, growing from about 6 rooms (dungeon 1) to about 14 (dungeon 8). Each has small keys and locked doors, a chest with a new item, a boss behind a boss door, and a shard of the Star of Power |
 | Finale | The **Shadow Vault**, opened by all 8 shards: a short final dungeon, the final boss, Princess Kira's rescue, and an ending screen with the play time |
-| Player health | Hearts, starting at 3. Each boss leaves a **heart container** (+1 heart; 11 at the end). Hidden heart containers may be added if play-testing calls for it |
+| Player health | Hearts, starting at 3. Each boss leaves a **heart container** (+1 heart), and three more hide in secret caves: 14 at the end |
 | Death | Jarrett restarts at the dungeon entrance (or the village, if on the overworld) with full hearts. Items, keys and shards are kept; gems drop by 10% |
 | Story | A short title intro, Walker's lines as he guides Jarrett (section 3f), and the ending. Plain, friendly text |
 
@@ -45,7 +45,7 @@ It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff 
 | Potions | **Health Potion** (refills hearts) and **Mana Brew**. Found in chests and pots, bought in the village shop. Up to 3 of each |
 | Inventory | A pause-style **inventory screen**: equip the near weapon, far weapon, spell and shield; see potions, keys, gems, the 8-shard Star of Power, and a map of the dungeon you're in |
 | Money | **Gems** dropped by enemies and found in secrets; spent in the village shop: Health Potion 10, Mana Brew 15, Iron Shield 80 |
-| Hidden passages | Cracked walls (Axe), thorn bushes (Fireball), pushable stones, and false walls. They lead to secret caves with gems, potions and upgrades |
+| Hidden passages | Cracked walls and boulders (Axe), thorn bushes (Fireball), pushable stones, and false walls (a sword strike sounds hollow; a second opens them). They lead to **12 secret caves** with gems, potions, and three heart containers |
 
 ### 3c. Dungeons and bosses (proposed; art to be confirmed in M1.1)
 
@@ -153,11 +153,12 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | Instead of a high score, the fastest finish time is kept in localStorage and shown on the title screen; runs that used `?dungeon=n` don't count |
 | 2026-10-20 | First enemy roster: robot, bird, ghost, flying eye, wolf (the fire skull is too big for a common enemy; it may return as a mini-boss). M2.6 built before M2.4 so the shield can be tested against real shots. The Mana Brew is a recoloured blue potion |
 | 2026-10-20 | Frame-rate check: every frame's work in a crowded fight within the 60 fps budget (median ≤ half a frame, 95% ≤ one frame); Linux WebKit is held to the median only, real Safari is checked on the owner's iPhone |
-| 2026-10-20 | Small keys are drawn in code (the art pack has no key); keys work only in the dungeon they were found in. An opened chest vanishes in a puff and leaves its contents on the floor (the pack has no open chest). Hearts show in two rows of six in the status bar |
+| 2026-10-20 | Small keys are drawn in code (the art pack has no key); keys work only in the dungeon they were found in. An opened chest vanishes in a puff and leaves its contents on the floor (the pack has no open chest). Hearts show in two rows in the status bar (seven a row since 2026-10-21) |
 | 2026-10-20 | The overworld map (M4.1): 8×8 rooms. Village and meadows along the south (the start), the forest north of it (Hollow Oak close by, Witchwood deep in the west), the marsh west, the ruins east, mountains across the north with the volcano edge in the far north-east, and the Shadow Vault in the centre. Each region has its own art set: Top-Down Town (village), the forest set, Tiny RPG Mountain (mountains), forest tiles tinted murky with water from the Overworld sheet (marsh), and the dungeon's stone walls on grass (ruins) |
 | 2026-10-20 | The Shadow Vault's four rooms are walkable stone grounds around the sealed vault building: a hub joining the forest, ruins and mountains (the door opens in M7.1) |
 | 2026-10-20 | Village rooms draw their forest walls and props with the teal ground shadows recoloured to the village's grass and shade |
 | 2026-10-20 | The marsh's ponds have shorelines: the Overworld sheet's island shores used inside out, their grass recoloured to the forest's; ponds are rectangles |
+| 2026-10-21 | Secrets: 12 secret caves, three of them with heart containers (14 hearts at the end; the status bar shows two rows of seven). False walls sound hollow when struck with the sword and open on a second strike. Cracked walls, Axe boulders and thorn bushes are built now and placed with the item gates (M4.4, M5) |
 | 2026-10-21 | The village shop: a house on the west street with a shopkeeper inside (the 'Guy' sprite recoloured: grey hair, red shirt). It sells the Health Potion (10 gems), Mana Brew (15) and the Iron Shield (80). Dungeon 3's prize becomes the bigger mana bar (moved from dungeon 6, which keeps the Steel Sword) |
 | 2026-10-21 | The mountains are cliffs, dirt, rocks and caves from the Tiny RPG Mountain set; the volcano edge (the three north-east rooms) is the mountains under a red runtime tint |
 | 2026-10-20 | A small title screen arrives with the save game (M3.5): CONTINUE when there is a save, and NEW GAME, which asks before wiping it. `?dungeon=n` skips the title and starts a new run marked as a cheat |
