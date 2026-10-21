@@ -1528,3 +1528,53 @@ test('a stone in the east meadow hides a hole down to a cave', async ({ page }) 
   await holdUntil(page, 'ArrowRight', async () => (await snapshot(page)).map === 'caves');
   expect((await snapshot(page)).sounds.push).toBe(1);
 });
+
+test('the Axe smashes boulders and cracked walls; the sword only clinks; Fireball burns thorns', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  const opened = async () =>
+    (await snapshot(page)).opened.filter((id) => id.startsWith('overworld/'));
+  // The start room's boulder fills columns 4–5, rows 6–7. Strike it from above with the sword.
+  await page.evaluate(() => window.__game?.placeHero(72, 92, 'down'));
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).sounds.block).toBe(1);
+  expect(await opened()).toEqual([]);
+  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+
+  // The Axe, chosen in the inventory: one blow breaks the whole boulder.
+  await page.evaluate(() => window.__game?.giveItem('axe'));
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Inventory');
+  await page.keyboard.press('Space');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.inventory()))?.slots.near)
+    .toBe('Axe');
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  await page.keyboard.press('Space');
+  await expect
+    .poll(opened)
+    .toEqual(['overworld/4,7/4,6', 'overworld/4,7/5,6', 'overworld/4,7/4,7', 'overworld/4,7/5,7']);
+  expect((await snapshot(page)).sounds.crumble).toBe(1);
+  // Where it stood, he walks on through.
+  await page.keyboard.down('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeGreaterThan(120);
+  await page.keyboard.up('ArrowDown');
+
+  // A cracked wall (put here for the test; they're placed in M4.4/M5) smashes too.
+  await page.evaluate(() => window.__game?.setCell(11, 5, 'x'));
+  await page.evaluate(() => window.__game?.placeHero(160, 94, 'right'));
+  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  await page.keyboard.press('Space');
+  await expect.poll(opened).toContain('overworld/4,7/11,5');
+
+  // A thorn bush, two cells to his left: a Fireball burns it.
+  await page.evaluate(() => window.__game?.setCell(7, 5, 't'));
+  await page.evaluate(() => window.__game?.placeHero(160, 94, 'left'));
+  await page.keyboard.press('c');
+  await expect.poll(opened).toContain('overworld/4,7/7,5');
+  expect((await snapshot(page)).sounds.burn).toBe(1);
+  expect(watched.errors).toEqual([]);
+});

@@ -38,6 +38,8 @@ export interface TestHook {
   holdEnemies(hold: boolean): void;
   /** Set the mana level. */
   setMana(current: number): void;
+  /** Change one cell of the current room's text, e.g. to try a thorn bush (t) not yet placed. */
+  setCell(x: number, y: number, ch: string): void;
   /** Set the boss's health (at least 1; it still needs a hit to be beaten). */
   setBossHealth(health: number): void;
   /** Give Jarrett a small key for the map he's on. */
@@ -121,6 +123,7 @@ export function installTestHook(game: Phaser.Game): void {
     holdEnemies: (hold) => gameScene(game).testHoldEnemies(hold),
     setMana: (current) => gameScene(game).testSetMana(current),
     setBossHealth: (health) => gameScene(game).testSetBossHealth(health),
+    setCell: (x, y, ch) => gameScene(game).testSetCell(x, y, ch),
     giveKey: () => gameScene(game).testGiveKey(),
     goToRoom: (col, row) => gameScene(game).testGoToRoom(col, row),
     setHealth: (points) => gameScene(game).testSetHealth(points),

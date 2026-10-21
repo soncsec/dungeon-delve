@@ -332,3 +332,23 @@ describe('secrets in rooms', () => {
     expect(r.stones).toEqual([{ cx: 2, cy: 3 }]);
   });
 });
+
+describe('things the Axe and Fireball open', () => {
+  it('reads cracked walls, thorn bushes, and boulders as breakable', () => {
+    const r = parseRoom(room({ 3: 'x.t..R..............' }));
+    expect(r.cells[3]?.[0]).toMatchObject({ solid: true, forest: true, fixture: 'cracked' });
+    expect(r.cells[3]?.[2]).toMatchObject({ solid: true, prop: 'thorns', fixture: 'thorns' });
+    for (const [x, y] of [
+      [5, 3],
+      [6, 3],
+      [5, 4],
+      [6, 4],
+    ] as const) {
+      expect(r.cells[y]?.[x], `${x},${y}`).toMatchObject({
+        solid: true,
+        fixture: 'boulder',
+        anchor: { x: 5, y: 3 },
+      });
+    }
+  });
+});

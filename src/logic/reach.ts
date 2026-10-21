@@ -15,7 +15,7 @@
  *   dungeons are laid out so it doesn't, and this would report a door left shut.
  */
 import { ROOM_COLS, ROOM_ROWS } from '../config/tuning';
-import type { Fixture, Room } from './room';
+import { PROP_FOOTPRINT, type Fixture, type Room } from './room';
 import { roomKey, solidInWorld, type World } from './world';
 
 export interface Reach {
@@ -25,10 +25,18 @@ export interface Reach {
   chests: string[];
   doors: string[];
   hollows: string[];
+  /** Cracked walls, boulders and thorn bushes broken or burned (with the items held). */
+  broken: string[];
   /** Doorways to other maps reached, as `room/x,y`. */
   exits: string[];
   /** Small keys found but never needed. */
   keys: number;
+}
+
+/** Items that open secrets: the Axe (cracked walls, boulders), Fireball (thorn bushes). */
+export interface ReachItems {
+  axe?: boolean;
+  fireball?: boolean;
 }
 
 /** Where the exploring starts: a room, and a cell in it. */
@@ -152,10 +160,11 @@ function parse(fixture: string): { key: string; x: number; y: number } {
 }
 
 /** Explores a map from `start`: what can be reached and opened, in some valid order. */
-export function explore(world: World, start: ReachStart): Reach {
+export function explore(world: World, start: ReachStart, items: ReachItems = {}): Reach {
   const chests = new Set<string>();
   const doors = new Set<string>();
   const hollows = new Set<string>();
+  const broken = new Set<string>();
   const opened = new Set<string>();
   let keys = 0;
   for (;;) {
@@ -168,6 +177,20 @@ export function explore(world: World, start: ReachStart): Reach {
       opened.add(wall);
     }
     if (walls.length > 0) continue;
+    // Then what the items held can break or burn.
+    const breakable = touched
+      .filter(
+        ([, f]) =>
+          (items.axe && (f === 'cracked' || f === 'boulder')) || (items.fireball && f === 'thorns'),
+      )
+      .map(([c]) => c);
+    for (const cell of breakable) {
+      for (const part of partsOf(world, cell)) {
+        broken.add(part);
+        opened.add(part);
+      }
+    }
+    if (breakable.length > 0) continue;
     // Then every chest in reach: they cost nothing.
     const found = touched.filter(([, f]) => f === 'chest').map(([c]) => c);
     for (const chest of found) {
@@ -193,10 +216,19 @@ export function explore(world: World, start: ReachStart): Reach {
       chests: [...chests].sort(),
       doors: [...doors].sort(),
       hollows: [...hollows].sort(),
+      broken: [...broken].sort(),
       exits: [...w.exits].sort(),
       keys,
     };
   }
+}
+
+/** What breaks with a cell: a whole boulder (every cell of its footprint), or just the cell. */
+function partsOf(world: World, cell: string): string[] {
+  const { key, x, y } = parse(cell);
+  const anchor = world.rooms.get(key)?.cells[y]?.[x]?.anchor;
+  if (!anchor) return [cell];
+  return PROP_FOOTPRINT.boulder.map(([dx, dy]) => id(key, anchor.x + dx, anchor.y + dy));
 }
 
 /** A key opens a door cell and the door cells beside it: a two-cell door (as in the game). */

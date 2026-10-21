@@ -273,7 +273,8 @@ export type SfxName =
   | 'push'
   | 'shard'
   | 'hollow'
-  | 'crumble';
+  | 'crumble'
+  | 'burn';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -355,6 +356,8 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
     hollow: { wave: 'triangle', seconds: 0.12, from: 260, to: 180, attack: 0.002, volume: 0.45 },
     // A false wall crumbling open: a rumble of noise falling away.
     crumble: { wave: 'noise', seconds: 0.45, from: 1200, to: 120, attack: 0.005, volume: 0.45 },
+    // Thorns burning: a crackling rush of noise rising.
+    burn: { wave: 'noise', seconds: 0.5, from: 500, to: 3000, attack: 0.05, volume: 0.4 },
   },
 };
 

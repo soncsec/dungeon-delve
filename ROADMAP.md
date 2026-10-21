@@ -108,7 +108,7 @@
 - [x] M4.2 Village shop: a house on the west street with a recoloured shopkeeper; Health Potion 10, Mana Brew 15, Iron Shield 80 gems (owner 2026-10-21)
 - [ ] M4.3 Hidden passages and 12 secret caves (owner 2026-10-21), in two PRs:
   - [x] M4.3a Secret caves (gems, potions, three heart containers), false walls (sword), holes under pushable stones; the caves that need no item placed
-  - [ ] M4.3b Cracked walls and boulders (Axe) and thorn bushes (Fireball), built and tested; placed with M4.4 and M5
+  - [x] M4.3b Cracked walls and boulders (Axe) and thorn bushes (Fireball), built and tested; placed with M4.4 and M5
 - [ ] M4.4 Progression gates (water, thorns, boulders) tied to dungeon items
 - [ ] M4.5 Overworld enemies placed by region; respawn rules
 - [ ] M4.6 Reachability test for the overworld, given the items held

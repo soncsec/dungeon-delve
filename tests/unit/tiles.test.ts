@@ -18,6 +18,7 @@ import {
   MOUNTAIN_FRAMES,
   MOUNTAIN_PROP_REGIONS,
   cliffFrame,
+  THORN_TINT,
   propSheet,
   roomArt,
   TOWN_COLUMNS,
@@ -455,5 +456,35 @@ describe('secrets', () => {
       ]);
       expect(at(art, 6, 5)[0]?.frame).toBe(MOUNTAIN_FRAMES.hole);
     }
+  });
+});
+
+describe('breakables', () => {
+  const room = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 3 ? 'xx..t..R............' : '....................',
+    ),
+  );
+
+  it('draws cracked walls as rubble until smashed, then as ground', () => {
+    const closed = roomArt(room, 'mountains');
+    const at = (art: ReturnType<typeof roomArt>, x: number) =>
+      art.ground.filter((t) => t.x === x * 16 && t.y === 48);
+    expect(at(closed, 0)[1]).toEqual({
+      frame: MOUNTAIN_FRAMES.rubble[0],
+      x: 0,
+      y: 48,
+      sheet: 'mountain',
+    });
+    expect(at(closed, 1)[1]?.frame).toBe(MOUNTAIN_FRAMES.rubble[1]);
+    const smashed = roomArt(room, 'mountains', (x, y) => y === 3 && x === 0);
+    expect(at(smashed, 0)).toHaveLength(1); // just the dirt
+  });
+
+  it('leaves out a burned thorn bush and a smashed boulder', () => {
+    expect(roomArt(room).props.map((p) => p.prop)).toEqual(['thorns', 'boulder']);
+    const gone = roomArt(room, 'forest', (x, y) => y === 3 && (x === 4 || x === 7));
+    expect(gone.props).toEqual([]);
+    expect(THORN_TINT).toBeGreaterThan(0);
   });
 });

@@ -158,6 +158,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | The Shadow Vault's four rooms are walkable stone grounds around the sealed vault building: a hub joining the forest, ruins and mountains (the door opens in M7.1) |
 | 2026-10-20 | Village rooms draw their forest walls and props with the teal ground shadows recoloured to the village's grass and shade |
 | 2026-10-20 | The marsh's ponds have shorelines: the Overworld sheet's island shores used inside out, their grass recoloured to the forest's; ponds are rectangles |
+| 2026-10-21 | Secret art: cracked walls are the mountain set's rubble; every boulder smashes to the Axe; thorn bushes are the forest bush under a thorny runtime tint |
 | 2026-10-21 | Secrets: 12 secret caves, three of them with heart containers (14 hearts at the end; the status bar shows two rows of seven). False walls sound hollow when struck with the sword and open on a second strike. Cracked walls, Axe boulders and thorn bushes are built now and placed with the item gates (M4.4, M5) |
 | 2026-10-21 | The village shop: a house on the west street with a shopkeeper inside (the 'Guy' sprite recoloured: grey hair, red shirt). It sells the Health Potion (10 gems), Mana Brew (15) and the Iron Shield (80). Dungeon 3's prize becomes the bigger mana bar (moved from dungeon 6, which keeps the Steel Sword) |
 | 2026-10-21 | The mountains are cliffs, dirt, rocks and caves from the Tiny RPG Mountain set; the volcano edge (the three north-east rooms) is the mountains under a red runtime tint |

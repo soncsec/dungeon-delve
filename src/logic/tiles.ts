@@ -42,6 +42,8 @@ export const PROP_REGIONS: Readonly<
   shrub: { x: 112, y: 96, w: 16, h: 16 },
   // The cave entrance comes from the mountain sheet.
   cave: { x: 48, y: 48, w: 48, h: 48 },
+  // A thorn bush is the forest's bush under a thorny tint (THORN_TINT).
+  thorns: { x: 128, y: 64, w: 16, h: 16 },
 };
 
 /** Which sheet each prop's art is on. */
@@ -58,6 +60,7 @@ export const PROP_SHEET: Readonly<Record<PropKind, 'forest' | 'dungeon' | 'town'
   cone: 'town',
   shrub: 'town',
   cave: 'mountain',
+  thorns: 'forest',
 };
 
 /**
@@ -79,6 +82,7 @@ const PROP_ANCHOR: Readonly<Record<PropKind, { dx: number; dy: number }>> = {
   stump: { dx: TILE, dy: TILE },
   house: { dx: 2.5 * TILE, dy: 4 * TILE },
   cave: { dx: 1.5 * TILE, dy: 3 * TILE },
+  thorns: { dx: TILE / 2, dy: TILE },
 };
 
 /**
@@ -130,6 +134,9 @@ export type Region = 'forest' | 'village' | 'vault' | 'marsh' | 'ruins' | 'mount
 /** The marsh is the forest's art, darkened and greened by a tint over everything in the room. */
 export const MARSH_TINT = 0x9cae8c;
 
+/** A thorn bush: the forest bush, browned and reddened. */
+export const THORN_TINT = 0xe0704c;
+
 /** The volcano edge is the mountains under a hot red tint. */
 export const VOLCANO_TINT = 0xffa486;
 
@@ -145,6 +152,8 @@ export const MOUNTAIN_FRAMES = {
   dirt: mframe(3, 1),
   /** A dark hole in the ground: the way down to a secret cave. */
   hole: mframe(3, 2),
+  /** Rubble: a cracked wall the Axe smashes (two cells wide on the sheet; alternated). */
+  rubble: [mframe(1, 3), mframe(2, 3)],
   /** Dirt with a pale patch, scattered for variety. */
   dirtPatch: mframe(5, 6),
   /** By depth: the face's bottom row (open ground below), up through the face and ledge to the top. */
@@ -279,8 +288,18 @@ export function roomArt(
       // A ruined wall: the dungeon's wall top or face, on the grass.
       if (cell.wall)
         art.ground.push({ frame: dungeonFrame(room, x, y), x: px, y: py, sheet: 'dungeon' });
-      // A false wall that has been opened is just ground now.
-      if (cell.fixture === 'hollow' && opened(x, y)) return;
+      // A false wall opened, or a cracked wall smashed, is just ground now.
+      const gone = cell.fixture !== null && opened(x, y);
+      if ((cell.fixture === 'hollow' || cell.fixture === 'cracked') && gone) return;
+      if (cell.fixture === 'cracked') {
+        art.ground.push({
+          frame: MOUNTAIN_FRAMES.rubble[x % 2] as number,
+          x: px,
+          y: py,
+          sheet: 'mountain',
+        });
+        return;
+      }
       if (cell.forest && mountains) {
         // In the mountains, walls are cliffs.
         art.ground.push({ frame: cliffFrame(room, x, y), x: px, y: py, sheet: 'mountain' });
@@ -295,7 +314,8 @@ export function roomArt(
       }
       if (cell.water)
         art.ground.push({ frame: pondFrame(room, x, y), x: px, y: py, sheet: 'marsh-water' });
-      if (cell.prop) art.props.push(propDraw(cell.prop, x, y));
+      // A smashed boulder or a burned thorn bush is gone.
+      if (cell.prop && !gone) art.props.push(propDraw(cell.prop, x, y));
     });
   });
   art.props.sort((a, b) => a.y - b.y);

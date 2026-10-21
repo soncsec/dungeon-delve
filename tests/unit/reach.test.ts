@@ -206,3 +206,42 @@ describe('explore, with false walls', () => {
     expect(r.chests).toEqual(['0,0/3,1']);
   });
 });
+
+describe('explore, with items', () => {
+  // A closet on the left behind rubble (x) at column 4, row 2; one on the right behind a
+  // boulder (R, 2×2) at columns 14–15, rows 2–3; and one below behind thorns (t).
+  const defs: RoomDef[] = [
+    {
+      col: 0,
+      row: 0,
+      lines: room({
+        1: '#..C#.........#.C..#',
+        2: '#...x.........R...##',
+        3: '#####...........####',
+        6: '#######t############',
+        7: '#......C...........#',
+      }),
+      chests: [
+        { col: 3, row: 1, contents: { kind: 'gems', amount: 1 } },
+        { col: 16, row: 1, contents: { kind: 'gems', amount: 2 } },
+        { col: 7, row: 7, contents: { kind: 'gems', amount: 3 } },
+      ],
+    },
+  ];
+  const start = { col: 0, row: 0, cx: 9, cy: 4 };
+
+  it('breaks nothing without the items', () => {
+    const r = explore(buildWorld(defs), start);
+    expect(r.broken).toEqual([]);
+    expect(r.chests).toEqual([]);
+  });
+
+  it('smashes rubble and whole boulders with the Axe, and burns thorns with Fireball', () => {
+    const axe = explore(buildWorld(defs), start, { axe: true });
+    expect(axe.broken).toEqual(['0,0/14,2', '0,0/14,3', '0,0/15,2', '0,0/15,3', '0,0/4,2']);
+    expect(axe.chests).toEqual(['0,0/16,1', '0,0/3,1']);
+    const fire = explore(buildWorld(defs), start, { fireball: true });
+    expect(fire.broken).toEqual(['0,0/7,6']);
+    expect(fire.chests).toEqual(['0,0/7,7']);
+  });
+});
