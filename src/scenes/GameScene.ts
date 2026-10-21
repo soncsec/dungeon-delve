@@ -2163,6 +2163,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.bumpInto(x, y);
   }
 
+  /** Test hook only: turn every page of the talk under way, as Space does one at a time. */
+  testFinishTalk(): void {
+    while (this.talk) this.turnPage();
+  }
+
   /** Test hook only: give Jarrett a small key for this map. */
   testGiveKey(): void {
     this.progress = addKey(this.progress, this.mapId);

@@ -44,6 +44,8 @@ export interface TestHook {
   setBossHealth(health: number): void;
   /** Give Jarrett a small key for the map he's on. */
   giveKey(): void;
+  /** Turn every page of the talk under way, as pressing Space through it does (gifts, save and all). */
+  finishTalk(): void;
   /** Bump into a cell of the current room, as walking into it does (opens a chest, or a door with a key). */
   bump(x: number, y: number): void;
   /** Jump to a room on the map he's on. */
@@ -129,6 +131,7 @@ export function installTestHook(game: Phaser.Game): void {
     setBossHealth: (health) => gameScene(game).testSetBossHealth(health),
     setCell: (x, y, ch) => gameScene(game).testSetCell(x, y, ch),
     giveKey: () => gameScene(game).testGiveKey(),
+    finishTalk: () => gameScene(game).testFinishTalk(),
     bump: (x, y) => gameScene(game).testBump(x, y),
     goToRoom: (col, row) => gameScene(game).testGoToRoom(col, row),
     setHealth: (points) => gameScene(game).testSetHealth(points),
