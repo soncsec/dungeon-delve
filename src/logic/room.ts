@@ -9,6 +9,8 @@
  *   K  locked door  (solid until opened with a small key; counts as a doorway between rooms)
  *   C  chest        (solid until opened; the room lists what it holds)
  *   B  pushable stone (starts here on floor; the game moves it, see logic/push.ts)
+ *   A  stone archway (4×3, anchored top-left: lintel and pillars solid, opening open)
+ *   D  doorway to another map (open; the room lists where each leads)
  *   T  pine tree   (solid trunk; the anchor is the trunk cell, the canopy rises above it)
  *   O  oak tree    (solid along its 3-cell base; the anchor is the middle of the base)
  *   R  boulder     (solid 2×2; the anchor is the top-left cell)
@@ -17,7 +19,7 @@
  */
 import { ROOM_COLS, ROOM_ROWS } from '../config/tuning';
 
-export type PropKind = 'pine' | 'oak' | 'boulder' | 'rock' | 'bush';
+export type PropKind = 'pine' | 'oak' | 'boulder' | 'rock' | 'bush' | 'arch';
 
 export interface Cell {
   solid: boolean;
@@ -29,6 +31,8 @@ export interface Cell {
   prop: PropKind | null;
   /** A locked door or a chest in this cell, if any (both block until opened). */
   fixture: Fixture | null;
+  /** A doorway to another map. */
+  exit: boolean;
 }
 
 export type Fixture = 'door' | 'chest';
@@ -48,6 +52,7 @@ const PROP_CHARS: Readonly<Record<string, PropKind>> = {
   R: 'boulder',
   r: 'rock',
   b: 'bush',
+  A: 'arch',
 };
 
 /** Cells each prop blocks, relative to its anchor cell. */
@@ -66,6 +71,17 @@ export const PROP_FOOTPRINT: Readonly<Record<PropKind, readonly (readonly [numbe
   ],
   rock: [[0, 0]],
   bush: [[0, 0]],
+  // The archway: its lintel along the top, and a pillar each side; the middle two columns below the lintel are the opening.
+  arch: [
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [3, 0],
+    [0, 1],
+    [3, 1],
+    [0, 2],
+    [3, 2],
+  ],
 };
 
 /** Parses a room's text. Throws with a clear message on any mistake in the data. */
@@ -80,12 +96,13 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       throw new Error(`${name}: row ${y} has ${line.length} columns, expected ${ROOM_COLS}`);
     }
     return Array.from(line, (ch, x): Cell => {
-      const plain = { forest: false, wall: false, prop: null, fixture: null };
+      const plain = { forest: false, wall: false, prop: null, fixture: null, exit: false };
       if (ch === '.') return { ...plain, solid: false };
       if (ch === 'F') return { ...plain, solid: true, forest: true };
       if (ch === '#') return { ...plain, solid: true, wall: true };
       if (ch === 'K') return { ...plain, solid: true, fixture: 'door' };
       if (ch === 'C') return { ...plain, solid: true, fixture: 'chest' };
+      if (ch === 'D') return { ...plain, solid: false, exit: true };
       if (ch === 'B') {
         stones.push({ cx: x, cy: y });
         return { ...plain, solid: false };
@@ -144,10 +161,17 @@ export function isWall(room: Room, x: number, y: number): boolean {
   return cellAt(room, cx, cy)?.wall ?? false;
 }
 
-/** Where Jarrett can pass, given time: open ground, or a door (locked or not). */
+/** Where Jarrett can pass to the room next door: open ground, or a door (locked or not), but not a doorway to another map. */
 export function isPassage(room: Room, x: number, y: number): boolean {
   const cell = cellAt(room, x, y);
-  return !cell || !cell.solid || cell.fixture === 'door';
+  if (!cell) return true;
+  if (cell.exit) return false;
+  return !cell.solid || cell.fixture === 'door';
+}
+
+/** Every doorway cell to another map in a room. */
+export function exitsIn(room: Room): { x: number; y: number }[] {
+  return room.cells.flatMap((row, y) => row.flatMap((cell, x) => (cell.exit ? [{ x, y }] : [])));
 }
 
 /** Every door and chest in a room. */

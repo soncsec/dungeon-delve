@@ -662,3 +662,27 @@ test('leaning on a stone slides it one cell', async ({ page }) => {
   await page.keyboard.up('ArrowRight');
   expect((await snapshot(page)).sounds.push).toBe(1);
 });
+
+test('through the archway into dungeon 1, and back out again', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // North from the start room, then on up through the archway's opening.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).map, { timeout: 20_000 }).toBe('dungeon1');
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const inside = await snapshot(page);
+  expect(inside.room).toEqual({ col: 0, row: 1 });
+  expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived (the arrow was still held after)
+
+  // Back down through the doorway in the south wall.
+  await page.keyboard.down('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
+  await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const outside = await snapshot(page);
+  expect(outside.room).toEqual({ col: 1, row: 0 });
+  expect(outside.facing).toBe('down');
+  expect(watched.errors).toEqual([]);
+});

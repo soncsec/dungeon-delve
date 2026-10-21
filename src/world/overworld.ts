@@ -36,10 +36,20 @@ export const OVERWORLD: readonly RoomDef[] = [
       { kind: 'wolf', col: 9, row: 5 },
       { kind: 'eye', col: 15, row: 4 },
     ],
+    // The archway into dungeon 1, Hollow Oak.
+    exits: [
+      {
+        cells: [
+          { col: 9, row: 2 },
+          { col: 10, row: 2 },
+        ],
+        to: { map: 'dungeon1', room: { col: 0, row: 1 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
-      'FFFFFFFFFFFFFFFFFFFF',
-      'FFF....T.....T...FFF',
+      'FFFFFFFFA...FFFFFFFF',
+      'FFF....T.DD..T...FFF',
       'FF................FF',
       '....................',
       '......b......b......',

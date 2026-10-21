@@ -6,7 +6,16 @@ import { ROOM_COLS, ROOM_ROWS, TILE } from '../config/tuning';
 import type { EnemyKind } from './enemies';
 import type { ItemId } from './inventory';
 import type { PotionKind } from './potions';
-import { cellAt, edgeOpenings, fixturesIn, isSolid, parseRoom, type Dir, type Room } from './room';
+import {
+  cellAt,
+  edgeOpenings,
+  exitsIn,
+  fixturesIn,
+  isSolid,
+  parseRoom,
+  type Dir,
+  type Room,
+} from './room';
 
 export interface RoomDef {
   /** Grid position: column (west to east) and row (north to south). */
@@ -17,6 +26,20 @@ export interface RoomDef {
   enemies?: readonly EnemyPlacement[];
   /** What each chest (`C`) in the room holds. */
   chests?: readonly ChestPlacement[];
+  /** Where each doorway (`D` cells) leads. */
+  exits?: readonly MapExit[];
+}
+
+/** A doorway to another map: its cells here, and where Jarrett arrives. */
+export interface MapExit {
+  cells: readonly { col: number; row: number }[];
+  to: {
+    map: string;
+    room: { col: number; row: number };
+    /** His feet on arrival (room pixels), and the way he faces. */
+    feet: { x: number; y: number };
+    facing: 'up' | 'down' | 'left' | 'right';
+  };
 }
 
 /** What a chest can hold. */
@@ -38,6 +61,8 @@ export interface World {
   enemies: ReadonlyMap<string, readonly EnemyPlacement[]>;
   /** Chest contents per room key. */
   chests: ReadonlyMap<string, readonly ChestPlacement[]>;
+  /** Doorways to other maps per room key. */
+  exits: ReadonlyMap<string, readonly MapExit[]>;
 }
 
 export interface EnemyPlacement {
@@ -67,6 +92,7 @@ export function buildWorld(defs: readonly RoomDef[]): World {
   const rooms = new Map<string, Room>();
   const enemies = new Map<string, readonly EnemyPlacement[]>();
   const chests = new Map<string, readonly ChestPlacement[]>();
+  const exits = new Map<string, readonly MapExit[]>();
   for (const d of defs) {
     const key = roomKey(d.col, d.row);
     if (rooms.has(key)) throw new Error(`two rooms at ${key}`);
@@ -80,11 +106,13 @@ export function buildWorld(defs: readonly RoomDef[]): World {
       }
     }
     checkChests(key, room, d.chests ?? []);
+    checkExits(key, room, d.exits ?? []);
     rooms.set(key, room);
     enemies.set(key, d.enemies ?? []);
     chests.set(key, d.chests ?? []);
+    exits.set(key, d.exits ?? []);
   }
-  return { rooms, enemies, chests };
+  return { rooms, enemies, chests, exits };
 }
 
 /** Every chest in a room has exactly one entry of contents, and every entry is on a chest. */
@@ -104,6 +132,34 @@ function checkChests(key: string, room: Room, placed: readonly ChestPlacement[])
       );
     }
   }
+}
+
+/** Every doorway cell belongs to exactly one listed exit, and every listed cell is a doorway. */
+function checkExits(key: string, room: Room, listed: readonly MapExit[]): void {
+  for (const e of listed) {
+    for (const c of e.cells) {
+      if (!cellAt(room, c.col, c.row)?.exit) {
+        throw new Error(
+          `room ${key}: exit lists column ${c.col}, row ${c.row}, which is not a doorway`,
+        );
+      }
+    }
+  }
+  for (const d of exitsIn(room)) {
+    const n = listed.filter((e) => e.cells.some((c) => c.col === d.x && c.row === d.y)).length;
+    if (n !== 1) {
+      throw new Error(
+        `room ${key}: the doorway at column ${d.x}, row ${d.y} belongs to ${n} exits, not 1`,
+      );
+    }
+  }
+}
+
+/** The exit whose doorway cell Jarrett's feet are in, if any. */
+export function exitAt(world: World, key: string, cx: number, cy: number): MapExit | null {
+  return (
+    world.exits.get(key)?.find((e) => e.cells.some((c) => c.col === cx && c.row === cy)) ?? null
+  );
 }
 
 /** Grid position of the room next door in a direction (it may not exist). */

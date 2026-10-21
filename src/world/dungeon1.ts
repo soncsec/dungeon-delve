@@ -30,6 +30,16 @@ export const DUNGEON_1: readonly RoomDef[] = [
     col: 0,
     row: 1,
     chests: [{ col: 4, row: 3, contents: { kind: 'key' } }],
+    // The way back out, to just below the archway in the forest.
+    exits: [
+      {
+        cells: [
+          { col: 9, row: 9 },
+          { col: 10, row: 9 },
+        ],
+        to: { map: 'overworld', room: { col: 1, row: 0 }, feet: { x: 160, y: 78 }, facing: 'down' },
+      },
+    ],
     lines: [
       '#########..#########',
       '#########KK#########',
@@ -39,8 +49,8 @@ export const DUNGEON_1: readonly RoomDef[] = [
       '##................##',
       '##................##',
       '##................##',
-      '####################',
-      '####################',
+      '#########..#########',
+      '#########DD#########',
     ],
   },
 ];

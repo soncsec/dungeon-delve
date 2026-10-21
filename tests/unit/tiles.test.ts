@@ -6,6 +6,7 @@ import {
   FOREST_COLUMNS,
   FOREST_FRAMES,
   PROP_REGIONS,
+  PROP_SHEET,
   crackAt,
   dungeonArt,
   dungeonFrame,
@@ -98,14 +99,24 @@ describe('roomArt', () => {
     expect(art.props[0]).toEqual({ prop: 'pine', x: 72, y: 64 });
   });
 
+  it('stands the archway on its 4×3 block, drawn from the dungeon sheet', () => {
+    expect(propDraw('arch', 8, 1)).toEqual({ prop: 'arch', x: 160, y: 64 });
+    expect(PROP_SHEET.arch).toBe('dungeon');
+    expect(PROP_SHEET.pine).toBe('forest');
+  });
+
   it('stands the boulder on its 2×2 block', () => {
     expect(propDraw('boulder', 8, 3)).toEqual({ prop: 'boulder', x: 144, y: 80 });
   });
 
-  it.each(Object.entries(PROP_REGIONS))('prop %s art is on the sheet and visible', (_k, reg) => {
-    expect(reg.x + reg.w).toBeLessThanOrEqual(FOREST_PNG.width);
-    expect(reg.y + reg.h).toBeLessThanOrEqual(FOREST_PNG.alpha.length / FOREST_PNG.width);
-    expect(hasPixels(FOREST_PNG, reg.x, reg.y, reg.w, reg.h)).toBe(true);
+  it.each(Object.entries(PROP_REGIONS))('prop %s art is on its sheet and visible', (k, reg) => {
+    const png =
+      PROP_SHEET[k as keyof typeof PROP_SHEET] === 'dungeon'
+        ? pngAlpha(`${process.cwd()}/public/assets/tiles/dungeon.png`)
+        : FOREST_PNG;
+    expect(reg.x + reg.w).toBeLessThanOrEqual(png.width);
+    expect(reg.y + reg.h).toBeLessThanOrEqual(png.alpha.length / png.width);
+    expect(hasPixels(png, reg.x, reg.y, reg.w, reg.h)).toBe(true);
   });
 });
 

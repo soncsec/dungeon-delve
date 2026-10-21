@@ -171,6 +171,9 @@ export const DEATH = {
   fadeInMs: 400,
 } as const;
 
+/** Travelling through a doorway to another map: the fade out, and in again (ms each). */
+export const TRAVEL = { fadeMs: 250 } as const;
+
 /** Pushable stones: lean on one this long (ms) to slide it a cell, taking this long to slide. */
 export const STONE = { pushMs: 350, slideMs: 180 } as const;
 

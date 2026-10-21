@@ -3,6 +3,7 @@ import {
   buildWorld,
   cellsAhead,
   enterFrom,
+  exitAt,
   exitDirection,
   joinProblems,
   neighbour,
@@ -255,5 +256,50 @@ describe('doors and chests', () => {
       { cx: 3, cy: 3 },
       { cx: 3, cy: 4 },
     ]);
+  });
+});
+
+describe('doorways to other maps', () => {
+  const lines = Array.from({ length: 10 }, (_, y) =>
+    y === 9 ? '#########DD#########' : y === 0 ? '####################' : '#..................#',
+  );
+  const exit = {
+    cells: [
+      { col: 9, row: 9 },
+      { col: 10, row: 9 },
+    ],
+    to: {
+      map: 'overworld',
+      room: { col: 1, row: 0 },
+      feet: { x: 160, y: 78 },
+      facing: 'down' as const,
+    },
+  };
+
+  it('a doorway on an edge is not a gap to a room next door', () => {
+    expect(joinProblems(buildWorld([{ col: 0, row: 0, lines, exits: [exit] }]))).toEqual([]);
+  });
+
+  it('finds the exit for a doorway cell', () => {
+    const w = buildWorld([{ col: 0, row: 0, lines, exits: [exit] }]);
+    expect(exitAt(w, '0,0', 10, 9)).toBe(w.exits.get('0,0')?.[0]);
+    expect(exitAt(w, '0,0', 5, 5)).toBeNull();
+    expect(exitAt(w, '9,9', 10, 9)).toBeNull();
+  });
+
+  it('every doorway belongs to one exit, and every exit cell is a doorway', () => {
+    expect(() => buildWorld([{ col: 0, row: 0, lines }])).toThrow(
+      'room 0,0: the doorway at column 9, row 9 belongs to 0 exits, not 1',
+    );
+    expect(() =>
+      buildWorld([
+        { col: 0, row: 0, lines, exits: [exit, { ...exit, cells: [{ col: 9, row: 9 }] }] },
+      ]),
+    ).toThrow('belongs to 2 exits');
+    expect(() =>
+      buildWorld([
+        { col: 0, row: 0, lines, exits: [{ ...exit, cells: [...exit.cells, { col: 5, row: 5 }] }] },
+      ]),
+    ).toThrow('room 0,0: exit lists column 5, row 5, which is not a doorway');
   });
 });
