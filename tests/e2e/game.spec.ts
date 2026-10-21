@@ -26,10 +26,10 @@ async function snapshot(page: Page): Promise<GameSnapshot> {
 
 const sceneNow = (page: Page) => page.evaluate(() => window.__game?.scene() ?? null);
 
-/** Opens the game; from the title screen (no save yet), Enter starts a new game. */
 /** The opened doors and chests (ids ending in a cell), leaving out seen rooms, bosses and the rest. */
 const fixtures = (opened: string[]): string[] => opened.filter((id) => /\/\d+,\d+$/.test(id));
 
+/** Opens the game; from the title screen (no save yet), Enter starts a new game. */
 async function openGame(page: Page, query = ''): Promise<void> {
   await page.goto(`./${query}`);
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toMatch(/^(Title|Game)$/);
