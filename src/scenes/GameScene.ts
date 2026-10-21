@@ -927,6 +927,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     talk.text.setText(page.lines.join('\n'));
     for (const item of page.give) this.inv = give(this.inv, item);
     this.sfx.play(page.give.length > 0 ? 'chest' : 'menu');
+    // The game waits while he talks, so show a gift in the status bar now.
+    this.refreshHud();
   }
 
   /** The next page; after the last, Walker vanishes in a shimmer. */
