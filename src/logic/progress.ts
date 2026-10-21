@@ -4,6 +4,9 @@
  * way, and the small keys he holds in each dungeon (keys only work in the
  * dungeon they were found in, as in Zelda). Plain data, so it can be saved.
  */
+import type { ItemId } from './inventory';
+import type { ChestContents } from './world';
+
 export interface Progress {
   /** Ids of opened doors and chests (see `fixtureId`). */
   opened: readonly string[];
@@ -65,6 +68,32 @@ export const rewardId = (map: string, reward: Reward): string => `${map}/${rewar
 /** Records a reward as taken (once). */
 export function takeReward(p: Progress, id: string): Progress {
   return openChest(p, id);
+}
+
+/** A heart container from a chest (a secret cave's): each room's has its own id. */
+export const chestHeartId = (map: string, roomKey: string): string => `${map}/${roomKey}/heart`;
+
+/** Marks a chest's key as picked up (keys are only counted, so each chest's is marked). */
+export const takenId = (chestId: string): string => `${chestId}/taken`;
+
+/**
+ * Whether an opened chest's prize still waits on the floor: Jarrett left the
+ * room without it, and pickups don't outlast a room. Items he doesn't own,
+ * keys never picked up and heart containers not taken come back; gems and
+ * potions don't (nothing depends on them).
+ */
+export function leftInChest(
+  contents: ChestContents,
+  p: Progress,
+  chestId: string,
+  heartId: string,
+  owned: readonly ItemId[],
+): boolean {
+  if (!isOpened(p, chestId)) return false;
+  if (contents.kind === 'item') return !owned.includes(contents.item);
+  if (contents.kind === 'key') return !isOpened(p, takenId(chestId));
+  if (contents.kind === 'heart') return !isOpened(p, heartId);
+  return false;
 }
 
 function countOf(p: Progress, reward: Reward): number {
