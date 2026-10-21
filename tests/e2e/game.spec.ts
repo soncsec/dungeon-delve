@@ -60,6 +60,26 @@ async function talkToWalker(page: Page): Promise<string[][]> {
  * In a new game Walker hands over the sword and shield first, and Jarrett goes
  * back to where he started.
  */
+/**
+ * Whether nothing is still sliding from a hit: no enemy, and not Jarrett (a
+ * press is ignored while he is knocked back, and the push carries him on).
+ */
+async function settled(page: Page): Promise<boolean> {
+  const s = await snapshot(page);
+  return !s.knockedBack && !s.enemies.some((x) => x.knocked);
+}
+
+/**
+ * Presses Space and waits for that swing to start and then end. (Waiting only for
+ * "no sword out" can pass before the swing starts, so the next press is lost in it.)
+ */
+async function swingOnce(page: Page): Promise<void> {
+  const swings = (await snapshot(page)).swings;
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).swings).toBe(swings + 1);
+  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+}
+
 async function openGame(page: Page, query = ''): Promise<void> {
   await page.goto(`./${query}`);
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toMatch(/^(Title|Game)$/);
@@ -84,14 +104,18 @@ test('boots with no console errors and no third-party requests', async ({ page }
 
 test('arrow keys move the player and it stays on screen', async ({ page }) => {
   await openGame(page);
+  // Row 7 of the start room, which trees close at the west edge. (Row 5, where he
+  // starts, is the way west out of the village.)
+  await page.evaluate(() => window.__game?.placeHero(160, 126, 'down'));
   const start = (await snapshot(page)).player;
   await page.keyboard.down('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(start.x - 20);
   await page.waitForTimeout(2000); // long enough to reach the edge
   await page.keyboard.up('ArrowLeft');
-  const left = (await snapshot(page)).player;
-  expect(left.x).toBeGreaterThan(0);
-  expect(left.y).toBe(start.y);
+  const left = await snapshot(page);
+  expect(left.room).toEqual({ col: 4, row: 7 });
+  expect(left.player.x).toBeGreaterThan(0);
+  expect(left.player.y).toBe(start.y);
 });
 
 test('?seed= in the URL sets the random seed', async ({ page }) => {
@@ -134,7 +158,21 @@ test('Jarrett faces the way he walks, and walls stop him', async ({ page }) => {
   await page.waitForTimeout(300);
   expect((await snapshot(page)).player).toEqual({ x: 59, y: 126 });
   expect((await snapshot(page)).facing).toBe('right');
+  // The art's side row faces right: walking right plays it as drawn.
+  expect((await snapshot(page)).heroSprite).toEqual({
+    anim: 'jarrett:walk-right',
+    flipped: false,
+  });
   await page.keyboard.up('ArrowRight');
+
+  // Walking left plays the same row mirrored, and he stands facing left.
+  await page.keyboard.down('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(55);
+  expect((await snapshot(page)).heroSprite).toEqual({ anim: 'jarrett:walk-right', flipped: true });
+  await page.keyboard.up('ArrowLeft');
+  await expect
+    .poll(async () => (await snapshot(page)).heroSprite)
+    .toEqual({ anim: null, flipped: true });
 });
 
 test('walking through a gap slides to the next room, and back', async ({ page }) => {
@@ -204,7 +242,7 @@ test('two sword hits defeat a robot', async ({ page }) => {
   await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
 
   // It was knocked back; step up to it and swing again.
-  // Aim only once it has stopped sliding from the last hit.
+  // Aim only once it, and Jarrett, have stopped sliding from the last hit.
   await expect.poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked)).toBe(false);
   const r = (await snapshot(page)).enemies[0];
   if (!r) throw new Error('robot vanished after one hit');
@@ -298,15 +336,12 @@ test('the M1 loop: walk to the next room and defeat one of its robots', async ({
 
   // Stand just above the first robot, facing down, and swing until it's gone.
   for (let swing = 0; swing < 4 && (await snapshot(page)).defeated === 0; swing++) {
-    // Aim only once it has stopped sliding from the last hit.
-    await expect
-      .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
-      .toBe(false);
+    // Aim only once it, and Jarrett, have stopped sliding from the last hit.
+    await expect.poll(() => settled(page)).toBe(true);
     const r = (await snapshot(page)).enemies[0];
     if (!r) break;
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 14, 'down'), r);
-    await page.keyboard.press('Space');
-    await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+    await swingOnce(page);
   }
   expect((await snapshot(page)).defeated).toBe(1);
   expect((await snapshot(page)).enemies).toHaveLength(1);
@@ -351,7 +386,7 @@ test('a thrown dagger flies until a wall stops it, and two daggers defeat a robo
   const start = await snapshot(page);
   await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('robot', x, y + 40), start.player);
   for (let i = 0; i < 4 && (await snapshot(page)).defeated === 0; i++) {
-    // Aim only once it has stopped sliding from the last hit.
+    // Aim only once it, and Jarrett, have stopped sliding from the last hit.
     await expect
       .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
       .toBe(false);
@@ -389,7 +424,9 @@ test('C casts a Fireball: it costs mana, which then refills by itself', async ({
 
 test('without enough mana, nothing is cast', async ({ page }) => {
   await openGame(page);
-  await page.evaluate(() => window.__game?.setMana(20));
+  // Empty: refilling to a Fireball's 25 takes 2 s, far longer than the key press
+  // takes even on a busy machine. (From 20 it took only 0.4 s.)
+  await page.evaluate(() => window.__game?.setMana(0));
   await page.keyboard.press('l');
   await page.waitForTimeout(300);
   const s = await snapshot(page);
@@ -473,18 +510,15 @@ for (const kind of ['bird', 'eye', 'ghost', 'wolf'] as const) {
       y: start.player.y + 50,
     });
     for (let swing = 0; swing < 6 && (await snapshot(page)).defeated === 0; swing++) {
-      // Aim only once it has stopped sliding from the last hit.
-      await expect
-        .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
-        .toBe(false);
+      // Aim only once it, and Jarrett, have stopped sliding from the last hit.
+      await expect.poll(() => settled(page)).toBe(true);
       const e = (await snapshot(page)).enemies[0];
       if (!e) break;
       await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), {
         x: e.x,
         y: e.y - BODY_HEIGHT[kind] - 2,
       });
-      await page.keyboard.press('Space');
-      await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+      await swingOnce(page);
     }
     expect((await snapshot(page)).defeated).toBe(1);
     expect(watched.errors).toEqual([]);
@@ -745,20 +779,27 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   await page.evaluate(() => window.__game?.placeHero(160, 94, 'up'));
   await walkTo('ArrowUp', { col: 3, row: 6 });
   await walkTo('ArrowUp', { col: 3, row: 5 });
-  // On up through the archway's opening.
+  // On up through the archway's opening. The arrow is let go as soon as the trip
+  // starts, so he can't walk on after he arrives.
   await page.keyboard.down('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).map, { timeout: 20_000 }).toBe('dungeon1');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 20_000, intervals: [50] })
+    .toBe(true);
   await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).map).toBe('dungeon1');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const inside = await snapshot(page);
   expect(inside.room).toEqual({ col: 1, row: 3 });
   expect(inside.health.points).toBe(inside.health.max); // nothing touched him on the way
-  expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived (the arrow was still held after)
+  expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived
 
-  // Back down through the doorway in the south wall.
+  // Back down through the doorway in the south wall, letting go once the trip starts.
   await page.keyboard.down('ArrowDown');
-  await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
   await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).map).toBe('overworld');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const outside = await snapshot(page);
   expect(outside.room).toEqual({ col: 3, row: 5 });
@@ -795,13 +836,23 @@ test('the daggers: push the stone into the closet, open the chest, and throw one
 /** From the great hall, north into dungeon 1's boss room. */
 async function enterBossRoom(page: Page): Promise<void> {
   await openGame(page, '?dungeon=1');
+  await walkIntoBossRoom(page);
+}
+
+/**
+ * From the great hall up into the Treant's room. The arrow is let go while the
+ * view slides, so he stops just inside instead of walking on into the Treant.
+ */
+async function walkIntoBossRoom(page: Page): Promise<void> {
   await page.evaluate(() => window.__game?.goToRoom(1, 1)); // the great hall
   await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
   await page.keyboard.down('ArrowUp');
   await expect
-    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 1, row: 0 });
+    .poll(async () => (await snapshot(page)).sliding, { timeout: 15_000, intervals: [50] })
+    .toBe(true);
   await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).room).toEqual({ col: 1, row: 0 });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('treant');
 }
 
@@ -1181,14 +1232,7 @@ test('Walker gives a hint at dungeon 1, and waits outside once its shard is foun
   expect(s.opened).toContain('walker/dungeon1');
 
   // Beat the Treant and take the shard.
-  await page.evaluate(() => window.__game?.goToRoom(1, 1));
-  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
-  await page.keyboard.down('ArrowUp');
-  await expect
-    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 1, row: 0 });
-  await page.keyboard.up('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('treant');
+  await walkIntoBossRoom(page);
   await page.evaluate(() => window.__game?.setBossHealth(1));
   const bx = (await snapshot(page)).boss?.x ?? 0;
   await page.evaluate((x) => window.__game?.placeHero(x, 120, 'up'), bx);
@@ -1602,14 +1646,11 @@ test('a Fireball burns the thorns in front of a secret cave in the forest', asyn
 async function defeatFirstEnemy(page: Page): Promise<void> {
   const before = (await snapshot(page)).defeated;
   for (let swing = 0; swing < 6 && (await snapshot(page)).defeated === before; swing++) {
-    await expect
-      .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
-      .toBe(false);
+    await expect.poll(() => settled(page)).toBe(true);
     const e = (await snapshot(page)).enemies[0];
     if (!e) break;
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 16, 'down'), e);
-    await page.keyboard.press('Space');
-    await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+    await swingOnce(page);
   }
   await expect.poll(async () => (await snapshot(page)).defeated).toBe(before + 1);
 }

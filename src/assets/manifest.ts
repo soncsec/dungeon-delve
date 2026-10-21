@@ -65,11 +65,11 @@ const anim = (name: string, frames: readonly number[], frameRate: number, loop =
 const range = (from: number, count: number): number[] =>
   Array.from({ length: count }, (_, i) => from + i);
 
-/** Top-down walkers: 4 frames each, rows facing down, left (mirror for right), up. */
+/** Top-down walkers: 4 frames each, rows facing down, right (mirrored for left), up. */
 const walker = (key: string, frameRate: number): SheetAsset =>
   sheet('characters', key, 32, 32, 4, 3, [
     anim('walk-down', range(0, 4), frameRate),
-    anim('walk-left', range(4, 4), frameRate),
+    anim('walk-right', range(4, 4), frameRate),
     anim('walk-up', range(8, 4), frameRate),
   ]);
 

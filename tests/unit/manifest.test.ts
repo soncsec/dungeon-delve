@@ -7,7 +7,7 @@ import {
   animKey,
   type SheetAsset,
 } from '../../src/assets/manifest';
-import { pngAlpha } from './png';
+import { pngAlpha, pngRgba } from './png';
 
 const PUBLIC_DIR = `${process.cwd()}/public`;
 
@@ -94,7 +94,34 @@ describe('asset manifest', () => {
 
   it('the walkers have a down, left and up walk', () => {
     for (const key of ['jarrett', 'kira']) {
-      expect(byKey(key).anims.map((an) => an.name)).toEqual(['walk-down', 'walk-left', 'walk-up']);
+      expect(byKey(key).anims.map((an) => an.name)).toEqual(['walk-down', 'walk-right', 'walk-up']);
     }
+  });
+});
+
+describe('character sheets face the way the game expects', () => {
+  // The game mirrors the side row for facing left, so the side row must face right:
+  // the face (the skin colour, F9C182) sits right of the middle of the head.
+  it.each(['jarrett', 'kira', 'walker', 'shopkeeper'])('%s\u2019s side row faces right', (key) => {
+    const { width, rgba } = pngRgba(`${process.cwd()}/public/assets/characters/${key}.png`);
+    let skin = 0;
+    let skinX = 0;
+    let all = 0;
+    let allX = 0;
+    // The first side frame (frame 4: column 0, row 1), down to the bottom of the head.
+    for (let y = 32; y < 32 + 22; y++) {
+      for (let x = 0; x < 32; x++) {
+        const i = (y * width + x) * 4;
+        if ((rgba[i + 3] ?? 0) === 0) continue;
+        all += 1;
+        allX += x;
+        if (rgba[i] === 0xf9 && rgba[i + 1] === 0xc1 && rgba[i + 2] === 0x82) {
+          skin += 1;
+          skinX += x;
+        }
+      }
+    }
+    expect(skin).toBeGreaterThan(5);
+    expect(skinX / skin).toBeGreaterThan(allX / all);
   });
 });
