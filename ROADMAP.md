@@ -101,10 +101,10 @@
 
 - [ ] M4.1 All five regions laid out (about 64 rooms; map and region art: owner 2026-10-20, see PROJECT.md decisions), one PR per region:
   - [x] M4.1a The 8×8 map, regions per room, and the village and meadows (Top-Down Town set); the start moves to the village
-  - [ ] M4.1b The forest (around Hollow Oak, and Witchwood's corner)
+  - [x] M4.1b The forest (around Hollow Oak, and Witchwood's corner), and the Shadow Vault's grounds in the centre (a hub; owner 2026-10-20)
   - [ ] M4.1c The marsh (tinted forest tiles, water)
   - [ ] M4.1d The ruins (dungeon stone on grass)
-  - [ ] M4.1e The mountains and the volcano edge (Tiny RPG Mountain set); the Shadow Vault's place in the centre
+  - [ ] M4.1e The mountains and the volcano edge (Tiny RPG Mountain set)
 - [ ] M4.2 Village: shop (potions, shield), gem prices
 - [ ] M4.3 Hidden passages: cracked walls, thorn bushes, false walls; secret caves
 - [ ] M4.4 Progression gates (water, thorns, boulders) tied to dungeon items

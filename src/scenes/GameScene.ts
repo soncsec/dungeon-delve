@@ -1908,9 +1908,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const room = this.world.rooms.get(roomKey(col, row));
     if (!room) throw new Error(`no room at ${col},${row}`);
     const o = this.origin(col, row);
-    const dungeon = MAPS[this.mapId].theme === 'dungeon';
     const key = roomKey(col, row);
     const region = this.world.regions.get(key) ?? 'forest';
+    // Dungeons, and the vault grounds outdoors, are drawn in stone.
+    const dungeon = MAPS[this.mapId].theme === 'dungeon' || region === 'vault';
     const art = dungeon
       ? dungeonArt(room, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)))
       : roomArt(room, region);
