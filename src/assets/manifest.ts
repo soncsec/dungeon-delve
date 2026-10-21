@@ -103,6 +103,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('bosses', 'frog', 63, 68, 6, 1, [anim('sway', range(0, 6), 8)]),
   // The Mummy (dungeon 3), its loose wrappings stirring.
   sheet('bosses', 'mummy', 69, 83, 6, 1, [anim('sway', range(0, 6), 7)]),
+  // The Ogre (dungeon 4), a two-headed giant with a club.
+  sheet('bosses', 'ogre', 128, 128, 5, 1, [anim('sway', range(0, 5), 6)]),
 
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),

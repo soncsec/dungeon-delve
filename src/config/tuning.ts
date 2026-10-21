@@ -260,6 +260,19 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     fierce: { shots: 5, spreadDeg: 18, everyMs: { min: 1400, max: 1800 } },
     wrapped: { stunMs: 3000 },
   },
+  // Dungeon 4: a two-headed Ogre that lumbers side to side, raises its club, and slams it
+  // down in a ring of shockwaves (eight, then twelve). Its hide stops all but the Axe.
+  ogre: {
+    health: 10,
+    contactDamage: 2,
+    box: { halfWidth: 24, height: 64 },
+    moves: { style: 'shuffle', speed: 10, range: 48 },
+    windUpMs: 700,
+    ring: true,
+    calm: { shots: 8, spreadDeg: 45, everyMs: { min: 2400, max: 3000 } },
+    fierce: { shots: 12, spreadDeg: 30, everyMs: { min: 1600, max: 2000 } },
+    hide: 'axe',
+  },
 };
 
 /** Overworld enemies come back once Jarrett has been through this many other rooms (owner 2026-10-21). */

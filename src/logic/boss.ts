@@ -4,14 +4,17 @@
  * sits, crouches, and leaps at him; each landing throws a ring of shots, and
  * in the air it can't be hit. The Mummy shambles after him, firing spreads;
  * wrapped tight, it takes hits only while a Lightning bolt has it stunned.
+ * The Ogre lumbers side to side, raises its club and slams it down in a ring
+ * of shockwaves; its hide is too thick for anything but the Axe.
  * Below half health a boss turns fiercer: more shots, more often. A hit (by
  * id, so each lands once) costs it health; at zero it is beaten.
  */
+import type { ItemId } from './inventory';
 import type { Point } from './movement';
 import type { Rng } from './rng';
 import type { Vec } from './enemies';
 
-export type BossKind = 'treant' | 'frog' | 'mummy';
+export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre';
 
 /** How a boss moves. */
 export type BossMoves =
@@ -53,6 +56,15 @@ export interface BossStats {
   fierce: { shots: number; spreadDeg: number; everyMs: { min: number; max: number } };
   /** Wrapped tight (the Mummy): hits land only while a Lightning bolt has it stunned, for `stunMs`. */
   wrapped?: { stunMs: number };
+  /**
+   * A shuffler or shambler that winds up first (the Ogre raising its club): it
+   * stands still this long (ms) before each attack, which is then a ring of
+   * shots (`ring`) rather than a spread.
+   */
+  windUpMs?: number;
+  ring?: boolean;
+  /** A hide only the Axe gets through (the Ogre): other blows, and every shot, glance off. */
+  hide?: 'axe';
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -147,7 +159,9 @@ export function stepBoss(
   let x = b.pos.x;
   let y = b.pos.y;
   let heading = b.heading;
-  if (m.style === 'shuffle') {
+  // Winding up for an attack, it stands still.
+  const windingUp = b.phase === 'crouch';
+  if (m.style === 'shuffle' && !windingUp) {
     x += (b.heading * m.speed * dtMs) / 1000;
     if (x > b.home.x + m.range) {
       x = b.home.x + m.range;
@@ -156,7 +170,7 @@ export function stepBoss(
       x = b.home.x - m.range;
       heading = 1;
     }
-  } else {
+  } else if (m.style === 'shamble' && !windingUp) {
     // Straight at Jarrett (no further than he is), its feet kept inside the arena.
     const dx = hero.x - x;
     const dy = hero.y - y;
@@ -170,11 +184,19 @@ export function stepBoss(
     y = Math.min(m.arena.y + m.arena.h, Math.max(m.arena.y, y));
   }
   let shootInMs = b.shootInMs - dtMs;
+  let phase = b.phase;
   let shots: Vec[] = [];
-  if (shootInMs <= 0) {
-    const from = { x, y: y - s.box.height / 2 };
-    shots = spread(aimAt(from, hero), mood.shots, mood.spreadDeg);
+  if (shootInMs <= 0 && s.windUpMs !== undefined && phase === 'sit') {
+    // The warning: it winds up before the attack.
+    phase = 'crouch';
+    shootInMs = s.windUpMs;
+  } else if (shootInMs <= 0) {
+    const aim = aimAt({ x, y: y - s.box.height / 2 }, hero);
+    shots = s.ring
+      ? ring(aim, mood.shots, mood.spreadDeg)
+      : spread(aim, mood.shots, mood.spreadDeg);
     shootInMs = rng.int(mood.everyMs.min, mood.everyMs.max);
+    phase = 'sit';
   }
   return {
     boss: {
@@ -182,6 +204,7 @@ export function stepBoss(
       pos: { x, y },
       heading,
       shootInMs,
+      phase,
       flashMs: Math.max(0, b.flashMs - dtMs),
     },
     shots,
@@ -249,9 +272,14 @@ export function leapHeight(b: Boss, s: BossStats): number {
   return 4 * m.peak * t * (1 - t);
 }
 
-/** Whether hits glance off it: wrapped tight, and not stunned. */
-export function isWrapped(b: Boss, s: BossStats): boolean {
-  return s.wrapped !== undefined && b.stunMs <= 0;
+/**
+ * Whether a blow glances off it: wrapped tight and not stunned (the Mummy), or a
+ * thick hide and not the Axe (the Ogre). `weapon` is the near weapon swung, or
+ * null for a shot.
+ */
+export function glancesOff(b: Boss, s: BossStats, weapon: ItemId | null): boolean {
+  if (s.wrapped !== undefined && b.stunMs <= 0) return true;
+  return s.hide === 'axe' && weapon !== 'axe';
 }
 
 /** A Lightning bolt (by id, so each lands once) stuns a wrapped boss; others shrug it off. */
@@ -262,7 +290,7 @@ export function stunBoss(b: Boss, hitId: number, s: BossStats): Boss {
 
 /**
  * A hit by id (each lands once): costs health and makes it flash. Nothing lands
- * in the air, or on a wrapped boss that isn't stunned.
+ * in the air, nor what glances off (`glancesOff`; `weapon` as there).
  */
 export function hitBoss(
   b: Boss,
@@ -270,8 +298,11 @@ export function hitBoss(
   hitId: number,
   flashMs: number,
   s: BossStats,
+  weapon: ItemId | null = null,
 ): Boss {
-  if (b.lastHitBy === hitId || b.health <= 0 || isAirborne(b) || isWrapped(b, s)) return b;
+  if (b.lastHitBy === hitId || b.health <= 0 || isAirborne(b) || glancesOff(b, s, weapon)) {
+    return b;
+  }
   return { ...b, health: Math.max(0, b.health - damage), lastHitBy: hitId, flashMs };
 }
 
