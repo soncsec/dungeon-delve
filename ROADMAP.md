@@ -88,7 +88,9 @@
 - [x] M3.4 Shard pickup, heart container, the Star of Power display: the beaten boss leaves both; a message says how many shards are left
 - [x] M3.5 Save and continue (ADR-D04); `?dungeon=n` play-test skip that counts as a cheat. A small title screen (CONTINUE / NEW GAME, with a confirm before wiping a save) came forward from M8.3 (owner 2026-10-20)
 - [x] M3.6 Dungeon map in the inventory: the rooms he has been in (kept in the save), where he is, and the boss room
-- [ ] M3.8 Walker (PROJECT.md §3f): his sprite with paler blonde hair, a text box for talking, and his lines in the village (story, first sword and shield) and at dungeon 1's entrance and exit
+- [ ] M3.8 Walker (PROJECT.md §3f), in two PRs:
+  - [x] M3.8a His sprite with paler blonde hair, a text box for talking, and the village: the story, the first sword and shield, the controls
+  - [ ] M3.8b His lines at dungeon 1's entrance and after it
 - [ ] M3.7 Reachability test: every room, key and chest in dungeon 1 can be reached in a valid order
 
 **Acceptance criteria:** owner finishes dungeon 1 on staging; reload restores progress.

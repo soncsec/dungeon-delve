@@ -10,6 +10,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 
 - `assets/characters/jarrett.png` — "Guy" (`TinyRPG/Characters/Top-Down-16-bit-fantasy/Characters pack 1/Guy/aseprite.png`), our hero Jarrett, with his hair recoloured from red-orange to brown by `tools/art/recolor_hair.py` (owner request 2026-10-20)
 - `assets/characters/kira.png` — "PirateGirl" (`.../PirateGirl/spritesheet.png`), Princess Kira, with her hair recoloured from red-orange to brown by `tools/art/recolor_hair.py` (owner request 2026-10-20)
+- `assets/characters/walker.png` — "Blond_kid" (`.../Blond_kid/aseprite.png`), Walker the guide, with his hair recoloured from orange-gold to a paler blonde by `tools/art/recolor_hair.py` (owner request 2026-10-20)
 
 ### Enemies
 

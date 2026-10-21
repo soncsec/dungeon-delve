@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Recolours Jarrett's and Kira's hair from the pack's red-orange to brown
-(owner requests 2026-10-20).
+"""Recolours Jarrett's and Kira's hair from the pack's red-orange to brown,
+and Walker's from orange-gold to a paler blonde (owner requests 2026-10-20).
 
 Reads the original sheets from the art pack ("Guy" for Jarrett, "PirateGirl"
 for Kira) and writes public/assets/characters/<name>.png. Only the two hair
@@ -9,9 +9,12 @@ Jarrett's shoes and Kira's trousers use the same two colours lower down:
 - Jarrett: the hair is in rows 0-20 of every frame.
 - Kira: the hair ends above her red belt, whose row shifts as she walks, so the
   cut-off is the belt's row in each frame (ignoring her red bandana up top).
+- Walker ("Blond_kid"): orange and yellow are only ever hair; the red hair
+  shadow (rows 13-16) is also his jacket (rows 20 down), so red changes only
+  above row 18.
 Standard library only.
 
-    python3 tools/art/recolor_hair.py            # both characters
+    python3 tools/art/recolor_hair.py            # all three characters
     python3 tools/art/recolor_hair.py kira       # one character
 """
 import struct
@@ -26,6 +29,14 @@ SWAP = {
     (0xB5, 0x55, 0x28): (0x8A, 0x5A, 0x32),  # hair, lit: red-orange -> warm brown
     (0x7F, 0x06, 0x22): (0x4E, 0x2C, 0x18),  # hair, shadow: dark red -> dark brown
 }
+
+
+WALKER_SWAP = {
+    (0xFF, 0xD1, 0x00): (0xFF, 0xF6, 0xC8),  # highlight: yellow -> near white
+    (0xFF, 0x84, 0x26): (0xF5, 0xDC, 0x8A),  # hair: orange -> pale gold
+}
+WALKER_SHADOW = ((0xD6, 0x24, 0x11), (0xC9, 0xA2, 0x4E))  # hair shadow: red -> dark blonde
+WALKER_SHADOW_ABOVE = 18
 
 
 def read_rgba(path):
@@ -98,6 +109,26 @@ CHARACTERS = {
 }
 
 
+def recolour_walker():
+    output = "public/assets/characters/walker.png"
+    w, h, rows = read_rgba(f"{PACK}/Blond_kid/aseprite.png")
+    changed = 0
+    for y in range(h):
+        row = rows[y]
+        for x in range(w):
+            r, g, b, a = row[x * 4 : x * 4 + 4]
+            if not a:
+                continue
+            new = WALKER_SWAP.get((r, g, b))
+            if new is None and (r, g, b) == WALKER_SHADOW[0] and y % FRAME < WALKER_SHADOW_ABOVE:
+                new = WALKER_SHADOW[1]
+            if new:
+                row[x * 4 : x * 4 + 3] = bytes(new)
+                changed += 1
+    write_rgba(output, w, h, rows)
+    print(f"walker: recoloured {changed} hair pixels -> {output}")
+
+
 def recolour(name):
     source, cutoff = CHARACTERS[name]
     output = f"public/assets/characters/{name}.png"
@@ -119,5 +150,8 @@ def recolour(name):
 
 
 if __name__ == "__main__":
-    for name in sys.argv[1:] or CHARACTERS:
-        recolour(name)
+    for name in sys.argv[1:] or [*CHARACTERS, "walker"]:
+        if name == "walker":
+            recolour_walker()
+        else:
+            recolour(name)

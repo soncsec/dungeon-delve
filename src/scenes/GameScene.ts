@@ -18,6 +18,7 @@ import {
   PICKUPS,
   POTIONS,
   BOSSES,
+  DIALOGUE,
   BOSS_FX,
   BOSS_REWARDS,
   STAR,
@@ -48,7 +49,10 @@ import {
   type Boss,
   type BossKind,
 } from '../logic/boss';
+import { paginate, type Page } from '../logic/dialogue';
 import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
+import { markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
+import { WALKER_VISITS } from '../world/walker';
 import { rollDrop, type Drop } from '../logic/drops';
 import {
   canThrow,
@@ -219,6 +223,9 @@ export interface GameSnapshot {
   cheated: boolean;
   /** The play time written by the latest save this session (null before one). */
   savedPlayMs: number | null;
+  /** Walker's feet, if he is in this room; and the talk under way, if any. */
+  walker: Point | null;
+  talking: { page: number; pages: number; lines: string[] } | null;
 }
 
 type ShotKind = 'dagger' | 'fireball';
@@ -255,6 +262,20 @@ interface LiveBoss {
   /** Its health bar, along the bottom of the room. */
   back: Phaser.GameObjects.Rectangle;
   fill: Phaser.GameObjects.Rectangle;
+}
+
+interface LiveWalker {
+  visit: WalkerVisit;
+  sprite: Phaser.GameObjects.Sprite;
+  feet: Point;
+}
+
+/** A talk under way: its pages, the one showing, and the text box. */
+interface Talk {
+  pages: Page[];
+  page: number;
+  objects: Phaser.GameObjects.GameObject[];
+  text: Phaser.GameObjects.Text;
 }
 
 interface LiveEnemyShot {
@@ -358,6 +379,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private enemies: LiveEnemy[] = [];
   private enemyShots: LiveEnemyShot[] = [];
   private boss: LiveBoss | null = null;
+  private walker: LiveWalker | null = null;
+  private talk: Talk | null = null;
   /** The cells shut while a boss fight is on, and the gates drawn over them. */
   private sealed: { x: number; y: number }[] = [];
   /** Messages shown so far (finding a shard). */
@@ -431,6 +454,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.enemies = [];
     this.enemyShots = [];
     this.boss = null;
+    this.walker = null;
+    this.talk = null;
     this.sealed = [];
     this.announced = 0;
     this.gates = [];
@@ -455,9 +480,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.muted = this.sound.mute;
     // He starts with the sword and shield (Walker hands them over in M3.8). The daggers are
     // dungeon 1's prize; Fireball stays in the starting kit until dungeon 2 exists (M5).
-    this.inv =
-      save?.inventory ??
-      (['wooden-sword', 'fireball', 'wooden-shield'] as const).reduce(give, EMPTY_INVENTORY);
+    // A new game starts with Fireball only (until dungeon 2 exists, M5): Walker hands
+    // over the sword and shield in the village. A ?dungeon=n run skips him, so it
+    // starts with them, and he has already spoken.
+    const skip = !save && this.mapId !== 'overworld';
+    const kit = skip
+      ? (['wooden-sword', 'fireball', 'wooden-shield'] as const)
+      : (['fireball'] as const);
+    this.inv = save?.inventory ?? kit.reduce(give, EMPTY_INVENTORY);
+    if (skip) this.progress = markTalked(this.progress, 'village');
     this.lastThrowAt = null;
     this.throwUntil = 0;
     this.enemyPool = new SpritePool(this);
@@ -484,7 +515,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
     this.swing = { startedAt: null };
     this.spawnEnemies();
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.refreshHud();
     this.enteredRoom();
   }
 
@@ -524,6 +555,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
     if (this.sliding || this.falling || this.travelling) return;
+    if (this.talk) {
+      // While talking, the attack key turns the page; nothing else moves.
+      if (presses.some((c) => ATTACK_KEYS.has(c))) this.turnPage();
+      return;
+    }
     if (presses.some((c) => INVENTORY_KEYS.has(c)) && this.heroKnockMs <= 0) {
       this.openInventory();
       return;
@@ -544,6 +580,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.stepBoss(deltaMs);
     this.stepEnemyShots(deltaMs, time);
     this.stepShots(deltaMs);
+    if (attack && this.heroKnockMs <= 0 && this.walkerInReach()) {
+      this.startTalk();
+      return;
+    }
     if (attack && this.heroKnockMs <= 0) {
       if (this.mode === 'near') {
         if (this.inv.equipped.near) this.trySwing(time);
@@ -578,7 +618,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       isInvulnerable(this.health, time) && Math.floor(time / 80) % 2 === 0 ? 0.3 : 1,
     );
     this.placeSprite();
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.refreshHud();
     if (isOut(this.health)) {
       this.fall();
       return;
@@ -675,9 +715,17 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     if (stoneAt(this.stones, cx, cy) >= 0) return true;
     const here = col === this.room.col && row === this.room.row;
     if (here && this.sealed.some((c) => c.x === cx && c.y === cy)) return true;
+    const w = this.walker?.visit.cell;
+    if (here && w && w.col === cx && w.row === cy) return true;
     return solidInWorld(this.world, col, row, cx, cy, (key, x, y) =>
       isOpened(this.progress, fixtureId(this.mapId, key, x, y)),
     );
+  }
+
+  /** Brings the status bar up to date (it redraws only what changed). */
+  private refreshHud(): void {
+    const weapon = this.inv.equipped[this.mode];
+    this.hud.update(this.health, this.gems, weapon, this.mana, this.potions, this.hudKeys());
   }
 
   /** The small-key count for the status bar: in a dungeon only. */
@@ -785,6 +833,120 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       this.addBoss(boss.kind, { x: boss.col * TILE + TILE / 2, y: (boss.row + 1) * TILE - 1 });
     }
     this.placeRewards();
+    this.placeWalker();
+  }
+
+  /** Walker, if he is waiting in this room. */
+  private placeWalker(): void {
+    const visit = walkerHere(WALKER_VISITS, this.mapId, this.room, this.progress);
+    if (!visit) return;
+    const feet = { x: visit.cell.col * TILE + TILE / 2, y: (visit.cell.row + 1) * TILE - 1 };
+    const sprite = this.enemyPool
+      .take('walker', HERO.standFrame.down)
+      .setOrigin(0.5, HERO.feetY / HERO.frameHeight);
+    const o = this.origin(this.room.col, this.room.row);
+    sprite.setPosition(o.x + feet.x, o.y + feet.y).setDepth(DEPTH.sorted + o.y + feet.y);
+    this.walker = { visit, sprite, feet };
+  }
+
+  /** Whether Jarrett is facing Walker, close enough to talk. */
+  private walkerInReach(): boolean {
+    if (!this.walker) return false;
+    const { x, y } = this.walker.feet;
+    const body = {
+      x: x - BODY.halfWidth,
+      y: y - BODY.height,
+      w: BODY.halfWidth * 2,
+      h: BODY.height,
+    };
+    return overlaps(swordBox(this.pos, this.facing, SWORD), body);
+  }
+
+  /** Walker turns to Jarrett and starts talking; the game waits meanwhile. */
+  private startTalk(): void {
+    const live = this.walker;
+    if (!live) return;
+    this.moving = false;
+    this.animate(false);
+    // He faces Jarrett: the opposite way to Jarrett.
+    const faces: Facing = ({ up: 'down', down: 'up', left: 'right', right: 'left' } as const)[
+      this.facing
+    ];
+    live.sprite
+      .setFrame(HERO.standFrame[faces === 'right' ? 'left' : faces])
+      .setFlipX(faces === 'right');
+    const top = GAME_HEIGHT - 56;
+    const box = this.add
+      .rectangle(8, top, GAME_WIDTH - 16, 48, 0x101018)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0xffd166)
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud - 3);
+    const name = this.add
+      .text(16, top - 4, ' WALKER ', {
+        fontFamily: HUD.font,
+        fontSize: '8px',
+        color: '#ffd166',
+        backgroundColor: '#101018',
+      })
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud - 2);
+    const text = this.add
+      .text(16, top + 8, '', {
+        fontFamily: HUD.font,
+        fontSize: '8px',
+        color: '#e8f4f0',
+        lineSpacing: 6,
+      })
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud - 2);
+    const more = this.add
+      .text(GAME_WIDTH - 20, top + 38, '>', {
+        fontFamily: HUD.font,
+        fontSize: '8px',
+        color: '#ffd166',
+      })
+      .setScrollFactor(0)
+      .setDepth(DEPTH.hud - 2);
+    this.tweens.add({ targets: more, alpha: 0.2, duration: 400, yoyo: true, repeat: -1 });
+    this.talk = {
+      pages: paginate(live.visit.speech, DIALOGUE.width, DIALOGUE.lines),
+      page: 0,
+      objects: [box, name, text, more],
+      text,
+    };
+    this.showPage();
+  }
+
+  /** Shows the current page, handing over any items it gives. */
+  private showPage(): void {
+    const talk = this.talk;
+    const page = talk?.pages[talk.page];
+    if (!talk || !page) return;
+    talk.text.setText(page.lines.join('\n'));
+    for (const item of page.give) this.inv = give(this.inv, item);
+    this.sfx.play(page.give.length > 0 ? 'chest' : 'menu');
+  }
+
+  /** The next page; after the last, Walker vanishes in a shimmer. */
+  private turnPage(): void {
+    const talk = this.talk;
+    if (!talk) return;
+    talk.page += 1;
+    if (talk.page < talk.pages.length) {
+      this.showPage();
+      return;
+    }
+    for (const o of talk.objects) o.destroy();
+    this.talk = null;
+    const live = this.walker;
+    if (!live) return;
+    this.progress = markTalked(this.progress, live.visit.id);
+    this.effect('puff', live.feet.x, live.feet.y - BODY.height / 2);
+    this.enemyPool.give(live.sprite.setFlipX(false));
+    this.walker = null;
+    // What he gave is kept: a save point saves now.
+    this.saveAtSavePoint();
   }
 
   /** A boss, with its health bar along the bottom of the room. */
@@ -1009,7 +1171,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const kept = gemsAfterFalling(this.gems, DEATH.gemLossPercent);
     const lost = this.gems - kept;
     this.gems = kept;
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.refreshHud();
     const veil = this.add
       .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000)
       .setOrigin(0)
@@ -1066,7 +1228,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.placeSprite();
     this.hero.setAlpha(1);
     this.spawnEnemies();
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.refreshHud();
     this.falls += 1;
     this.falling = false;
     this.enteredRoom();
@@ -1118,7 +1280,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.animate(false);
     this.placeSprite();
     this.spawnEnemies();
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.refreshHud();
     this.enteredRoom();
   }
 
@@ -1481,6 +1643,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.pickups = [];
     this.dropBoss();
     this.unseal();
+    if (this.walker) this.enemyPool.give(this.walker.sprite.setFlipX(false));
+    this.walker = null;
   }
 
   snapshot(): GameSnapshot {
@@ -1555,6 +1719,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       saves: this.saves,
       cheated: this.cheated,
       savedPlayMs: this.savedPlayMs,
+      walker: this.walker ? { ...this.walker.feet } : null,
+      talking: this.talk
+        ? {
+            page: this.talk.page,
+            pages: this.talk.pages.length,
+            lines: [...(this.talk.pages[this.talk.page]?.lines ?? [])],
+          }
+        : null,
     };
   }
 

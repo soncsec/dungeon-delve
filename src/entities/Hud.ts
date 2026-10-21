@@ -4,7 +4,8 @@ import { GAME_WIDTH, HUD, HUD_HEIGHT } from '../config/tuning';
 import type { Health } from '../logic/health';
 import type { Mana } from '../logic/mana';
 import type { Potions } from '../logic/potions';
-import type { WeaponMode } from '../logic/weapons';
+import { ITEM_ICON } from '../assets/itemIcons';
+import type { ItemId } from '../logic/inventory';
 import { gemLabel, heartIcons } from '../logic/hud';
 
 /** Empty hearts: the heart art darkened (runtime tint, ADR-D05). */
@@ -111,19 +112,20 @@ export class Hud {
   }
 
   /**
-   * Redraws what changed. `keys` is the small-key count in a dungeon, or null
-   * outdoors (where keys don't show).
+   * Redraws what changed. `weapon` is the item the attack key uses (null: none
+   * yet, so the box is empty). `keys` is the small-key count in a dungeon, or
+   * null outdoors (where keys don't show).
    */
   update(
     health: Health,
     gems: number,
-    mode: WeaponMode,
+    weapon: ItemId | null,
     mana: Mana,
     potions: Potions,
     keys: number | null,
   ): void {
     const filled = Math.round((MANA_BAR.w - 2) * (mana.current / mana.max));
-    const key = `${health.points}/${health.max}/${gems}/${mode}/${filled}/${potions.health}/${potions.mana}/${keys}`;
+    const key = `${health.points}/${health.max}/${gems}/${weapon}/${filled}/${potions.health}/${potions.mana}/${keys}`;
     if (key === this.shown) return;
     this.shown = key;
     const icons = heartIcons(health, HUD.heartX, HUD.heartSpacing, HUD.heartsPerRow);
@@ -143,7 +145,9 @@ export class Hud {
       this.fronts[i]?.setVisible(false);
     }
     this.gemText.setText(gemLabel(gems, HUD.maxGems));
-    this.weapon.setTexture(mode === 'near' ? 'sword-icon' : 'dagger');
+    const icon = weapon ? ITEM_ICON[weapon] : undefined;
+    if (icon) this.weapon.setTexture(icon.texture, icon.frame);
+    this.weapon.setVisible(icon !== undefined);
     this.manaFill.width = filled;
     this.potionText.health.setText(String(potions.health));
     this.potionText.mana.setText(String(potions.mana));
@@ -171,7 +175,7 @@ export class Hud {
     return {
       hearts,
       gems: this.gemText.text,
-      weapon: this.weapon.texture.key,
+      weapon: this.weapon.visible ? this.weapon.texture.key : '',
       manaWidth: this.manaFill.visible ? this.manaFill.width : 0,
       potions: { health: this.potionText.health.text, mana: this.potionText.mana.text },
       keys: this.keyText.visible ? this.keyText.text : null,

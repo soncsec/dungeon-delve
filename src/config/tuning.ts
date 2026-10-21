@@ -197,6 +197,9 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
   },
 };
 
+/** Talking (Walker): the text box holds this many characters a line, and lines a page. */
+export const DIALOGUE = { width: 36, lines: 3 } as const;
+
 /** The Star of Power: one shard per dungeon. The message on finding one stays up this long (ms). */
 export const STAR = { shards: 8, messageMs: 2500 } as const;
 
