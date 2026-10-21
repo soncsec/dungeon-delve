@@ -1232,3 +1232,34 @@ test('a new game starts at the village gate; a house’s walls stop Jarrett', as
   expect(s.region).toBe('village');
   expect(watched.errors).toEqual([]);
 });
+
+test('north of Hollow Oak lie the vault grounds, and the vault door stays shut', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // From the forest room east of the archway, up through its north gap.
+  await page.evaluate(() => window.__game?.goToRoom(4, 5));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 4, row: 4 });
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  expect((await snapshot(page)).region).toBe('vault');
+
+  // The vault's door, in the room to the west: columns 14–15 of its south face (row 3).
+  await page.evaluate(() => window.__game?.goToRoom(3, 4));
+  await page.evaluate(() => window.__game?.placeHero(240, 90, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(70); // row 4's top + his 6-px feet box
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  const s = await snapshot(page);
+  expect(s.player.y).toBe(70);
+  expect(s.opened.filter((id) => id.startsWith('overworld/'))).toEqual([]);
+  expect(watched.errors).toEqual([]);
+});

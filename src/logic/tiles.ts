@@ -99,8 +99,11 @@ export const TOWN_FRAMES = {
   >,
 } as const;
 
-/** The overworld's regions (PROJECT.md decisions, 2026-10-20). More arrive with M4.1b–e. */
-export type Region = 'forest' | 'village';
+/**
+ * The overworld's regions (PROJECT.md decisions, 2026-10-20). More arrive with
+ * M4.1c–e. The vault grounds are drawn like a dungeon (stone walls and floor).
+ */
+export type Region = 'forest' | 'village' | 'vault';
 
 function mod3(n: number): number {
   return ((n % 3) + 3) % 3;
