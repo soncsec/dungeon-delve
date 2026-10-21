@@ -40,10 +40,12 @@ export const PROP_REGIONS: Readonly<
   stump: { x: 64, y: 96, w: 32, h: 32 },
   cone: { x: 32, y: 96, w: 16, h: 32 },
   shrub: { x: 112, y: 96, w: 16, h: 16 },
+  // The cave entrance comes from the mountain sheet.
+  cave: { x: 48, y: 48, w: 48, h: 48 },
 };
 
 /** Which sheet each prop's art is on. */
-export const PROP_SHEET: Readonly<Record<PropKind, 'forest' | 'dungeon' | 'town'>> = {
+export const PROP_SHEET: Readonly<Record<PropKind, 'forest' | 'dungeon' | 'town' | 'mountain'>> = {
   pine: 'forest',
   oak: 'forest',
   boulder: 'forest',
@@ -55,6 +57,7 @@ export const PROP_SHEET: Readonly<Record<PropKind, 'forest' | 'dungeon' | 'town'
   stump: 'town',
   cone: 'town',
   shrub: 'town',
+  cave: 'mountain',
 };
 
 /**
@@ -75,14 +78,32 @@ const PROP_ANCHOR: Readonly<Record<PropKind, { dx: number; dy: number }>> = {
   maple: { dx: TILE, dy: TILE },
   stump: { dx: TILE, dy: TILE },
   house: { dx: 2.5 * TILE, dy: 4 * TILE },
+  cave: { dx: 1.5 * TILE, dy: 3 * TILE },
 };
 
-/** The sheet to draw a prop from in a region: village rooms use the recoloured forest art. */
+/**
+ * Mountain art for props the forest also has: drawn on dirt, without the
+ * forest's teal shadows. Same size and anchors as the forest's.
+ */
+export const MOUNTAIN_PROP_REGIONS: Readonly<
+  Partial<Record<PropKind, { x: number; y: number; w: number; h: number }>>
+> = {
+  boulder: { x: 16, y: 16, w: 32, h: 32 },
+  rock: { x: 32, y: 96, w: 16, h: 16 },
+};
+
+/**
+ * The sheet to draw a prop from in a region: village rooms use the recoloured
+ * forest art, and the mountains their own boulders and rocks.
+ */
 export function propSheet(
   prop: PropKind,
   region: Region,
-): 'forest' | 'forest-village' | 'dungeon' | 'town' {
+): 'forest' | 'forest-village' | 'dungeon' | 'town' | 'mountain' {
   const sheet = PROP_SHEET[prop];
+  if ((region === 'mountains' || region === 'volcano') && MOUNTAIN_PROP_REGIONS[prop]) {
+    return 'mountain';
+  }
   return sheet === 'forest' && region === 'village' ? 'forest-village' : sheet;
 }
 
@@ -104,10 +125,46 @@ export const TOWN_FRAMES = {
  * The overworld's regions (PROJECT.md decisions, 2026-10-20). More arrive with
  * M4.1c–e. The vault grounds are drawn like a dungeon (stone walls and floor).
  */
-export type Region = 'forest' | 'village' | 'vault' | 'marsh' | 'ruins';
+export type Region = 'forest' | 'village' | 'vault' | 'marsh' | 'ruins' | 'mountains' | 'volcano';
 
 /** The marsh is the forest's art, darkened and greened by a tint over everything in the room. */
 export const MARSH_TINT = 0x9cae8c;
+
+/** The volcano edge is the mountains under a hot red tint. */
+export const VOLCANO_TINT = 0xffa486;
+
+/** Columns in the Tiny RPG Mountain sheet (368 px / 16). */
+export const MOUNTAIN_COLUMNS = 23;
+const mframe = (col: number, row: number): number => row * MOUNTAIN_COLUMNS + col;
+
+/**
+ * Mountain art. A cliff is two columns wide on the sheet (18 and 19), from its
+ * grassy top down through a ledge to three rows of rock face.
+ */
+export const MOUNTAIN_FRAMES = {
+  dirt: mframe(3, 1),
+  /** Dirt with a pale patch, scattered for variety. */
+  dirtPatch: mframe(5, 6),
+  /** By depth: the face's bottom row (open ground below), up through the face and ledge to the top. */
+  cliff: [5, 4, 3, 2, 1].map((row) => [mframe(18, row), mframe(19, row)] as const),
+} as const;
+
+/**
+ * The cliff piece for a mountain wall cell: rock face where it meets open
+ * ground below, the ledge above that, and the grassy top further back.
+ */
+export function cliffFrame(room: Room, x: number, y: number): number {
+  let depth = 0;
+  while (depth < MOUNTAIN_FRAMES.cliff.length - 1 && isForest(room, x, y + depth + 1)) depth += 1;
+  const row = MOUNTAIN_FRAMES.cliff[depth] as readonly [number, number];
+  return row[((x % 2) + 2) % 2] as number;
+}
+
+function mountainGround(x: number, y: number): number {
+  return (x * 31 + y * 17 + x * y * 3) % 11 === 0
+    ? MOUNTAIN_FRAMES.dirtPatch
+    : MOUNTAIN_FRAMES.dirt;
+}
 
 /** The pond tiles on marsh-water.png, in order (tools/art/marsh_water.py). */
 export const POND_FRAMES = {
@@ -150,7 +207,7 @@ export interface TileDraw {
   frame: number;
   x: number;
   y: number;
-  sheet?: 'town' | 'forest-village' | 'marsh-water' | 'dungeon';
+  sheet?: 'town' | 'forest-village' | 'marsh-water' | 'dungeon' | 'mountain';
 }
 
 /** A prop drawn with its bottom-centre at (x, y) in room pixels; sorted by y for depth. */
@@ -193,6 +250,7 @@ function villageGrass(x: number, y: number): number {
 /** Everything to draw for an outdoor room, in its region's look. */
 export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
   const art: RoomArt = { ground: [], over: [], props: [], chests: [] };
+  const mountains = region === 'mountains' || region === 'volcano';
   room.cells.forEach((rowCells, y) => {
     rowCells.forEach((cell, x) => {
       const px = x * TILE;
@@ -204,13 +262,18 @@ export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
       } else if (region === 'village') {
         const frame = cell.ground ? TOWN_FRAMES.ground[cell.ground] : villageGrass(x, y);
         art.ground.push({ frame, x: px, y: py, sheet: 'town' });
+      } else if (mountains) {
+        art.ground.push({ frame: mountainGround(x, y), x: px, y: py, sheet: 'mountain' });
       } else {
         art.ground.push({ frame: FOREST_FRAMES.grass, x: px, y: py });
       }
       // A ruined wall: the dungeon's wall top or face, on the grass.
       if (cell.wall)
         art.ground.push({ frame: dungeonFrame(room, x, y), x: px, y: py, sheet: 'dungeon' });
-      if (cell.forest) {
+      if (cell.forest && mountains) {
+        // In the mountains, walls are cliffs.
+        art.ground.push({ frame: cliffFrame(room, x, y), x: px, y: py, sheet: 'mountain' });
+      } else if (cell.forest) {
         // Village rooms use the forest walls recoloured to suit their light grass.
         const walls = region === 'village' ? { sheet: 'forest-village' as const } : {};
         art.ground.push({ frame: forestFrame(room, x, y), x: px, y: py, ...walls });

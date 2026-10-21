@@ -30,6 +30,9 @@
  *   #  a ruined wall (solid; drawn with the dungeon's wall tops and faces)
  *   q  stone paving (open)
  *
+ * Mountains:
+ *   V  cave entrance (3×3, anchored top-left: rock all round, the doorway in the middle column open)
+ *
  * Village ground (open, drawn from the Town set):
  *   p  cobbled path
  *   ,  flowers
@@ -48,7 +51,8 @@ export type PropKind =
   | 'maple'
   | 'stump'
   | 'cone'
-  | 'shrub';
+  | 'shrub'
+  | 'cave';
 
 /** Open ground drawn with something on it (village). */
 export type Ground = 'path' | 'flowers' | 'tall' | 'paving';
@@ -94,6 +98,7 @@ const PROP_CHARS: Readonly<Record<string, PropKind>> = {
   S: 'stump',
   n: 'cone',
   w: 'shrub',
+  V: 'cave',
 };
 
 const GROUND_CHARS: Readonly<Record<string, Ground>> = {
@@ -139,6 +144,8 @@ export const PROP_FOOTPRINT: Readonly<Record<PropKind, readonly (readonly [numbe
   stump: block(2, 1),
   cone: [[0, 0]],
   shrub: [[0, 0]],
+  // The cave: rock all round its 3×3, but for the doorway down the middle below the top row.
+  cave: block(3, 3).filter(([x, y]) => !(x === 1 && y > 0)),
 };
 
 /** Parses a room's text. Throws with a clear message on any mistake in the data. */

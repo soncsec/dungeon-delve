@@ -113,7 +113,14 @@ import {
   type Rect,
   type Swing,
 } from '../logic/sword';
-import { DUNGEON_FRAMES, MARSH_TINT, dungeonArt, propSheet, roomArt } from '../logic/tiles';
+import {
+  DUNGEON_FRAMES,
+  MARSH_TINT,
+  VOLCANO_TINT,
+  dungeonArt,
+  propSheet,
+  roomArt,
+} from '../logic/tiles';
 import {
   buildWorld,
   cellsAhead,
@@ -1958,9 +1965,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
           .setDepth(DEPTH.over),
       );
     }
-    // The marsh: the forest's art, darkened and greened.
-    if (region === 'marsh') {
-      for (const o of drawn) (o as Phaser.GameObjects.Image).setTint(MARSH_TINT);
+    // The marsh (the forest's art, darkened and greened) and the volcano edge (the mountains, reddened).
+    if (region === 'marsh' || region === 'volcano') {
+      const tint = region === 'marsh' ? MARSH_TINT : VOLCANO_TINT;
+      for (const o of drawn) (o as Phaser.GameObjects.Image).setTint(tint);
     }
     return drawn;
   }

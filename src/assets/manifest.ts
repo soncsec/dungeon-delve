@@ -104,6 +104,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('tiles', 'forest-village', 16, 16, 27, 11),
   // The marsh's ponds: the Overworld sheet's island shores, used inside out (tools/art/marsh_water.py).
   sheet('tiles', 'marsh-water', 16, 16, 11, 1),
+  // The mountains: cliffs, dirt, rocks and a cave entrance (Tiny RPG Mountain, unchanged).
+  sheet('tiles', 'mountain', 16, 16, 23, 8),
   sheet('tiles', 'town', 16, 16, 24, 13),
   // Dungeon tiles: the pack's example dungeon (preview-simple-dungeon-crawler-set1.png), used
   // unchanged as a 16×16 sheet; it has the wall-top stones the tileset sheet lacks.

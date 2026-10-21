@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { KEY_COLOURS, KEY_PIXELS } from '../assets/keyArt';
 import { ASSETS, animKey } from '../assets/manifest';
 import type { PropKind } from '../logic/room';
-import { PROP_REGIONS, PROP_SHEET } from '../logic/tiles';
+import { MOUNTAIN_PROP_REGIONS, PROP_REGIONS, PROP_SHEET } from '../logic/tiles';
 import { DUNGEON_MAPS } from '../world/maps';
 import type { GameStart } from './GameScene';
 
@@ -43,6 +43,10 @@ export class PreloadScene extends Phaser.Scene {
       if (sheet === 'forest') {
         this.textures.get('forest-village').add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
       }
+    }
+    // The mountains' own boulders and rocks.
+    for (const [name, r] of Object.entries(MOUNTAIN_PROP_REGIONS)) {
+      this.textures.get('mountain').add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
     }
 
     // The small key is drawn in code: the art pack has none (owner, 2026-10-20).
