@@ -722,13 +722,17 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   // would push him off line with the archway's opening.
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.clearEnemies());
-  // North from the start room, then on up through the archway's opening.
+  // North from the start room. He stops as the view slides, so the archway room's
+  // enemies (which appear when the slide ends) are cleared before he walks on.
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
     .toEqual({ col: 1, row: 0 });
+  await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   await page.evaluate(() => window.__game?.clearEnemies());
+  // On up through the archway's opening.
+  await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).map, { timeout: 20_000 }).toBe('dungeon1');
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
