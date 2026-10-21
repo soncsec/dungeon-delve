@@ -3,8 +3,11 @@ import {
   bossBody,
   bossShotOrigin,
   hitBoss,
+  isAirborne,
   isBeaten,
   isFierce,
+  leapHeight,
+  leapTarget,
   spawnBoss,
   spread,
   stepBoss,
@@ -17,7 +20,7 @@ const s: BossStats = {
   health: 10,
   contactDamage: 2,
   box: { halfWidth: 14, height: 30 },
-  shuffle: { speed: 20, range: 40 },
+  moves: { style: 'shuffle', speed: 20, range: 40 },
   calm: { shots: 3, spreadDeg: 20, everyMs: { min: 2000, max: 2000 } },
   fierce: { shots: 5, spreadDeg: 18, everyMs: { min: 1500, max: 1500 } },
 };
@@ -36,6 +39,8 @@ const boss = (over: Partial<Boss> = {}): Boss => ({
   shootInMs: 5000,
   lastHitBy: null,
   flashMs: 0,
+  phase: 'sit',
+  leap: null,
   ...over,
 });
 const hero = { x: 160, y: 140 };
@@ -118,5 +123,88 @@ describe('hits', () => {
   it('has a body box and fires from its middle', () => {
     expect(bossBody(boss(), s)).toEqual({ x: 146, y: 30, w: 28, h: 30 });
     expect(bossShotOrigin(boss(), s)).toEqual({ x: 160, y: 45 });
+  });
+});
+
+describe('the Giant Frog: a leaper', () => {
+  const hop = {
+    style: 'hop',
+    crouchMs: 500,
+    leapMs: 1000,
+    reach: 100,
+    peak: 20,
+    arena: { x: 40, y: 60, w: 240, h: 60 },
+  } as const;
+  const f: BossStats = {
+    ...s,
+    moves: hop,
+    calm: { shots: 4, spreadDeg: 90, everyMs: { min: 1500, max: 1500 } },
+    fierce: { shots: 8, spreadDeg: 45, everyMs: { min: 900, max: 900 } },
+  };
+  const frog = (over: Partial<Boss> = {}): Boss =>
+    boss({
+      kind: 'frog',
+      pos: { x: 160, y: 80 },
+      home: { x: 160, y: 80 },
+      shootInMs: 1000,
+      ...over,
+    });
+  const near = { x: 160, y: 110 };
+
+  it('sits out its timer, then crouches for a while (the warning), without moving', () => {
+    let r = stepBoss(frog(), 400, near, f, firstRng);
+    expect(r.boss).toMatchObject({ phase: 'sit', shootInMs: 600, pos: { x: 160, y: 80 } });
+    r = stepBoss(r.boss, 600, near, f, firstRng);
+    expect(r.boss).toMatchObject({ phase: 'crouch', shootInMs: 500, leap: null });
+    expect(isAirborne(r.boss)).toBe(false);
+    expect(r.shots).toEqual([]);
+  });
+
+  it('then leaps at where Jarrett is, rising and falling; in the air no hit lands', () => {
+    const crouched = frog({ phase: 'crouch', shootInMs: 100 });
+    let r = stepBoss(crouched, 100, near, f, firstRng);
+    expect(r.boss.leap).toEqual({ from: { x: 160, y: 80 }, to: near, ms: 0 });
+    expect(isAirborne(r.boss)).toBe(true);
+    expect(leapHeight(r.boss, f)).toBe(0);
+    r = stepBoss(r.boss, 500, near, f, firstRng);
+    expect(r.boss.pos).toEqual({ x: 160, y: 95 }); // halfway
+    expect(leapHeight(r.boss, f)).toBe(20); // at its peak
+    expect(hitBoss(r.boss, 1, 7, 100)).toBe(r.boss);
+    expect(r.shots).toEqual([]);
+  });
+
+  it('lands where it aimed, throwing a ring of four shots (one at Jarrett), and sits again', () => {
+    const flying = frog({ leap: { from: { x: 160, y: 80 }, to: { x: 160, y: 100 }, ms: 900 } });
+    const r = stepBoss(flying, 200, { x: 160, y: 200 }, f, firstRng);
+    expect(r.boss).toMatchObject({ pos: { x: 160, y: 100 }, leap: null, phase: 'sit' });
+    expect(r.boss.shootInMs).toBe(1500);
+    expect(isAirborne(r.boss)).toBe(false);
+    expect(r.shots).toHaveLength(4);
+    // The first straight at him (below), the rest round the compass.
+    expect(r.shots.map((v) => [Math.round(v.x) + 0, Math.round(v.y) + 0])).toEqual([
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+      [1, 0],
+    ]);
+  });
+
+  it('fiercer below half health: eight shots a landing, and shorter sits', () => {
+    const flying = frog({ health: 5, leap: { from: { x: 160, y: 80 }, to: near, ms: 999 } });
+    const r = stepBoss(flying, 10, { x: 160, y: 200 }, f, firstRng);
+    expect(r.shots).toHaveLength(8);
+    expect(r.boss.shootInMs).toBe(900);
+  });
+
+  it('leaps at most its reach, and lands inside the arena', () => {
+    expect(leapTarget({ x: 160, y: 80 }, { x: 160, y: 300 }, hop)).toEqual({ x: 160, y: 120 });
+    expect(leapTarget({ x: 160, y: 80 }, { x: 460, y: 80 }, hop)).toEqual({ x: 260, y: 80 });
+    expect(leapTarget({ x: 60, y: 80 }, { x: 0, y: 80 }, hop)).toEqual({ x: 40, y: 80 });
+    expect(leapTarget({ x: 160, y: 70 }, { x: 160, y: 0 }, hop)).toEqual({ x: 160, y: 60 });
+  });
+
+  it('a shuffler never leaps, and has no height', () => {
+    expect(leapHeight(boss({ leap: { from: hero, to: hero, ms: 10 } }), s)).toBe(0);
+    expect(leapHeight(frog(), f)).toBe(0);
   });
 });
