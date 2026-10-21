@@ -303,3 +303,24 @@ describe('doorways to other maps', () => {
     ).toThrow('room 0,0: exit lists column 5, row 5, which is not a doorway');
   });
 });
+
+describe('bosses', () => {
+  const lines = Array.from({ length: 10 }, (_, y) =>
+    y === 0 || y === 9 ? '####################' : '#..................#',
+  );
+
+  it('keeps the room\u2019s boss', () => {
+    const w = buildWorld([{ col: 0, row: 0, lines, boss: { kind: 'treant', col: 10, row: 4 } }]);
+    expect(w.bosses.get('0,0')).toEqual({ kind: 'treant', col: 10, row: 4 });
+    expect(buildWorld([{ col: 0, row: 0, lines }]).bosses.size).toBe(0);
+  });
+
+  it('rejects a boss in a wall or outside the room', () => {
+    expect(() =>
+      buildWorld([{ col: 0, row: 0, lines, boss: { kind: 'treant', col: 0, row: 0 } }]),
+    ).toThrow('room 0,0: the boss at column 0, row 0 is not on open ground');
+    expect(() =>
+      buildWorld([{ col: 0, row: 0, lines, boss: { kind: 'treant', col: 30, row: 3 } }]),
+    ).toThrow('not on open ground');
+  });
+});

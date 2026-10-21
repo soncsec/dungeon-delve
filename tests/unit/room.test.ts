@@ -9,6 +9,7 @@ import {
   isSolid,
   isWall,
   parseRoom,
+  sealCells,
   type Room,
 } from '../../src/logic/room';
 
@@ -192,5 +193,58 @@ describe('room queries', () => {
     expect(edgeOpenings(r, 'south')).toEqual([false, ...Array<boolean>(19).fill(true)]);
     expect(edgeOpenings(r, 'west')).toEqual([false, ...Array<boolean>(8).fill(true), false]);
     expect(edgeOpenings(r, 'east')).toEqual([false, ...Array<boolean>(9).fill(true)]);
+  });
+});
+
+describe('sealCells', () => {
+  const sorted = (cells: { x: number; y: number }[]) => cells.map(({ x, y }) => `${x},${y}`).sort();
+
+  it('closes each way out one cell in from the edge', () => {
+    const hub = parseRoom([
+      '#########..#########',
+      '#########..#########',
+      '##................##',
+      '##................##',
+      '....................',
+      '....................',
+      '##................##',
+      '##................##',
+      '#########..#########',
+      '#########..#########',
+    ]);
+    expect(sorted(sealCells(hub))).toEqual(
+      sorted([
+        { x: 9, y: 1 },
+        { x: 10, y: 1 },
+        { x: 9, y: 8 },
+        { x: 10, y: 8 },
+        { x: 1, y: 4 },
+        { x: 1, y: 5 },
+        { x: 18, y: 4 },
+        { x: 18, y: 5 },
+      ]),
+    );
+  });
+
+  it('leaves closed rooms, walls, locked doors and doorways to other maps alone', () => {
+    const closed = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        y === 0 || y === 9 ? '####################' : '#..................#',
+      ),
+    );
+    expect(sealCells(closed)).toEqual([]);
+    const doors = parseRoom([
+      '#########..#########',
+      '#########KK#########',
+      '##................##',
+      '##................##',
+      '##................##',
+      '##................##',
+      '##................##',
+      '##................##',
+      '#########..#########',
+      '#########DD#########',
+    ]);
+    expect(sealCells(doors)).toEqual([]);
   });
 });

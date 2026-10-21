@@ -7,6 +7,13 @@ import {
   keysIn,
   openChest,
   unlockDoor,
+  beatBoss,
+  heartContainers,
+  rewardId,
+  shardMessage,
+  shardsHeld,
+  takeReward,
+  bossId,
 } from '../../src/logic/progress';
 
 const door = fixtureId('dungeon1', '0,0', 9, 1);
@@ -45,5 +52,38 @@ describe('progress', () => {
     const p = openChest(NEW_PROGRESS, chest);
     expect(isOpened(p, chest)).toBe(true);
     expect(openChest(p, chest)).toBe(p);
+  });
+});
+
+describe('bosses', () => {
+  it('records a beaten boss once, by map and room', () => {
+    const id = bossId('dungeon1', '1,0');
+    expect(id).toBe('dungeon1/1,0/boss');
+    const p = beatBoss(NEW_PROGRESS, id);
+    expect(isOpened(p, id)).toBe(true);
+    expect(beatBoss(p, id)).toBe(p);
+  });
+});
+
+describe('rewards', () => {
+  it('counts shards and heart containers taken, each once per map', () => {
+    let p = takeReward(NEW_PROGRESS, rewardId('dungeon1', 'shard'));
+    p = takeReward(p, rewardId('dungeon1', 'heart'));
+    p = takeReward(p, rewardId('dungeon2', 'shard'));
+    expect(takeReward(p, rewardId('dungeon2', 'shard'))).toBe(p);
+    expect(rewardId('dungeon1', 'shard')).toBe('dungeon1/shard');
+    expect(shardsHeld(p)).toBe(2);
+    expect(heartContainers(p)).toBe(1);
+    // Doors, chests and bosses don't count.
+    p = openChest(p, fixtureId('dungeon1', '1,0', 3, 4));
+    p = beatBoss(p, bossId('dungeon1', '1,0'));
+    expect(shardsHeld(p)).toBe(2);
+    expect(heartContainers(p)).toBe(1);
+  });
+
+  it('says how many shards are left to find', () => {
+    expect(shardMessage(1, 8)).toEqual(['A SHARD OF THE', 'STAR OF POWER!', '', '7 MORE TO FIND.']);
+    expect(shardMessage(7, 8).at(-1)).toBe('1 MORE TO FIND.');
+    expect(shardMessage(8, 8)).toEqual(['THE STAR OF POWER', 'IS WHOLE!']);
   });
 });

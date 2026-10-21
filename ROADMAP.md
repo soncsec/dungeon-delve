@@ -84,8 +84,8 @@
 - [x] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
   - [x] M3.2a Doorways between maps: the stone archway into dungeon 1, and the way back out
   - [x] M3.2b Six rooms (entrance, hub, west, east, great hall, boss room), two keys, the daggers behind a stone; Jarrett no longer starts with the daggers
-- [ ] M3.3 Boss framework (phases, health bar) and the Treant
-- [ ] M3.4 Shard pickup, heart container, the Star of Power display
+- [x] M3.3 Boss framework (phases, health bar) and the Treant: the boss room shuts while it lives; beaten bosses stay beaten
+- [x] M3.4 Shard pickup, heart container, the Star of Power display: the beaten boss leaves both; a message says how many shards are left
 - [ ] M3.5 Save and continue (ADR-D04); `?dungeon=n` play-test skip that counts as a cheat
 - [ ] M3.6 Dungeon map in the inventory
 - [ ] M3.8 Walker (PROJECT.md §3f): his sprite with paler blonde hair, a text box for talking, and his lines in the village (story, first sword and shield) and at dungeon 1's entrance and exit

@@ -19,6 +19,10 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/enemies/ghost.png` — `Gothicvania/Characters/enemy-ghost/Spritesheets/no-particles.png`
 - `assets/enemies/wolf.png` — `Gothicvania/Characters/wolf-runing-cycle/spritesheets/wolf-runing-cycle-skin.png`
 
+### Bosses
+
+- `assets/bosses/treant.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/Treant.png`
+
 ### Tiles
 
 - `assets/tiles/forest.png` — `TinyRPG/Environments/Top-Down-Forest/PNG/top-down-forest-tileset.png`
@@ -40,6 +44,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/items/dagger.png` — `Gothicvania/Misc/Dagger/dagger.png`
 - `assets/items/sword-icon.png` — `Gothicvania/Misc/fantasy weapons set/PNG/3.png`
 - `assets/items/mana-brew.png` — the potion from `TinyRPG/Environments/single-dungeon-crawler-objects/PNG/dungeon-crawler-objects-transparent.png` (x 208, y 48), its liquid recoloured from red to blue by `tools/art/mana_brew.py` (owner request 2026-10-20)
+- `assets/items/shard.png` — `Gothicvania/Environments/Rocky Pass Files/PNG/Props/crystal-1.png`, a shard of the Star of Power, recoloured from red to gold by `tools/art/gold_shard.py` (owner decision 2026-10-20)
 
 ## Font
 
