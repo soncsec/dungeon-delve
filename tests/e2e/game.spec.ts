@@ -1087,9 +1087,14 @@ test('Walker waits in the village, tells the story and hands over the sword and 
   expect(s.talking).toBeNull();
   const hud = () => page.evaluate(() => window.__game?.hud());
   expect((await hud())?.weapon).toBe(''); // no sword yet
-  // Empty-handed but for Fireball: Space by himself does nothing.
+  // Empty-handed but for Fireball: Space by himself does nothing. Keys are handled
+  // in order, so once the X that follows has switched modes, the Space was handled too.
   await page.keyboard.press('Space');
+  await page.keyboard.press('x');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('far');
   expect((await snapshot(page)).swings).toBe(0);
+  await page.keyboard.press('x');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('near');
 
   // Beside him, facing him: Space starts the talk, and the game waits.
   await page.evaluate(() => window.__game?.placeHero(204, 79, 'right'));
