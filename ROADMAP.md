@@ -91,7 +91,7 @@
 - [ ] M3.8 Walker (PROJECT.md §3f), in two PRs:
   - [x] M3.8a His sprite with paler blonde hair, a text box for talking, and the village: the story, the first sword and shield, the controls
   - [ ] M3.8b His lines at dungeon 1's entrance and after it
-- [ ] M3.7 Reachability test: every room, key and chest in dungeon 1 can be reached in a valid order
+- [x] M3.7 Reachability test: every room, key and chest in dungeon 1 can be reached in a valid order (`src/logic/reach.ts`; also every overworld room and the archway)
 
 **Acceptance criteria:** owner finishes dungeon 1 on staging; reload restores progress.
 
