@@ -373,8 +373,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.sfx = new Sfx(this);
     // A restart (or a new game) keeps the player's mute choice.
     this.muted = this.sound.mute;
-    // M2: Jarrett starts with the whole kit so far; later Walker and the dungeons hand items out.
-    this.inv = (['wooden-sword', 'daggers', 'fireball', 'wooden-shield'] as const).reduce(
+    // He starts with the sword and shield (Walker hands them over in M3.8). The daggers are
+    // dungeon 1's prize; Fireball stays in the starting kit until dungeon 2 exists (M5).
+    this.inv = (['wooden-sword', 'fireball', 'wooden-shield'] as const).reduce(
       give,
       EMPTY_INVENTORY,
     );
@@ -1238,6 +1239,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   /** Test hook only: a pickup at a room position. */
   testSpawnPickup(kind: PickupKind, x: number, y: number): void {
     this.addPickup(kind, { x, y });
+  }
+
+  /** Test hook only: jump to a room on this map, standing at its start position. */
+  testGoToRoom(col: number, row: number): void {
+    this.arrive({
+      cells: [],
+      to: {
+        map: this.mapId,
+        room: { col, row },
+        feet: { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift },
+        facing: 'down',
+      },
+    });
   }
 
   /** Test hook only: give Jarrett a small key for this map. */

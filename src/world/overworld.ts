@@ -43,7 +43,7 @@ export const OVERWORLD: readonly RoomDef[] = [
           { col: 9, row: 2 },
           { col: 10, row: 2 },
         ],
-        to: { map: 'dungeon1', room: { col: 0, row: 1 }, feet: { x: 160, y: 140 }, facing: 'up' },
+        to: { map: 'dungeon1', room: { col: 1, row: 3 }, feet: { x: 160, y: 140 }, facing: 'up' },
       },
     ],
     lines: [
