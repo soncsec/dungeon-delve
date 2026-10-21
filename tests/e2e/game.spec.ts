@@ -37,6 +37,8 @@ async function talkToWalker(page: Page): Promise<string[][]> {
   const w = (await snapshot(page)).walker;
   if (!w) throw new Error('Walker is not here');
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), w);
+  // A press is ignored while he is being knocked back.
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).talking).not.toBeNull();
   const pages: string[][] = [];
@@ -1192,7 +1194,9 @@ test('Walker gives a hint at dungeon 1, and waits outside once its shard is foun
   await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
   await page.keyboard.up('ArrowDown');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  // The archway room's enemies appear where he comes out; this test is about Walker.
   await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.clearEnemies());
   expect((await snapshot(page)).walker).toEqual({ x: 216, y: 79 });
   const after = await talkToWalker(page);
   expect(after[0]?.join(' ')).toContain('SEVEN MORE TO FIND.');
