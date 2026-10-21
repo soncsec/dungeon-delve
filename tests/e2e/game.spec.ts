@@ -86,9 +86,18 @@ async function openGame(page: Page, query = ''): Promise<void> {
   if ((await sceneNow(page)) === 'Title') await page.keyboard.press('Enter');
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Game');
   const start = await snapshot(page);
-  // Only the village talk: Walker at a dungeon entrance is left for the test.
+  // Only the village talk: Walker at a dungeon entrance is left for the test. Space starts
+  // it; then the finishTalk hook turns the rest of its ten pages at once, gifts and all.
+  // (Pressing through them took about 8 s of WebKit's 30 s per test here; the village
+  // talk's own test still pages through it.)
   if (start.map === 'overworld' && start.walker) {
-    await talkToWalker(page);
+    const w = start.walker;
+    await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), w);
+    await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await snapshot(page)).talking).not.toBeNull();
+    await page.evaluate(() => window.__game?.finishTalk());
+    await expect.poll(async () => (await snapshot(page)).walker).toBeNull();
     await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), start.player);
   }
 }
