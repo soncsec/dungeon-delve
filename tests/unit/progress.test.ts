@@ -9,7 +9,10 @@ import {
   unlockDoor,
   beatBoss,
   canEnter,
+  chestHeartId,
   dungeonNumber,
+  leftInChest,
+  takenId,
   enemyId,
   markDefeated,
   shardsToEnter,
@@ -141,5 +144,38 @@ describe('defeated dungeon enemies', () => {
     expect(isOpened(p, id)).toBe(true);
     expect(markDefeated(p, id)).toBe(p);
     expect(shardsHeld(p) + heartContainers(p)).toBe(0);
+  });
+});
+
+describe('a prize left in an opened chest', () => {
+  const id = fixtureId('dungeon1', '0,2', 3, 3);
+  const heart = chestHeartId('caves', '4,0');
+  const opened = openChest(NEW_PROGRESS, id);
+
+  it('nothing waits in a chest not yet opened', () => {
+    expect(leftInChest({ kind: 'key' }, NEW_PROGRESS, id, heart, [])).toBe(false);
+  });
+
+  it('an item waits until he owns it', () => {
+    const daggers = { kind: 'item', item: 'daggers' } as const;
+    expect(leftInChest(daggers, opened, id, heart, [])).toBe(true);
+    expect(leftInChest(daggers, opened, id, heart, ['daggers'])).toBe(false);
+  });
+
+  it('a key waits until it has been picked up', () => {
+    expect(takenId(id)).toBe('dungeon1/0,2/3,3/taken');
+    expect(leftInChest({ kind: 'key' }, opened, id, heart, [])).toBe(true);
+    expect(leftInChest({ kind: 'key' }, openChest(opened, takenId(id)), id, heart, [])).toBe(false);
+  });
+
+  it('a heart container waits until taken', () => {
+    expect(heart).toBe('caves/4,0/heart');
+    expect(leftInChest({ kind: 'heart' }, opened, id, heart, [])).toBe(true);
+    expect(leftInChest({ kind: 'heart' }, takeReward(opened, heart), id, heart, [])).toBe(false);
+  });
+
+  it('gems and potions do not come back', () => {
+    expect(leftInChest({ kind: 'gems', amount: 5 }, opened, id, heart, [])).toBe(false);
+    expect(leftInChest({ kind: 'potion', potion: 'mana' }, opened, id, heart, [])).toBe(false);
   });
 });

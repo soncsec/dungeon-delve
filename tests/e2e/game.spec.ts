@@ -884,6 +884,41 @@ test('Bog Grotto’s prize: the Fireball in the east closet, which burns the hub
   expect(watched.errors).toEqual([]);
 });
 
+test('a prize left in an opened chest waits there until Jarrett picks it up', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  const keyHere = async () => (await snapshot(page)).pickups.some((p) => p.kind === 'key');
+  // The entrance's chest (column 4, row 3) opens with Jarrett away from it: the key drops.
+  await page.evaluate(() => window.__game?.placeHero(160, 126, 'up'));
+  await page.evaluate(() => window.__game?.bump(4, 3));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon1/1,3/4,3');
+  expect(await keyHere()).toBe(true);
+  // He leaves without it, and comes back: it is still there.
+  await page.evaluate(() => window.__game?.goToRoom(0, 2));
+  await page.evaluate(() => window.__game?.goToRoom(1, 3));
+  expect(await keyHere()).toBe(true);
+  expect((await snapshot(page)).keys).toBe(0);
+  // He takes it; after that it doesn't come back.
+  await page.evaluate(() => window.__game?.placeHero(72, 63));
+  await expect.poll(async () => (await snapshot(page)).keys).toBe(1);
+  await page.evaluate(() => window.__game?.goToRoom(0, 2));
+  await page.evaluate(() => window.__game?.goToRoom(1, 3));
+  expect(await keyHere()).toBe(false);
+  expect((await snapshot(page)).keys).toBe(1);
+
+  // The same for an item: the daggers in the west room's closet.
+  await page.evaluate(() => window.__game?.goToRoom(0, 2));
+  await page.evaluate(() => window.__game?.placeHero(160, 126, 'up'));
+  await page.evaluate(() => window.__game?.bump(3, 3));
+  const itemHere = async () => (await snapshot(page)).pickups.some((p) => p.kind === 'item');
+  await expect.poll(itemHere).toBe(true);
+  await page.evaluate(() => window.__game?.goToRoom(1, 2));
+  await page.evaluate(() => window.__game?.goToRoom(0, 2));
+  expect(await itemHere()).toBe(true);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {
