@@ -3,6 +3,7 @@
  * text for young teens; upper case for the pixel font.
  */
 import type { WalkerVisit } from '../logic/walker';
+import { DUNGEON_1_START } from './dungeon1';
 import { START_ROOM } from './overworld';
 
 export const WALKER_VISITS: readonly WalkerVisit[] = [
@@ -34,6 +35,36 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       {
         text: 'THE FIRST SHARD IS IN HOLLOW OAK, A DUNGEON TO THE NORTH. GO WELL, JARRETT!',
       },
+    ],
+  },
+  {
+    // Dungeon 1's entrance: a hint about Hollow Oak.
+    id: 'dungeon1',
+    map: 'dungeon1',
+    room: DUNGEON_1_START,
+    cell: { col: 14, row: 6 },
+    speech: [
+      { text: 'THIS IS HOLLOW OAK. THE TREANT THAT GUARDS ITS SHARD SPITS SEEDS.' },
+      { text: 'DOORS HERE ARE LOCKED. SMALL KEYS HIDE IN CHESTS, AND WORK ONLY IN THIS DUNGEON.' },
+      { text: 'SOME STONES MOVE. LEAN ON ONE AND IT WILL SLIDE.' },
+      {
+        text: 'A PAIR OF THROWING DAGGERS IS HIDDEN HERE. WITH THEM YOU CAN STRIKE FROM AFAR.',
+      },
+    ],
+  },
+  {
+    // Outside Hollow Oak, once its shard is found: the daggers, and what's left to do.
+    id: 'dungeon1-done',
+    map: 'overworld',
+    room: { col: 1, row: 0 },
+    cell: { col: 13, row: 4 },
+    after: 'dungeon1/shard',
+    speech: [
+      { text: 'THE FIRST SHARD! I FELT IT GLOW. SEVEN MORE TO FIND.' },
+      {
+        text: 'YOUR DAGGERS: PRESS X TO SWITCH TO THEM, THEN SPACE TO THROW. X AGAIN FOR THE SWORD.',
+      },
+      { text: 'THE NEXT SHARD LIES BEYOND THE FOREST. I WILL FIND YOU THERE.' },
     ],
   },
 ];

@@ -875,7 +875,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     live.sprite
       .setFrame(HERO.standFrame[faces === 'right' ? 'left' : faces])
       .setFlipX(faces === 'right');
-    const top = GAME_HEIGHT - 56;
+    // The box goes at the bottom of the screen, or at the top when they stand low in the room.
+    const top = this.pos.y > ROOM_H / 2 ? HUD_HEIGHT + 8 : GAME_HEIGHT - 56;
     const box = this.add
       .rectangle(8, top, GAME_WIDTH - 16, 48, 0x101018)
       .setOrigin(0)

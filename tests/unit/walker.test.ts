@@ -65,3 +65,14 @@ describe('Walker in the game', () => {
     expect(village?.speech.flatMap((p) => p.give ?? [])).toEqual(['wooden-sword', 'wooden-shield']);
   });
 });
+
+describe('Walker after dungeon 1', () => {
+  it('waits at the entrance, and outside once the shard is found', () => {
+    const here = (map: string, col: number, row: number, opened: string[] = []) =>
+      walkerHere(WALKER_VISITS, map, { col, row }, { opened, keys: {} })?.id ?? null;
+    expect(here('dungeon1', 1, 3)).toBe('dungeon1');
+    expect(here('overworld', 1, 0)).toBeNull();
+    expect(here('overworld', 1, 0, ['dungeon1/shard'])).toBe('dungeon1-done');
+    expect(here('overworld', 1, 0, ['dungeon1/shard', 'walker/dungeon1-done'])).toBeNull();
+  });
+});
