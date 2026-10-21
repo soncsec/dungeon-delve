@@ -11,7 +11,7 @@
 | M2 Combat, inventory and mana | Done (2026-10-20) |
 | M3 First dungeon, end to end | All tasks merged; waiting for the owner's play-test on staging |
 | M4 The overworld | All tasks done; waiting for the owner's play-test on staging |
-| M5 Dungeons 2–4 | Not started |
+| M5 Dungeons 2–4 | In progress |
 | M6 Dungeons 5–8 | Not started |
 | M7 Shadow Vault and ending | Not started |
 | M8 Polish and balance | Not started |
@@ -115,7 +115,9 @@
 
 ## M5 — Dungeons 2–4
 
-- [ ] M5.1 Dungeon 2, Bog Grotto: Fireball, Giant Frog
+- [ ] M5.1 Dungeon 2, Bog Grotto: Fireball, Giant Frog, in two PRs:
+  - [x] M5.1a Seven rooms under the marsh (in the marsh's colours), two keys, thorns that only its prize gets past; the Fireball in a closet behind a stone, and no longer in the starting kit; the marsh archway opens with one shard
+  - [ ] M5.1b The Giant Frog, with its shard and heart container
 - [ ] M5.2 Dungeon 3, Sunken Crypt: a bigger mana bar, Mummy (the Iron Shield is sold in the village shop: owner 2026-10-21)
 - [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre
 - [ ] M5.4 New enemy types for these regions

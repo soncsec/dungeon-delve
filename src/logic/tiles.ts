@@ -140,6 +140,13 @@ export const THORN_TINT = 0xe0704c;
 /** The volcano edge is the mountains under a hot red tint. */
 export const VOLCANO_TINT = 0xffa486;
 
+/** Two tints at once, each channel multiplied: a thorn bush in a tinted room keeps its colour. */
+export function mixTint(a: number, b: number): number {
+  const channel = (shift: number) =>
+    Math.round((((a >> shift) & 0xff) * ((b >> shift) & 0xff)) / 0xff);
+  return (channel(16) << 16) | (channel(8) << 8) | channel(0);
+}
+
 /** Columns in the Tiny RPG Mountain sheet (368 px / 16). */
 export const MOUNTAIN_COLUMNS = 23;
 const mframe = (col: number, row: number): number => row * MOUNTAIN_COLUMNS + col;
@@ -359,7 +366,8 @@ export function dungeonFrame(room: Room, x: number, y: number, opened = false): 
 
 /**
  * Everything to draw for a dungeon room: one tile per cell, plus the chests
- * not yet opened. `opened` says which doors and chests have been opened.
+ * not yet opened and the props (thorn bushes) not yet burned. `opened` says
+ * which doors, chests and thorns have been opened.
  */
 export function dungeonArt(
   room: Room,
@@ -371,7 +379,9 @@ export function dungeonArt(
       const isOpen = cell.fixture !== null && opened(x, y);
       art.ground.push({ frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE });
       if (cell.fixture === 'chest' && !isOpen) art.chests.push({ x: x * TILE, y: y * TILE });
+      if (cell.prop && !isOpen) art.props.push(propDraw(cell.prop, x, y));
     });
   });
+  art.props.sort((a, b) => a.y - b.y);
   return art;
 }

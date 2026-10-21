@@ -106,8 +106,14 @@ export function markSeen(p: Progress, id: string): Progress {
  * opens once Jarrett holds n−1 shards. Other maps need none.
  */
 export function shardsToEnter(map: string): number {
+  const n = dungeonNumber(map);
+  return n === null ? 0 : Math.max(0, n - 1);
+}
+
+/** A dungeon map's number (`dungeon2` is 2), or null for any other map. */
+export function dungeonNumber(map: string): number | null {
   const n = /^dungeon(\d+)$/.exec(map)?.[1];
-  return n === undefined ? 0 : Math.max(0, Number(n) - 1);
+  return n === undefined ? null : Number(n);
 }
 
 /** Whether Jarrett holds enough shards to go into a map. */

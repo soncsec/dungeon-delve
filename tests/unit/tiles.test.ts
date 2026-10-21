@@ -19,6 +19,7 @@ import {
   MOUNTAIN_PROP_REGIONS,
   cliffFrame,
   THORN_TINT,
+  mixTint,
   propSheet,
   roomArt,
   TOWN_COLUMNS,
@@ -486,5 +487,37 @@ describe('breakables', () => {
     const gone = roomArt(room, 'forest', (x, y) => y === 3 && (x === 4 || x === 7));
     expect(gone.props).toEqual([]);
     expect(THORN_TINT).toBeGreaterThan(0);
+  });
+});
+
+describe('thorns in a dungeon', () => {
+  // A closet whose doorway (column 5, row 4) is a thorn bush, and another bush lower down.
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 4
+        ? '##..#t..............'
+        : y === 6
+          ? '##.t................'
+          : y < 2
+            ? '####################'
+            : '##..................',
+    ),
+  );
+
+  it('draws the bushes over the floor, top to bottom, until they have burned', () => {
+    const art = dungeonArt(r);
+    expect(art.props).toEqual([propDraw('thorns', 5, 4), propDraw('thorns', 3, 6)]);
+    expect(art.ground).toHaveLength(200);
+    expect(dungeonFrame(r, 5, 4)).not.toBe(DUNGEON_FRAMES.top);
+    expect(dungeonArt(r, (x, y) => x === 5 && y === 4).props).toEqual([propDraw('thorns', 3, 6)]);
+  });
+});
+
+describe('mixTint', () => {
+  it('multiplies each channel, so white changes nothing', () => {
+    expect(mixTint(0xffffff, 0x9cae8c)).toBe(0x9cae8c);
+    expect(mixTint(THORN_TINT, 0xffffff)).toBe(THORN_TINT);
+    expect(mixTint(0x808080, 0x808080)).toBe(0x404040);
+    expect(mixTint(0xff0000, 0x00ff00)).toBe(0x000000);
   });
 });

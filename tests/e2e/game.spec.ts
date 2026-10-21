@@ -405,6 +405,7 @@ test('a thrown dagger flies until a wall stops it, and two daggers defeat a robo
 
 test('C casts a Fireball: it costs mana, which then refills by itself', async ({ page }) => {
   await openGame(page);
+  await page.evaluate(() => window.__game?.giveItem('fireball')); // dungeon 2's prize
   const hud = () => page.evaluate(() => window.__game?.hud());
   expect((await snapshot(page)).mana).toEqual({ current: 100, max: 100 });
   await page.keyboard.press('c');
@@ -424,6 +425,7 @@ test('C casts a Fireball: it costs mana, which then refills by itself', async ({
 
 test('without enough mana, nothing is cast', async ({ page }) => {
   await openGame(page);
+  await page.evaluate(() => window.__game?.giveItem('fireball'));
   // Empty: refilling to a Fireball's 25 takes 2 s, far longer than the key press
   // takes even on a busy machine. (From 20 it took only 0.4 s.)
   await page.evaluate(() => window.__game?.setMana(0));
@@ -436,6 +438,7 @@ test('without enough mana, nothing is cast', async ({ page }) => {
 
 test('one Fireball defeats a robot', async ({ page }) => {
   await openGame(page);
+  await page.evaluate(() => window.__game?.giveItem('fireball'));
   await page.evaluate(() => window.__game?.holdEnemies(true));
   const start = await snapshot(page);
   await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('robot', x, y + 40), start.player);
@@ -577,8 +580,8 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
   await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Inventory');
   expect(await page.evaluate(() => window.__game?.inventory())).toEqual({
     cursor: 0,
-    // No far weapon yet: the daggers are dungeon 1's prize.
-    slots: { near: 'Wooden Sword', far: '', spell: 'Fireball', shield: 'Wooden Shield' },
+    // No far weapon or spell yet: the daggers are dungeon 1's prize, the Fireball dungeon 2's.
+    slots: { near: 'Wooden Sword', far: '', spell: '', shield: 'Wooden Shield' },
     map: null, // outdoors: no dungeon map
   });
   // The game is paused: holding a direction doesn't move Jarrett.
@@ -655,7 +658,10 @@ test('actions make their sounds, and M mutes and unmutes', async ({ page }) => {
   const at = (await snapshot(page)).player;
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('gem', x, y), at);
   await expect.poll(async () => (await sounds()).gem).toBe(1);
-  await page.evaluate(() => window.__game?.setMana(0));
+  await page.evaluate(() => {
+    window.__game?.giveItem('fireball');
+    window.__game?.setMana(0);
+  });
   await page.keyboard.press('c');
   await expect.poll(async () => (await sounds()).noMana).toBe(1);
   expect((await sounds()).cast).toBe(0);
@@ -804,6 +810,80 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   const outside = await snapshot(page);
   expect(outside.room).toEqual({ col: 3, row: 5 });
   expect(outside.facing).toBe('down');
+  expect(watched.errors).toEqual([]);
+});
+
+test('Bog Grotto’s archway in the marsh opens once Jarrett holds a shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.goToRoom(1, 5));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  // Up into the archway's opening with no shard: he stands in it, and nothing happens.
+  await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(800);
+  await page.keyboard.up('ArrowUp');
+  let s = await snapshot(page);
+  expect(s.map).toBe('overworld');
+  expect(s.travelling).toBe(false);
+  expect(s.player.y).toBeLessThan(48); // in the doorway's row
+  // With one shard (dungeon 1's), the way opens.
+  await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), { x: 160, y: 70 });
+  await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  s = await snapshot(page);
+  expect(s.map).toBe('dungeon2');
+  expect(s.room).toEqual({ col: 1, row: 3 });
+  expect(s.enteredAt).toEqual({ x: 160, y: 140 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('Bog Grotto’s prize: the Fireball in the east closet, which burns the hub’s thorns', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=2');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // No spell yet: C casts nothing.
+  await page.keyboard.press('c');
+  await page.waitForTimeout(300);
+  expect((await snapshot(page)).casts).toBe(0);
+
+  // The east room: push the stone in the closet's doorway (column 14, row 6) up twice.
+  await page.evaluate(() => window.__game?.goToRoom(2, 2));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  expect((await snapshot(page)).stones).toEqual([{ cx: 14, cy: 6 }]);
+  await page.evaluate(() => window.__game?.placeHero(232, 126, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => {
+    const st = (await snapshot(page)).stones;
+    return st.length === 1 && st[0]?.cy === 4;
+  });
+  // Round the stone, and right into the chest at column 14, row 3.
+  await page.evaluate(() => window.__game?.placeHero(216, 62, 'right'));
+  await holdUntil(page, 'ArrowRight', async () =>
+    (await snapshot(page)).opened.includes('dungeon2/2,2/14,3'),
+  );
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).casts).toBe(1);
+
+  // The hub: a Fireball burns the thorns across the way north, and he walks on through.
+  await page.evaluate(() => window.__game?.goToRoom(1, 2));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await page.evaluate(() => window.__game?.setMana(100));
+  await page.evaluate(() => window.__game?.placeHero(152, 46, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon2/1,2/9,1');
+  await holdUntil(page, 'ArrowUp', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 1 && room.row === 1;
+  });
   expect(watched.errors).toEqual([]);
 });
 
@@ -1151,7 +1231,7 @@ test('Walker waits in the village, tells the story and hands over the sword and 
   expect(s.talking).toBeNull();
   const hud = () => page.evaluate(() => window.__game?.hud());
   expect((await hud())?.weapon).toBe(''); // no sword yet
-  // Empty-handed but for Fireball: Space by himself does nothing. Keys are handled
+  // Empty-handed: Space by himself does nothing. Keys are handled
   // in order, so once the X that follows has switched modes, the Space was handled too.
   await page.keyboard.press('Space');
   await page.keyboard.press('x');
@@ -1202,7 +1282,7 @@ test('Walker waits in the village, tells the story and hands over the sword and 
     .toEqual({
       near: 'Wooden Sword',
       far: '',
-      spell: 'Fireball',
+      spell: '',
       shield: 'Wooden Shield',
     });
   await page.keyboard.press('i');
@@ -1578,6 +1658,7 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
 }) => {
   const watched = watchPage(page);
   await openGame(page);
+  await page.evaluate(() => window.__game?.giveItem('fireball')); // dungeon 2's prize
   const opened = async () =>
     (await snapshot(page)).opened.filter((id) => id.startsWith('overworld/'));
   // The start room's boulder fills columns 4–5, rows 6–7. Strike it from above with the sword.
@@ -1626,6 +1707,7 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
 test('a Fireball burns the thorns in front of a secret cave in the forest', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page);
+  await page.evaluate(() => window.__game?.giveItem('fireball')); // dungeon 2's prize
   await page.evaluate(() => window.__game?.holdEnemies(true));
   // West of the vault grounds: thorns at column 1, row 7, with a hole behind them.
   await page.evaluate(() => window.__game?.goToRoom(2, 3));
