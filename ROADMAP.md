@@ -125,7 +125,7 @@
   - [x] M5.2a The Lightning spell: a bolt that stuns an enemy (3 s; it can't move, shoot or hurt by touch) and powers crystal switches (`z`), which open their room's gates (`g`); the reachability test knows them
   - [x] M5.2b Seven rooms under the ruins (in sandy stone; the archway needs two shards): Lightning in a closet behind a stone, crystal switches that open the way to the tomb hall and a caged key, thorns before the first key; a found item goes straight into Jarrett's hand
   - [x] M5.2c The Mummy: it shambles after Jarrett firing spreads; wrapped tight, sword, daggers and fire glance off until a Lightning bolt stuns it (3 s); beaten, it leaves the third shard and a heart container
-- [ ] Touch controls and the phone layout (M8.2), brought forward to here (owner 2026-10-21)
+- [x] Touch controls and the phone layout (M8.2), brought forward to here (owner 2026-10-21): a pad, HIT, SWAP and MAGIC, the potions and the bag; the game fills the screen, at the top when the phone is upright
 - [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre
 - [ ] M5.4 New enemy types for these regions
 - [ ] M5.5 Walker's lines at dungeons 2–4 and on the overworld
@@ -152,7 +152,7 @@
 ## M8 — Polish and balance
 
 - [ ] M8.1 Difficulty pass with the owner (enemy health, damage, drop rates, prices)
-- [ ] M8.2 Touch controls and phone layout (brought forward to after M5.2, owner 2026-10-21)
+- [x] M8.2 Touch controls and phone layout (done after M5.2, owner 2026-10-21)
 - [ ] M8.3 Title screen (the intro, art and the rest; the CONTINUE / NEW GAME menu came with M3.5), controls legend, quit-to-arcade, pause menu
 - [ ] M8.4 Portal card image (256×192) and `coming-soon` status (portal PR)
 - [ ] M8.5 Full playthrough with no console errors in every browser project

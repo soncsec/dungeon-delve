@@ -102,6 +102,11 @@ test('boots with no console errors and no third-party requests', async ({ page }
   expect(watched.foreignRequests).toEqual([]);
 });
 
+test('a desktop shows no touch controls', async ({ page }) => {
+  await openGame(page, '?dungeon=1');
+  await expect(page.locator('#touch')).toHaveCount(0);
+});
+
 test('arrow keys move the player and it stays on screen', async ({ page }) => {
   await openGame(page);
   // Row 7 of the start room, which trees close at the west edge. (Row 5, where he
