@@ -17,6 +17,7 @@ import {
   ROOM_ROWS,
   PICKUPS,
   POTIONS,
+  RESPAWN,
   BOSSES,
   DIALOGUE,
   BOSS_FX,
@@ -56,6 +57,7 @@ import { WALKER_VISITS } from '../world/walker';
 import { SHOPKEEPER_CELL } from '../world/shop';
 import type { Purse } from '../logic/shop';
 import { rollDrop, type Drop } from '../logic/drops';
+import { NO_CLEARED, defeat as defeatInRoom, enterRoom, type Cleared } from '../logic/respawn';
 import {
   canThrow,
   projectileBox,
@@ -77,6 +79,8 @@ import {
   beatBoss,
   bossId,
   canEnter,
+  enemyId,
+  markDefeated,
   fixtureId,
   heartContainers,
   markSeen,
@@ -263,6 +267,8 @@ const SHOT_HIT_IDS = 1_000_000;
 interface LiveEnemy {
   e: Enemy;
   sprite: Phaser.GameObjects.Sprite;
+  /** Its place in the room's list (absent for enemies the test hook adds). */
+  slot?: number;
 }
 
 /** Things on the ground: drops, and potions. */
@@ -397,6 +403,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private walker: LiveWalker | null = null;
   /** False walls struck once (in this room visit), by id, with the swing that struck them. */
   private struckWalls = new Map<string, number>();
+  /** Overworld rooms with enemies defeated lately (they come back after a few rooms). */
+  private cleared: Cleared = NO_CLEARED;
   /** The swing that last clinked off rubble or a boulder (one clink a swing). */
   private clinked = -1;
   /** Test hook only: cells changed by testSetCell. */
@@ -487,6 +495,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.walker = null;
     this.shopkeeper = null;
     this.struckWalls = new Map();
+    this.cleared = NO_CLEARED;
     this.talk = null;
     this.sealed = [];
     this.announced = 0;
@@ -868,10 +877,18 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Enemies appear at their start cells each time Jarrett enters a room. */
   private spawnEnemies(): void {
-    for (const p of this.world.enemies.get(roomKey(this.room.col, this.room.row)) ?? []) {
-      this.addEnemy(p.kind, { x: p.col * TILE + TILE / 2, y: (p.row + 1) * TILE - 1 });
-    }
     const key = roomKey(this.room.col, this.room.row);
+    // Overworld enemies defeated lately stay gone; dungeon ones stay gone for good.
+    const entered = enterRoom(this.cleared, `${this.mapId}/${key}`, RESPAWN.roomsAway);
+    this.cleared = entered.cleared;
+    const dungeon = MAPS[this.mapId].theme === 'dungeon';
+    (this.world.enemies.get(key) ?? []).forEach((p, i) => {
+      const gone = dungeon
+        ? isOpened(this.progress, enemyId(this.mapId, key, i))
+        : entered.gone.includes(i);
+      if (gone) return;
+      this.addEnemy(p.kind, { x: p.col * TILE + TILE / 2, y: (p.row + 1) * TILE - 1 }, i);
+    });
     const boss = this.world.bosses.get(key);
     if (boss && !isOpened(this.progress, bossId(this.mapId, key))) {
       this.addBoss(boss.kind, { x: boss.col * TILE + TILE / 2, y: (boss.row + 1) * TILE - 1 });
@@ -1192,13 +1209,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.boss = null;
   }
 
-  private addEnemy(kind: EnemyKind, feet: Point): void {
+  private addEnemy(kind: EnemyKind, feet: Point, slot?: number): void {
     const e = spawnEnemy(kind, feet, ENEMIES[kind], this.rng);
     const art = kind === 'robot' ? null : ENEMY_ART[kind];
     const sprite = this.enemyPool
       .take(art ? art.sheet : 'robot-front')
       .setOrigin(0.5, art ? art.feetY : 1);
-    const live = { e, sprite };
+    const live: LiveEnemy = { e, sprite, ...(slot === undefined ? {} : { slot }) };
     this.enemies.push(live);
     this.drawEnemy(live);
   }
@@ -1575,6 +1592,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   private defeat(live: LiveEnemy): void {
     this.enemies = this.enemies.filter((x) => x !== live);
+    if (live.slot !== undefined) {
+      const key = roomKey(this.room.col, this.room.row);
+      if (MAPS[this.mapId].theme === 'dungeon') {
+        this.progress = markDefeated(this.progress, enemyId(this.mapId, key, live.slot));
+      } else {
+        this.cleared = defeatInRoom(this.cleared, `${this.mapId}/${key}`, live.slot);
+      }
+    }
     this.enemyPool.give(live.sprite);
     this.defeated += 1;
     this.sfx.play('defeat');

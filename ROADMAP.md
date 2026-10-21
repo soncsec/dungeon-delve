@@ -110,7 +110,7 @@
   - [x] M4.3a Secret caves (gems, potions, three heart containers), false walls (sword), holes under pushable stones; the caves that need no item placed
   - [x] M4.3b Cracked walls and boulders (Axe) and thorn bushes (Fireball), built and tested; placed with M4.4 and M5
 - [x] M4.4 Progression gates: dungeon *n*'s entrance needs *n*−1 shards (owner 2026-10-21); the last five secret caves placed behind thorns, boulders and cracked walls
-- [ ] M4.5 Overworld enemies placed by region; respawn rules
+- [x] M4.5 Overworld enemies placed by region; respawn rules: overworld enemies return after 4 rooms away, dungeon enemies never (owner 2026-10-21)
 - [ ] M4.6 Reachability test for the overworld, given the items held
 
 ## M5 — Dungeons 2–4

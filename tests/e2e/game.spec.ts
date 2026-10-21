@@ -1597,3 +1597,74 @@ test('a Fireball burns the thorns in front of a secret cave in the forest', asyn
   await holdUntil(page, 'ArrowUp', async () => (await snapshot(page)).gems === gems + 30);
   expect(watched.errors).toEqual([]);
 });
+
+/** Defeats the room's first enemy with the sword (enemies held still), swinging from above it. */
+async function defeatFirstEnemy(page: Page): Promise<void> {
+  const before = (await snapshot(page)).defeated;
+  for (let swing = 0; swing < 6 && (await snapshot(page)).defeated === before; swing++) {
+    await expect
+      .poll(async () => (await snapshot(page)).enemies.some((x) => x.knocked))
+      .toBe(false);
+    const e = (await snapshot(page)).enemies[0];
+    if (!e) break;
+    await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y - 16, 'down'), e);
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  }
+  await expect.poll(async () => (await snapshot(page)).defeated).toBe(before + 1);
+}
+
+test('overworld enemies come back after four rooms away; dungeon enemies never', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  const enemies = async () => (await snapshot(page)).enemies.length;
+  // The west meadow's two robots: defeat one.
+  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  expect(await enemies()).toBe(2);
+  await defeatFirstEnemy(page);
+  // One room away and back: still gone.
+  await page.evaluate(() => window.__game?.goToRoom(4, 7));
+  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  expect(await enemies()).toBe(1);
+  // Four rooms away (none of them this one) and back: both are back.
+  for (const [c, r] of [
+    [4, 7],
+    [4, 6],
+    [3, 6],
+    [5, 6],
+  ] as const) {
+    await page.evaluate(({ c, r }) => window.__game?.goToRoom(c, r), { c, r });
+  }
+  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  expect(await enemies()).toBe(2);
+
+  // In dungeon 1, a defeated enemy stays gone: through other rooms, and after saving and continuing.
+  await page.goto('./?dungeon=1');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Game');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.goToRoom(1, 2)); // the hub: two robots
+  expect(await enemies()).toBe(2);
+  await defeatFirstEnemy(page);
+  for (const [c, r] of [
+    [1, 3],
+    [0, 2],
+    [2, 2],
+    [1, 1],
+    [1, 3],
+  ] as const) {
+    await page.evaluate(({ c, r }) => window.__game?.goToRoom(c, r), { c, r });
+  }
+  await page.evaluate(() => window.__game?.goToRoom(1, 2));
+  expect(await enemies()).toBe(1);
+  // Saved at the entrance (its save point) just before; continue, and it's still gone.
+  await reloadToTitle(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.goToRoom(1, 2));
+  expect(await enemies()).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
