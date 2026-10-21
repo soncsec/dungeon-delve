@@ -100,3 +100,17 @@ export const seenId = (map: string, roomKey: string): string => `${map}/${roomKe
 export function markSeen(p: Progress, id: string): Progress {
   return openChest(p, id);
 }
+
+/**
+ * Shards are the keys to the dungeons (owner 2026-10-21): dungeon n's entrance
+ * opens once Jarrett holds n−1 shards. Other maps need none.
+ */
+export function shardsToEnter(map: string): number {
+  const n = /^dungeon(\d+)$/.exec(map)?.[1];
+  return n === undefined ? 0 : Math.max(0, Number(n) - 1);
+}
+
+/** Whether Jarrett holds enough shards to go into a map. */
+export function canEnter(p: Progress, map: string): boolean {
+  return shardsHeld(p) >= shardsToEnter(map);
+}

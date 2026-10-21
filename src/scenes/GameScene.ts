@@ -76,6 +76,7 @@ import {
   addKey,
   beatBoss,
   bossId,
+  canEnter,
   fixtureId,
   heartContainers,
   markSeen,
@@ -666,7 +667,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         Math.floor(this.pos.x / TILE),
         Math.floor((this.pos.y - 1) / TILE),
       );
-      if (way) {
+      // A dungeon's doorway only takes him in with enough shards (dungeon n needs n−1).
+      if (way && canEnter(this.progress, way.to.map)) {
         this.travel(way);
         return;
       }
