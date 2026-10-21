@@ -40,7 +40,7 @@ export type Fixture = 'door' | 'chest';
 export interface Room {
   cells: readonly (readonly Cell[])[];
   /** Where its pushable stones start (the floor under them is open). */
-  stones?: readonly { cx: number; cy: number }[];
+  stones: readonly { cx: number; cy: number }[];
 }
 
 export type Dir = 'north' | 'south' | 'east' | 'west';

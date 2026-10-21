@@ -55,7 +55,7 @@ describe('parseRoom', () => {
     // Outside the room, walls run on from the nearest edge cell.
     expect(isWall(r, 3, -2)).toBe(true);
     expect(isWall(r, -1, 5)).toBe(false);
-    expect(isWall({ cells: [] } as Room, 0, 0)).toBe(false);
+    expect(isWall({ cells: [], stones: [] } as Room, 0, 0)).toBe(false);
   });
 
   it('reads locked doors and chests, which block, and lists them', () => {
@@ -185,7 +185,7 @@ describe('room queries', () => {
     expect(isForest(r, -1, 9)).toBe(true);
     expect(isForest(r, 25, 9)).toBe(false);
     // A malformed room with no cells has no forest anywhere.
-    expect(isForest({ cells: [] } as Room, 0, 0)).toBe(false);
+    expect(isForest({ cells: [], stones: [] } as Room, 0, 0)).toBe(false);
   });
 
   it('edgeOpenings lists open cells along each edge', () => {
