@@ -117,10 +117,12 @@
 
 ## M5 — Dungeons 2–4
 
-- [x] M5.1 Dungeon 2, Bog Grotto: Fireball, Giant Frog, in two PRs:
+- [x] M5.1 Dungeon 2, Bog Grotto: its prize, Giant Frog, in three PRs:
   - [x] M5.1a Seven rooms under the marsh (in the marsh's colours), two keys, thorns that only its prize gets past; the Fireball in a closet behind a stone, and no longer in the starting kit; the marsh archway opens with one shard
   - [x] M5.1b The Giant Frog: it crouches, leaps at Jarrett (out of reach in the air), and each landing throws a ring of shots (four, then eight below half health); beaten, it leaves the second shard and a heart container
-- [ ] M5.2 Dungeon 3, Sunken Crypt: a bigger mana bar, Mummy (the Iron Shield is sold in the village shop: owner 2026-10-21)
+  - [x] M5.1c Magic from Walker (owner 2026-10-21): no spell or mana bar at the start; after Hollow Oak, Walker thanks Jarrett and teaches him the Fireball. Bog Grotto's prize becomes a Mana Crystal (mana 100 → 150, a longer bar)
+- [ ] M5.2 Dungeon 3, Sunken Crypt: its prize to be decided (the bigger mana bar moved to Bog Grotto), Mummy (the Iron Shield is sold in the village shop: owner 2026-10-21)
+- [ ] Touch controls and the phone layout (M8.2), brought forward to here (owner 2026-10-21)
 - [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre
 - [ ] M5.4 New enemy types for these regions
 - [ ] M5.5 Walker's lines at dungeons 2–4 and on the overworld
@@ -147,7 +149,7 @@
 ## M8 — Polish and balance
 
 - [ ] M8.1 Difficulty pass with the owner (enemy health, damage, drop rates, prices)
-- [ ] M8.2 Touch controls and phone layout
+- [ ] M8.2 Touch controls and phone layout (brought forward to after M5.2, owner 2026-10-21)
 - [ ] M8.3 Title screen (the intro, art and the rest; the CONTINUE / NEW GAME menu came with M3.5), controls legend, quit-to-arcade, pause menu
 - [ ] M8.4 Portal card image (256×192) and `coming-soon` status (portal PR)
 - [ ] M8.5 Full playthrough with no console errors in every browser project

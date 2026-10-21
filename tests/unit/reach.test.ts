@@ -173,9 +173,9 @@ describe('the real maps', () => {
     expect(r.keys).toBe(0); // every key has a door
   });
 
-  it('dungeon 2 can be finished, with the Fireball from its own chest', () => {
+  it('dungeon 2 can be finished with the Fireball Walker teaches after dungeon 1', () => {
     const world = buildWorld(DUNGEON_2);
-    const r = explore(world, { ...DUNGEON_2_START, cx: 10, cy: 8 });
+    const r = explore(world, { ...DUNGEON_2_START, cx: 10, cy: 8 }, { fireball: true });
     expect(r.rooms).toEqual([...world.rooms.keys()].sort());
     const chests = [...world.chests].flatMap(([key, list]) =>
       list.map((c) => `${key}/${c.col},${c.row}`),
@@ -188,16 +188,11 @@ describe('the real maps', () => {
     expect(r.keys).toBe(0);
   });
 
-  it('dungeon 2 needs its Fireball: without it, the bog hall and the boss room stay out of reach', () => {
-    const noFire = DUNGEON_2.map((d) => ({
-      ...d,
-      chests: (d.chests ?? []).map((c) =>
-        c.contents.kind === 'item' ? { ...c, contents: { kind: 'gems' as const, amount: 1 } } : c,
-      ),
-    }));
-    const r = explore(buildWorld(noFire), { ...DUNGEON_2_START, cx: 10, cy: 8 });
+  it('dungeon 2 needs the Fireball: without it, the bog hall and the boss room stay out of reach', () => {
+    const r = explore(buildWorld(DUNGEON_2), { ...DUNGEON_2_START, cx: 10, cy: 8 });
     expect(r.rooms).toEqual(['0,2', '0,3', '1,2', '1,3', '2,2']);
     expect(r.broken).toEqual([]);
+    expect(r.chests).toContain('2,2/14,3'); // the Mana Crystal's closet needs no fire
   });
 
   it('every overworld room, door and secret cave can be reached (some caves need the Axe or Fireball)', () => {
@@ -347,7 +342,7 @@ describe('the overworld, stage by stage (M4.6)', () => {
     expect(reachedCaves(r)).toHaveLength(7);
   });
 
-  it('with Fireball (dungeon 2’s prize): the 2 thorn caves too', () => {
+  it('with Fireball (Walker’s gift after dungeon 1): the 2 thorn caves too', () => {
     const r = explore(world, start, { fireball: true });
     expect(reachedCaves(r)).toEqual(caves(['fireball']));
     expect(reachedCaves(r)).toHaveLength(9);

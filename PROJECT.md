@@ -39,9 +39,9 @@ It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff 
 | Near and far weapons | Jarrett carries a **near** (melee) weapon and a **far** (ranged) weapon. One key **switches** which is active; the attack key uses the active one. The HUD shows which is active |
 | Near weapons | Wooden Sword (start) → Steel Sword → Star Blade (stronger, wider swing). The **Axe** also breaks cracked walls and boulders |
 | Far weapons | **Throwing daggers** (cooldown, no ammo) → later a faster triple throw |
-| Spells | Cost **mana**. **Fireball** (burns thorn bushes), **Lightning** (stuns, powers crystal switches), **Ward** (a short energy shield that blocks all damage). Cast with the spell key; the equipped spell is chosen in the inventory |
+| Spells | Cost **mana**. **Fireball** (burns thorn bushes; Walker teaches it after Hollow Oak, owner 2026-10-21), **Lightning** (stuns, powers crystal switches), **Ward** (a short energy shield that blocks all damage). Cast with the spell key; the equipped spell is chosen in the inventory |
 | Shields | Wooden Shield (start: blocks arrows and darts from the front while walking or standing), Iron Shield (also blocks fireballs; bought in the village shop for 80 gems) |
-| Mana | A mana bar that **refills automatically** after a short pause without casting. A **Mana Brew** potion makes it refill much faster for a while (about 3× for 30 s). A dungeon prize raises the maximum |
+| Mana | A mana bar that **refills automatically** after a short pause without casting; it shows once Jarrett knows a spell. A **Mana Brew** potion makes it refill much faster for a while (about 3× for 30 s). Bog Grotto's Mana Crystal raises the maximum from 100 to 150 |
 | Potions | **Health Potion** (refills hearts) and **Mana Brew**. Found in chests and pots, bought in the village shop. Up to 3 of each |
 | Inventory | A pause-style **inventory screen**: equip the near weapon, far weapon, spell and shield; see potions, keys, gems, the 8-shard Star of Power, and a map of the dungeon you're in |
 | Money | **Gems** dropped by enemies and found in secrets; spent in the village shop: Health Potion 10, Mana Brew 15, Iron Shield 80 |
@@ -54,8 +54,8 @@ Shards are the keys (owner 2026-10-21): dungeon *n*'s entrance opens once Jarret
 | # | Dungeon | Region | Prize item | Boss (art from the pack) |
 |---|---|---|---|---|
 | 1 | Hollow Oak | Forest | Throwing Daggers | Treant |
-| 2 | Bog Grotto | Marsh | Fireball spell | Giant Frog |
-| 3 | Sunken Crypt | Ruins | A bigger mana bar | Mummy |
+| 2 | Bog Grotto | Marsh | A bigger mana bar (the Mana Crystal) | Giant Frog |
+| 3 | Sunken Crypt | Ruins | To be decided (its mana bar moved to Bog Grotto, owner 2026-10-21) | Mummy |
 | 4 | Stonecrag Mine | Mountains | Axe | Ogre |
 | 5 | Thunder Spire | Mountains | Lightning spell | Centaur |
 | 6 | Witchwood Tower | Forest | Steel Sword | Witch |
@@ -100,7 +100,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 |---|---|
 | The village, at the start | Tells the story, gives Jarrett the Wooden Sword and Wooden Shield, explains the controls |
 | Each dungeon entrance | A hint about the dungeon, and a reminder of which item helps there |
-| After a dungeon | Teaches the new spell or item (e.g. how Fireball burns thorn bushes); says how many shards remain |
+| After a dungeon | Teaches the new spell or item (e.g. how Fireball burns thorn bushes); says how many shards remain. After Hollow Oak he thanks Jarrett for taking on the quest and teaches him magic: the Fireball (owner 2026-10-21) |
 | Now and then on the overworld | Points toward the next dungeon if Jarrett seems lost; hints at a nearby secret |
 | The Shadow Vault door | Opens it with the 8 shards; his last words before the final fight |
 | The ending | Reunited with Princess Kira and Jarrett; the Star is whole again |
@@ -164,9 +164,11 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-21 | Secrets: 12 secret caves, three of them with heart containers (14 hearts at the end; the status bar shows two rows of seven). False walls sound hollow when struck with the sword and open on a second strike. Cracked walls, Axe boulders and thorn bushes are built now and placed with the item gates (M4.4, M5) |
 | 2026-10-21 | The village shop: a house on the west street with a shopkeeper inside (the 'Guy' sprite recoloured: grey hair, red shirt). It sells the Health Potion (10 gems), Mana Brew (15) and the Iron Shield (80). Dungeon 3's prize becomes the bigger mana bar (moved from dungeon 6, which keeps the Steel Sword) |
 | 2026-10-21 | The mountains are cliffs, dirt, rocks and caves from the Tiny RPG Mountain set; the volcano edge (the three north-east rooms) is the mountains under a red runtime tint |
+| 2026-10-21 | Magic: Jarrett starts with no spell and no mana bar. After Hollow Oak, Walker thanks him for taking on the quest and teaches him the Fireball. Bog Grotto's prize becomes the bigger mana bar (a Mana Crystal: the pack's second Rocky Pass crystal recoloured blue, ADR-D05); Sunken Crypt's prize is to be decided |
+| 2026-10-21 | Touch controls and the phone layout (M8.2) come right after M5.2, so the owner can play-test on a phone |
 | 2026-10-20 | A small title screen arrives with the save game (M3.5): CONTINUE when there is a save, and NEW GAME, which asks before wiping it. `?dungeon=n` skips the title and starts a new run marked as a cheat |
 | 2026-10-20 | Each beaten boss leaves a heart container and a shard of the Star of Power; a shard is the pack's crystal recoloured gold |
 
 ## 8. Open questions
 
-_None at the moment._
+- Sunken Crypt's prize (dungeon 3), since its bigger mana bar moved to Bog Grotto (owner 2026-10-21): a proposal comes with M5.2.

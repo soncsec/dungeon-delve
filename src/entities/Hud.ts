@@ -1,18 +1,20 @@
 import Phaser from 'phaser';
 import { OBJECT_FRAMES } from '../assets/manifest';
-import { GAME_WIDTH, HUD, HUD_HEIGHT } from '../config/tuning';
+import { GAME_WIDTH, HUD, HUD_HEIGHT, MANA } from '../config/tuning';
 import type { Health } from '../logic/health';
 import type { Mana } from '../logic/mana';
 import type { Potions } from '../logic/potions';
 import { ITEM_ICON } from '../assets/itemIcons';
 import type { ItemId } from '../logic/inventory';
-import { gemLabel, heartIcons } from '../logic/hud';
+import { gemLabel, heartIcons, manaBarInner } from '../logic/hud';
 
 /** Empty hearts: the heart art darkened (runtime tint, ADR-D05). */
 const EMPTY_TINT = 0x40303a;
 /** The small heart's art spans x 3–13 of its frame; half a heart shows up to x 8. */
 const HALF_WIDTH = 8;
+/** The mana bar at its first size; a bigger one grows leftwards from the same right end. */
 const MANA_BAR = { x: HUD.manaBarX, y: 7, w: HUD.manaBarWidth, h: 6 } as const;
+const MANA_BAR_RIGHT = MANA_BAR.x + MANA_BAR.w;
 
 /**
  * The status bar: hearts on the left, gems on the right. Fixed to the screen
@@ -25,6 +27,7 @@ export class Hud {
   private readonly weapon: Phaser.GameObjects.Image;
   private readonly keyIcon: Phaser.GameObjects.Image;
   private readonly keyText: Phaser.GameObjects.Text;
+  private readonly manaTrack: Phaser.GameObjects.Rectangle;
   private readonly manaFill: Phaser.GameObjects.Rectangle;
   private readonly potionText: Record<'health' | 'mana', Phaser.GameObjects.Text>;
   private shown = '';
@@ -44,7 +47,8 @@ export class Hud {
       .setScrollFactor(0)
       .setDepth(depth + 1);
     // The mana bar: a dark track with a blue fill, between the hearts and the weapon.
-    scene.add
+    // It shows once Jarrett knows a spell.
+    this.manaTrack = scene.add
       .rectangle(MANA_BAR.x, MANA_BAR.y, MANA_BAR.w, MANA_BAR.h, 0x1a2230)
       .setOrigin(0)
       .setStrokeStyle(1, 0x3a5a8a)
@@ -113,19 +117,21 @@ export class Hud {
 
   /**
    * Redraws what changed. `weapon` is the item the attack key uses (null: none
-   * yet, so the box is empty). `keys` is the small-key count in a dungeon, or
-   * null outdoors (where keys don't show).
+   * yet, so the box is empty). `mana` is null until he knows a spell (no bar).
+   * `keys` is the small-key count in a dungeon, or null outdoors (where keys
+   * don't show).
    */
   update(
     health: Health,
     gems: number,
     weapon: ItemId | null,
-    mana: Mana,
+    mana: Mana | null,
     potions: Potions,
     keys: number | null,
   ): void {
-    const filled = Math.round((MANA_BAR.w - 2) * (mana.current / mana.max));
-    const key = `${health.points}/${health.max}/${gems}/${weapon}/${filled}/${potions.health}/${potions.mana}/${keys}`;
+    const inner = mana ? manaBarInner(mana.max, MANA.max, MANA_BAR.w - 2) : 0;
+    const filled = mana ? Math.round(inner * (mana.current / mana.max)) : 0;
+    const key = `${health.points}/${health.max}/${gems}/${weapon}/${inner}/${filled}/${potions.health}/${potions.mana}/${keys}`;
     if (key === this.shown) return;
     this.shown = key;
     const icons = heartIcons(health, HUD.heartX, HUD.heartSpacing, HUD.heartsPerRow);
@@ -148,6 +154,10 @@ export class Hud {
     const icon = weapon ? ITEM_ICON[weapon] : undefined;
     if (icon) this.weapon.setTexture(icon.texture, icon.frame);
     this.weapon.setVisible(icon !== undefined);
+    const left = MANA_BAR_RIGHT - (inner + 2);
+    this.manaTrack.setPosition(left, MANA_BAR.y).setSize(inner + 2, MANA_BAR.h);
+    this.manaTrack.setVisible(mana !== null);
+    this.manaFill.setPosition(left + 1, MANA_BAR.y + 1);
     this.manaFill.width = filled;
     this.potionText.health.setText(String(potions.health));
     this.potionText.mana.setText(String(potions.mana));
@@ -161,6 +171,8 @@ export class Hud {
     hearts: ('full' | 'half' | 'empty')[];
     gems: string;
     weapon: string;
+    /** The bar's full width (0 while hidden), and its blue fill's. */
+    manaBar: number;
     manaWidth: number;
     potions: { health: string; mana: string };
     keys: string | null;
@@ -176,6 +188,7 @@ export class Hud {
       hearts,
       gems: this.gemText.text,
       weapon: this.weapon.visible ? this.weapon.texture.key : '',
+      manaBar: this.manaTrack.visible ? this.manaTrack.width : 0,
       manaWidth: this.manaFill.visible ? this.manaFill.width : 0,
       potions: { health: this.potionText.health.text, mana: this.potionText.mana.text },
       keys: this.keyText.visible ? this.keyText.text : null,

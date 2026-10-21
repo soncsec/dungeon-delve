@@ -17,6 +17,14 @@ export function heartIcons(h: Health, x0: number, spacing: number, perRow: numbe
   }));
 }
 
+/**
+ * The mana bar's inner width for a given most-mana: `baseWidth` holds `base`
+ * mana, and the bar grows in proportion (a Mana Crystal makes it longer).
+ */
+export function manaBarInner(max: number, base: number, baseWidth: number): number {
+  return Math.round((baseWidth * max) / base);
+}
+
 /** The gem count as shown: three digits, capped at the most the bar can show. */
 export function gemLabel(gems: number, max: number): string {
   const n = Math.min(max, Math.max(0, Math.floor(gems)));

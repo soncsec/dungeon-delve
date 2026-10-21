@@ -4,9 +4,10 @@ import {
   ITEMS,
   SLOTS,
   SLOT_NAMES,
-  DUNGEON_PRIZES,
+  EARNED_BY_DUNGEON,
   cycle,
   give,
+  knowsMagic,
   moveCursor,
   ownedIn,
   startingKit,
@@ -94,15 +95,23 @@ describe('startingKit', () => {
     expect(startingKit(null)).toEqual([]);
   });
 
-  it('a ?dungeon=n run has the sword, the shield, and the prizes of the dungeons before n', () => {
+  it('a ?dungeon=n run has the sword, the shield, and what the dungeons before n earn', () => {
     expect(startingKit(1)).toEqual(['wooden-sword', 'wooden-shield']);
-    expect(startingKit(2)).toEqual(['wooden-sword', 'wooden-shield', 'daggers']);
+    expect(startingKit(2)).toEqual(['wooden-sword', 'wooden-shield', 'daggers', 'fireball']);
     expect(startingKit(3)).toEqual(['wooden-sword', 'wooden-shield', 'daggers', 'fireball']);
   });
 
-  it('the Fireball is dungeon 2’s prize, not part of any start', () => {
-    expect(DUNGEON_PRIZES[2]).toBe('fireball');
+  it('the Fireball comes from Walker after dungeon 1, with its daggers', () => {
+    expect(EARNED_BY_DUNGEON[1]).toEqual(['daggers', 'fireball']);
     expect(startingKit(null)).not.toContain('fireball');
-    expect(startingKit(2)).not.toContain('fireball');
+    expect(startingKit(1)).not.toContain('fireball');
+  });
+});
+
+describe('knowsMagic', () => {
+  it('is true once he has a spell, whatever else he holds', () => {
+    expect(knowsMagic(EMPTY_INVENTORY)).toBe(false);
+    expect(knowsMagic(kit('wooden-sword', 'daggers', 'wooden-shield'))).toBe(false);
+    expect(knowsMagic(kit('wooden-sword', 'fireball'))).toBe(true);
   });
 });

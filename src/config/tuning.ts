@@ -74,6 +74,8 @@ export const MANA = {
   /** A Mana Brew makes refilling this many times faster, for this long (ms). */
   boostFactor: 3,
   boostMs: 30_000,
+  /** Each Mana Crystal (Bog Grotto's prize) raises the most mana he can hold by this much. */
+  crystalBonus: 50,
 } as const;
 
 /** The Fireball spell. */

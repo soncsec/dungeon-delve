@@ -21,6 +21,11 @@ export interface ManaTuning {
   boostFactor: number;
 }
 
+/** The most mana Jarrett can hold: the base, and more for each Mana Crystal found. */
+export function maxMana(base: number, perCrystal: number, crystals: number): number {
+  return base + perCrystal * crystals;
+}
+
 export function fullMana(max: number): Mana {
   return { current: max, max, lastSpentAt: null, boostUntil: 0 };
 }

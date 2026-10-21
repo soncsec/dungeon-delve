@@ -29,7 +29,7 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
         give: ['wooden-sword', 'wooden-shield'],
       },
       {
-        text: 'ARROWS OR WASD WALK. SPACE STRIKES. X SWITCHES NEAR AND FAR. C CASTS A SPELL.',
+        text: 'ARROWS OR WASD WALK. SPACE STRIKES. X SWITCHES NEAR AND FAR.',
       },
       { text: 'I OPENS YOUR BAG. 1 AND 2 DRINK POTIONS. M TURNS THE SOUND OFF AND ON.' },
       {
@@ -56,7 +56,8 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     ],
   },
   {
-    // Outside Hollow Oak, once its shard is found: the daggers, and what's left to do.
+    // Outside Hollow Oak, once its shard is found: his thanks, and magic (owner
+    // 2026-10-21: he teaches the Fireball), the daggers, and what's left to do.
     id: 'dungeon1-done',
     map: 'overworld',
     room: { col: 3, row: 5 },
@@ -64,10 +65,16 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     after: 'dungeon1/shard',
     speech: [
       { text: 'THE FIRST SHARD! I FELT IT GLOW. SEVEN MORE TO FIND.' },
+      { text: 'THANK YOU, JARRETT, FOR TAKING ON THIS QUEST. YOU HAVE EARNED A GIFT: MAGIC.' },
+      { text: 'WATCH CLOSELY... THIS IS FIREBALL. NOW IT IS YOURS.', give: ['fireball'] },
+      { text: 'C CASTS IT. EACH CAST USES MANA, THE BLUE BAR. IT FILLS AGAIN WHEN YOU PAUSE.' },
+      { text: 'FIRE BURNS THORNS. A MANA BREW (PRESS 2) FILLS YOUR MANA FASTER FOR A WHILE.' },
       {
         text: 'YOUR DAGGERS: PRESS X TO SWITCH TO THEM, THEN SPACE TO THROW. X AGAIN FOR THE SWORD.',
       },
-      { text: 'THE NEXT SHARD LIES BEYOND THE FOREST. I WILL FIND YOU THERE.' },
+      {
+        text: 'THE NEXT SHARD IS IN BOG GROTTO, IN THE MARSH TO THE WEST. I WILL FIND YOU THERE.',
+      },
     ],
   },
 ];
