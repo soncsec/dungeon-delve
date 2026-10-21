@@ -23,11 +23,14 @@ test('boots on a phone with no errors, no third-party requests, inside the scree
   await page.goto('./');
   await expect
     .poll(() => page.evaluate(() => window.__game?.scene() ?? null), { timeout: 15_000 })
-    .toBe('Game');
+    .toBe('Title');
 
   const canvas = page.locator('#game canvas');
   await expect(canvas).toBeVisible();
   const box = await canvas.boundingBox();
+  // Tap NEW GAME (centred, 104 of the game's 180 px down).
+  if (box) await page.touchscreen.tap(box.x + box.width / 2, box.y + (box.height * 104) / 180);
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
   const viewport = page.viewportSize();
   expect(box).not.toBeNull();
   expect(viewport).not.toBeNull();

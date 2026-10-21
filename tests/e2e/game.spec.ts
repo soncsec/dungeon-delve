@@ -24,11 +24,14 @@ async function snapshot(page: Page): Promise<GameSnapshot> {
   return snap;
 }
 
+const sceneNow = (page: Page) => page.evaluate(() => window.__game?.scene() ?? null);
+
+/** Opens the game; from the title screen (no save yet), Enter starts a new game. */
 async function openGame(page: Page, query = ''): Promise<void> {
   await page.goto(`./${query}`);
-  await expect
-    .poll(() => page.evaluate(() => window.__game?.scene() ?? null), { timeout: 15_000 })
-    .toBe('Game');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toMatch(/^(Title|Game)$/);
+  if ((await sceneNow(page)) === 'Title') await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Game');
 }
 
 test('boots with no console errors and no third-party requests', async ({ page }) => {
@@ -876,4 +879,107 @@ test('a reward left behind is still there when Jarrett comes back', async ({ pag
   await expect
     .poll(async () => (await snapshot(page)).pickups.map((p) => p.kind).sort())
     .toEqual(['heart-container', 'shard']);
+});
+
+const titleShows = (page: Page) => page.evaluate(() => window.__game?.title() ?? null);
+
+/** Opens the game afresh (without ?dungeon, which skips the title) and waits for the title screen. */
+async function reloadToTitle(page: Page): Promise<void> {
+  await page.goto('./');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
+}
+
+test('a new game from the title screen saves at the start room', async ({ page }) => {
+  const watched = watchPage(page);
+  await page.goto('./');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
+  expect(await titleShows(page)).toEqual({ screen: 'menu', options: ['NEW GAME'], cursor: 0 });
+  await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  const s = await snapshot(page);
+  expect(s.map).toBe('overworld');
+  expect(s.saves).toBe(1);
+  expect(s.cheated).toBe(false);
+  await reloadToTitle(page);
+  expect((await titleShows(page))?.options).toEqual(['CONTINUE', 'NEW GAME']);
+  expect(watched.errors).toEqual([]);
+});
+
+test('CONTINUE brings back hearts, items, gems, keys, opened chests, beaten bosses and play time', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await beatTreant(page); // a ?dungeon=1 run: marked as a cheat
+  const heart = (await snapshot(page)).pickups.find((p) => p.kind === 'heart-container');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), heart ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).health.max).toBe(8);
+  await page.evaluate(() => window.__game?.giveItem('daggers'));
+  await page.evaluate(() => window.__game?.giveKey());
+  await page.evaluate(() => window.__game?.setGems(42));
+  // Back to the entrance, the save point.
+  await page.evaluate(() => window.__game?.goToRoom(1, 3));
+  const saved = await snapshot(page);
+  expect(saved.saves).toBeGreaterThanOrEqual(2);
+
+  await reloadToTitle(page);
+  await page.keyboard.press('Enter'); // CONTINUE
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  const s = await snapshot(page);
+  expect(s.map).toBe('dungeon1');
+  expect(s.room).toEqual({ col: 1, row: 3 });
+  expect(s.health).toEqual({ points: 8, max: 8 });
+  expect(s.gems).toBe(42);
+  expect(s.keys).toBe(1);
+  expect(s.opened).toEqual(expect.arrayContaining(['dungeon1/1,0/boss', 'dungeon1/heart']));
+  expect(s.opened).not.toContain('dungeon1/shard'); // left on the floor
+  expect(s.cheated).toBe(true);
+  // It carries on from the play time in the save.
+  expect(saved.savedPlayMs).not.toBeNull();
+  expect(s.playMs).toBeGreaterThanOrEqual(saved.savedPlayMs ?? Number.POSITIVE_INFINITY);
+  expect((await page.evaluate(() => window.__game?.hud()))?.hearts.length).toBe(4);
+  await page.keyboard.press('i');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.inventory()))?.slots.far)
+    .toBe('Daggers');
+  expect(watched.errors).toEqual([]);
+});
+
+test('NEW GAME over a save asks first; NO keeps it, YES starts over', async ({ page }) => {
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.setGems(42));
+  await page.evaluate(() => window.__game?.goToRoom(1, 3)); // saves
+  await reloadToTitle(page);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(() => titleShows(page))
+    .toEqual({ screen: 'confirm', options: ['NO', 'YES'], cursor: 0 });
+  await page.keyboard.press('Enter'); // NO
+  await expect
+    .poll(() => titleShows(page))
+    .toEqual({ screen: 'menu', options: ['CONTINUE', 'NEW GAME'], cursor: 1 });
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await titleShows(page))?.screen).toBe('confirm');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter'); // YES
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  const s = await snapshot(page);
+  expect(s.map).toBe('overworld');
+  expect(s.gems).toBe(0);
+  expect(s.cheated).toBe(false);
+});
+
+test('a damaged save is ignored: the title offers only NEW GAME', async ({ page }) => {
+  const watched = watchPage(page);
+  await page.goto('./');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
+  await page.evaluate(() => {
+    window.localStorage.setItem('dungeon-delve:save', '{"version":1,"map":"the-moon"}');
+  });
+  await reloadToTitle(page);
+  expect((await titleShows(page))?.options).toEqual(['NEW GAME']);
+  await page.evaluate(() => window.localStorage.setItem('dungeon-delve:save', '{oops'));
+  await reloadToTitle(page);
+  expect((await titleShows(page))?.options).toEqual(['NEW GAME']);
+  expect(watched.errors).toEqual([]);
 });

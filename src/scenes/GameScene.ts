@@ -120,8 +120,20 @@ import {
   type MapExit,
   type World,
 } from '../logic/world';
-import { DUNGEON_MAPS, MAPS, type MapId } from '../world/maps';
+import { MAPS, type MapId } from '../world/maps';
+import { SAVE_VERSION, type SaveGame } from '../logic/save';
+import { writeSave } from '../storage/saveStore';
 import type { InventoryHost } from './InventoryScene';
+
+/**
+ * How a game starts: from a save, or new on a map (null: the overworld).
+ * `cheated` marks a run that used the ?dungeon=n skip.
+ */
+export interface GameStart {
+  save: SaveGame | null;
+  map: MapId | null;
+  cheated: boolean;
+}
 
 /** Read-only view of the game state, used by the e2e test hook. */
 export interface GameSnapshot {
@@ -198,6 +210,12 @@ export interface GameSnapshot {
   /** Shards of the Star of Power found, and messages shown (finding a shard). */
   shards: number;
   announced: number;
+  /** Time played (ms), saves made since the game scene started, and whether ?dungeon=n was used. */
+  playMs: number;
+  saves: number;
+  cheated: boolean;
+  /** The play time written by the latest save this session (null before one). */
+  savedPlayMs: number | null;
 }
 
 type ShotKind = 'dagger' | 'fireball';
@@ -341,6 +359,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private sealed: { x: number; y: number }[] = [];
   /** Messages shown so far (finding a shard). */
   private announced = 0;
+  /** Time played (ms), saves made this session, and whether ?dungeon=n was used. */
+  private playMs = 0;
+  private saves = 0;
+  private savedPlayMs: number | null = null;
+  private cheated = false;
   private gates: Phaser.GameObjects.Image[] = [];
   private blocked = 0;
   private shotsFired = 0;
@@ -387,13 +410,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     super('Game');
   }
 
-  create(): void {
+  create(data?: Partial<GameStart>): void {
+    const save = data?.save ?? null;
     this.seed = seedFromUrl();
     this.rng = createRng(this.seed);
-    this.mapId = mapFromUrl();
+    this.mapId = save ? (save.map as MapId) : (data?.map ?? 'overworld');
+    this.cheated = save ? save.cheated : (data?.cheated ?? false);
+    this.playMs = save?.playMs ?? 0;
+    this.saves = 0;
+    this.savedPlayMs = null;
     this.world = buildWorld(MAPS[this.mapId].rooms);
-    this.health = fullHealth(HEALTH.startHearts);
-    this.gems = 0;
+    this.progress = save?.progress ?? NEW_PROGRESS;
+    this.health = fullHealth(HEALTH.startHearts + heartContainers(this.progress));
+    this.gems = save?.gems ?? 0;
     this.defeated = 0;
     this.heroKnockMs = 0;
     this.enemies = [];
@@ -414,8 +443,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.casts = 0;
     this.mana = fullMana(MANA.max);
     this.lastCastAt = null;
-    this.potions = { ...POTIONS.start };
-    this.progress = NEW_PROGRESS;
+    this.potions = save ? { ...save.potions } : { ...POTIONS.start };
     this.travelling = false;
     this.falling = false;
     this.falls = 0;
@@ -424,10 +452,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.muted = this.sound.mute;
     // He starts with the sword and shield (Walker hands them over in M3.8). The daggers are
     // dungeon 1's prize; Fireball stays in the starting kit until dungeon 2 exists (M5).
-    this.inv = (['wooden-sword', 'fireball', 'wooden-shield'] as const).reduce(
-      give,
-      EMPTY_INVENTORY,
-    );
+    this.inv =
+      save?.inventory ??
+      (['wooden-sword', 'fireball', 'wooden-shield'] as const).reduce(give, EMPTY_INVENTORY);
     this.lastThrowAt = null;
     this.throwUntil = 0;
     this.enemyPool = new SpritePool(this);
@@ -455,10 +482,33 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.swing = { startedAt: null };
     this.spawnEnemies();
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.saveAtSavePoint();
+  }
+
+  /**
+   * Each map's start room is a save point (the village, once there is one, and
+   * the dungeon entrances): arriving there saves the game.
+   */
+  private saveAtSavePoint(): void {
+    const start = MAPS[this.mapId].start;
+    if (this.room.col !== start.col || this.room.row !== start.row) return;
+    writeSave({
+      version: SAVE_VERSION,
+      map: this.mapId,
+      inventory: this.inv,
+      potions: { ...this.potions },
+      gems: this.gems,
+      progress: this.progress,
+      playMs: Math.round(this.playMs),
+      cheated: this.cheated,
+    });
+    this.saves += 1;
+    this.savedPlayMs = Math.round(this.playMs);
   }
 
   override update(time: number, deltaMs: number): void {
     this.now = time;
+    this.playMs += deltaMs;
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
     if (this.sliding || this.falling || this.travelling) return;
@@ -1007,6 +1057,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
     this.falls += 1;
     this.falling = false;
+    this.saveAtSavePoint();
   }
 
   /** Through a doorway: the screen goes dark, and he is on the other map. */
@@ -1056,6 +1107,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.placeSprite();
     this.spawnEnemies();
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.saveAtSavePoint();
   }
 
   /** Pauses the game and shows the inventory over it. */
@@ -1474,6 +1526,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       sealed: this.sealed.length > 0,
       shards: shardsHeld(this.progress),
       announced: this.announced,
+      playMs: this.playMs,
+      saves: this.saves,
+      cheated: this.cheated,
+      savedPlayMs: this.savedPlayMs,
     };
   }
 
@@ -1592,6 +1648,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
         for (const o of old) o.destroy();
         this.sliding = false;
         this.spawnEnemies();
+        this.saveAtSavePoint();
       },
     });
   }
@@ -1711,16 +1768,6 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       y: up === down ? 0 : up ? -1 : 1,
     };
   }
-}
-
-/**
- * The map to start on: ?dungeon=n starts at dungeon n's entrance (a play-test
- * skip, ROADMAP M3.5), otherwise the overworld.
- */
-function mapFromUrl(): MapId {
-  const raw = new URLSearchParams(window.location.search).get('dungeon');
-  const n = raw === null ? Number.NaN : Number.parseInt(raw, 10);
-  return DUNGEON_MAPS[n] ?? 'overworld';
 }
 
 /** Seed from the URL (?seed=123) for repeatable runs, otherwise the default. */

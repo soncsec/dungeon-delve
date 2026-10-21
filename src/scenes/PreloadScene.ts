@@ -3,6 +3,8 @@ import { KEY_COLOURS, KEY_PIXELS } from '../assets/keyArt';
 import { ASSETS, animKey } from '../assets/manifest';
 import type { PropKind } from '../logic/room';
 import { PROP_REGIONS, PROP_SHEET } from '../logic/tiles';
+import { DUNGEON_MAPS } from '../world/maps';
+import type { GameStart } from './GameScene';
 
 /**
  * Loads every asset in the manifest and makes its animations, then starts the
@@ -50,7 +52,20 @@ export class PreloadScene extends Phaser.Scene {
     g.generateTexture('key', KEY_PIXELS[0]?.length ?? 0, KEY_PIXELS.length);
     g.destroy();
 
-    const wanted = new URLSearchParams(window.location.search).get('scene');
-    this.scene.start(wanted === 'preview' ? 'AssetPreview' : 'Game');
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('scene') === 'preview') {
+      this.scene.start('AssetPreview');
+      return;
+    }
+    // ?dungeon=n skips the title and starts a new game at dungeon n's entrance: a
+    // play-test skip, marked as a cheat so the run can't set a fastest time.
+    const raw = params.get('dungeon');
+    const map = DUNGEON_MAPS[raw === null ? Number.NaN : Number.parseInt(raw, 10)];
+    if (map) {
+      const start: GameStart = { save: null, map, cheated: true };
+      this.scene.start('Game', start);
+    } else {
+      this.scene.start('Title');
+    }
   }
 }
