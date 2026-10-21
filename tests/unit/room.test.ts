@@ -4,6 +4,7 @@ import {
   edgeOpenings,
   isForest,
   isSolid,
+  isWall,
   parseRoom,
   type Room,
 } from '../../src/logic/room';
@@ -17,8 +18,19 @@ const room = (rows: Record<number, string> = {}): string[] =>
 describe('parseRoom', () => {
   it('reads grass and forest', () => {
     const r = parseRoom(room({ 0: WALL }));
-    expect(cellAt(r, 0, 0)).toEqual({ solid: true, forest: true, prop: null });
-    expect(cellAt(r, 0, 1)).toEqual({ solid: false, forest: false, prop: null });
+    expect(cellAt(r, 0, 0)).toEqual({ solid: true, forest: true, wall: false, prop: null });
+    expect(cellAt(r, 0, 1)).toEqual({ solid: false, forest: false, wall: false, prop: null });
+  });
+
+  it('reads dungeon walls', () => {
+    const r = parseRoom(room({ 0: '####################' }));
+    expect(cellAt(r, 3, 0)).toEqual({ solid: true, forest: false, wall: true, prop: null });
+    expect(isWall(r, 3, 0)).toBe(true);
+    expect(isWall(r, 3, 1)).toBe(false);
+    // Outside the room, walls run on from the nearest edge cell.
+    expect(isWall(r, 3, -2)).toBe(true);
+    expect(isWall(r, -1, 5)).toBe(false);
+    expect(isWall({ cells: [] } as Room, 0, 0)).toBe(false);
   });
 
   it('anchors props and blocks their footprints', () => {

@@ -95,6 +95,9 @@ export const ASSETS: readonly SheetAsset[] = [
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),
   sheet('tiles', 'town', 16, 16, 24, 13),
+  // Dungeon tiles: the pack's example dungeon (preview-simple-dungeon-crawler-set1.png), used
+  // unchanged as a 16×16 sheet; it has the wall-top stones the tileset sheet lacks.
+  sheet('tiles', 'dungeon', 16, 16, 19, 15),
 
   // Sword swing (drawn over a walk frame), hit spark, and the puff an enemy vanishes in.
   sheet('effects', 'slash-horizontal', 65, 40, 5, 1, [anim('play', range(0, 5), 20, false)]),

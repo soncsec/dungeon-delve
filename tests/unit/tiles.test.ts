@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { parseRoom } from '../../src/logic/room';
 import {
+  DUNGEON_COLUMNS,
+  DUNGEON_FRAMES,
   FOREST_COLUMNS,
   FOREST_FRAMES,
   PROP_REGIONS,
+  crackAt,
+  dungeonArt,
+  dungeonFrame,
   forestFrame,
   propDraw,
   roomArt,
@@ -101,5 +106,58 @@ describe('roomArt', () => {
     expect(reg.x + reg.w).toBeLessThanOrEqual(FOREST_PNG.width);
     expect(reg.y + reg.h).toBeLessThanOrEqual(FOREST_PNG.alpha.length / FOREST_PNG.width);
     expect(hasPixels(FOREST_PNG, reg.x, reg.y, reg.w, reg.h)).toBe(true);
+  });
+});
+
+describe('dungeon tiles', () => {
+  const DUNGEON_PNG = pngAlpha(`${process.cwd()}/public/assets/tiles/dungeon.png`);
+  // Walls along the top two rows and down the left side, floor elsewhere.
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) => (y < 2 ? '####################' : '##..................')),
+  );
+
+  it('draws wall tops, and the brick face where a wall meets the floor', () => {
+    expect(dungeonFrame(r, 5, 0)).toBe(DUNGEON_FRAMES.top);
+    expect(dungeonFrame(r, 5, 1)).toBe(DUNGEON_FRAMES.face);
+    // The left wall runs down to the room's bottom edge, and on past it: all tops.
+    expect(dungeonFrame(r, 0, 9)).toBe(DUNGEON_FRAMES.top);
+  });
+
+  it('shades floor next to a wall on its left, and scatters cracks elsewhere', () => {
+    expect(dungeonFrame(r, 2, 5)).toBe(DUNGEON_FRAMES.shadow);
+    const floors = Array.from({ length: 8 }, (_, y) =>
+      Array.from({ length: 17 }, (_, x) => dungeonFrame(r, x + 3, y + 2)),
+    ).flat();
+    const cracked = floors.filter((f) => f !== DUNGEON_FRAMES.floor);
+    expect(cracked.length).toBeGreaterThan(0);
+    expect(cracked.length).toBeLessThan(floors.length / 4);
+    for (const f of cracked) expect(DUNGEON_FRAMES.cracks).toContain(f);
+  });
+
+  it('crackAt is the same every time', () => {
+    expect(crackAt(4, 7)).toBe(crackAt(4, 7));
+    expect(crackAt(0, 0)).not.toBeNull();
+  });
+
+  it('lays one tile per cell and nothing else', () => {
+    const art = dungeonArt(r);
+    expect(art.ground).toHaveLength(200);
+    expect(art.over).toEqual([]);
+    expect(art.props).toEqual([]);
+    expect(art.ground[0]).toEqual({ frame: DUNGEON_FRAMES.top, x: 0, y: 0 });
+  });
+
+  it('every dungeon frame is visible art on the sheet', () => {
+    for (const f of [
+      DUNGEON_FRAMES.top,
+      DUNGEON_FRAMES.face,
+      DUNGEON_FRAMES.floor,
+      DUNGEON_FRAMES.shadow,
+      ...DUNGEON_FRAMES.cracks,
+    ]) {
+      const x = (f % DUNGEON_COLUMNS) * 16;
+      const y = Math.floor(f / DUNGEON_COLUMNS) * 16;
+      expect(hasPixels(DUNGEON_PNG, x, y, 16, 16), `frame ${f}`).toBe(true);
+    }
   });
 });

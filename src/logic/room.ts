@@ -3,8 +3,9 @@
  * Engine-free and unit tested; scenes only draw what these functions return.
  *
  * Legend:
- *   .  grass (walkable)
+ *   .  open ground: grass outdoors, floor in a dungeon (walkable)
  *   F  forest wall (solid; edges and corners are drawn automatically)
+ *   #  dungeon wall (solid; its top and its face are drawn automatically)
  *   T  pine tree   (solid trunk; the anchor is the trunk cell, the canopy rises above it)
  *   O  oak tree    (solid along its 3-cell base; the anchor is the middle of the base)
  *   R  boulder     (solid 2×2; the anchor is the top-left cell)
@@ -19,6 +20,8 @@ export interface Cell {
   solid: boolean;
   /** Part of a forest wall. */
   forest: boolean;
+  /** Part of a dungeon wall. */
+  wall: boolean;
   /** The prop anchored in this cell, if any. */
   prop: PropKind | null;
 }
@@ -67,12 +70,13 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       throw new Error(`${name}: row ${y} has ${line.length} columns, expected ${ROOM_COLS}`);
     }
     return Array.from(line, (ch, x): Cell => {
-      if (ch === '.') return { solid: false, forest: false, prop: null };
-      if (ch === 'F') return { solid: true, forest: true, prop: null };
+      if (ch === '.') return { solid: false, forest: false, wall: false, prop: null };
+      if (ch === 'F') return { solid: true, forest: true, wall: false, prop: null };
+      if (ch === '#') return { solid: true, forest: false, wall: true, prop: null };
       const prop = PROP_CHARS[ch];
       if (!prop) throw new Error(`${name}: unknown character '${ch}' at column ${x}, row ${y}`);
       anchors.push({ x, y, prop });
-      return { solid: true, forest: false, prop };
+      return { solid: true, forest: false, wall: false, prop };
     });
   });
   // Each prop also blocks its footprint, which must be plain grass in the text.
@@ -114,6 +118,13 @@ export function isForest(room: Room, x: number, y: number): boolean {
   const cx = Math.min(ROOM_COLS - 1, Math.max(0, x));
   const cy = Math.min(ROOM_ROWS - 1, Math.max(0, y));
   return cellAt(room, cx, cy)?.forest ?? false;
+}
+
+/** Whether (x, y) is a dungeon wall. Outside the room continues the nearest edge cell, so walls run on. */
+export function isWall(room: Room, x: number, y: number): boolean {
+  const cx = Math.min(ROOM_COLS - 1, Math.max(0, x));
+  const cy = Math.min(ROOM_ROWS - 1, Math.max(0, y));
+  return cellAt(room, cx, cy)?.wall ?? false;
 }
 
 /** For each cell along one edge (left to right, or top to bottom): open (true) or blocked. */
