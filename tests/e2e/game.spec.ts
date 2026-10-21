@@ -1523,9 +1523,7 @@ test('Walker waits in the village, tells the story and hands over the sword and 
   expect(watched.errors).toEqual([]);
 });
 
-test('Walker gives a hint at dungeon 1, and waits outside once its shard is found', async ({
-  page,
-}) => {
+test('Walker gives a hint at dungeon 1’s entrance, then goes', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page, '?dungeon=1');
   await page.evaluate(() => window.__game?.holdEnemies(true));
@@ -1533,20 +1531,25 @@ test('Walker gives a hint at dungeon 1, and waits outside once its shard is foun
   const hint = await talkToWalker(page);
   expect(hint[0]?.join(' ')).toContain('THIS IS HOLLOW OAK.');
   expect(hint.flat().join(' ')).toContain('THROWING DAGGERS');
-  let s = await snapshot(page);
+  const s = await snapshot(page);
   expect(s.walker).toBeNull();
   expect(s.opened).toContain('walker/dungeon1');
+  expect(watched.errors).toEqual([]);
+});
 
-  // Beat the Treant and take the shard.
-  await walkIntoBossRoom(page);
-  await page.evaluate(() => window.__game?.setBossHealth(1));
-  const bx = (await snapshot(page)).boss?.x ?? 0;
-  await page.evaluate((x) => window.__game?.placeHero(x, 120, 'up'), bx);
-  await page.keyboard.press('Space');
-  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
-  const shard = (await snapshot(page)).pickups.find((p) => p.kind === 'shard');
-  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard ?? { x: 0, y: 0 });
+test('once dungeon 1’s shard is found, Walker waits outside, thanks Jarrett and teaches him the Fireball', async ({
+  page,
+}) => {
+  // Split from the test above: both talks, the boss fight and the trip out took up to
+  // 34 s of the 30 s a test may take in WebKit here. The shard is put at Jarrett's feet
+  // (the Treant's own tests beat it and take the shard the long way).
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  const at = (await snapshot(page)).player;
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), at);
   await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
+  expect((await snapshot(page)).opened).toContain('dungeon1/shard');
 
   // No magic yet: no spell, and no mana bar.
   const hud = () => page.evaluate(() => window.__game?.hud());
@@ -1573,7 +1576,7 @@ test('Walker gives a hint at dungeon 1, and waits outside once its shard is foun
   expect(said).toContain('THANK YOU, JARRETT');
   expect(said).toContain('THIS IS FIREBALL');
   expect(said).toContain('PRESS X TO SWITCH');
-  s = await snapshot(page);
+  const s = await snapshot(page);
   expect(s.walker).toBeNull();
   expect(s.opened).toContain('walker/dungeon1-done');
   // He taught Jarrett the Fireball: the mana bar shows, and C casts.
