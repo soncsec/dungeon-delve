@@ -9,6 +9,8 @@ import {
   unlockDoor,
   beatBoss,
   canEnter,
+  enemyId,
+  markDefeated,
   shardsToEnter,
   heartContainers,
   markSeen,
@@ -120,5 +122,16 @@ describe('shards as keys', () => {
     expect(canEnter(NEW_PROGRESS, 'dungeon2')).toBe(false);
     expect(canEnter(one, 'dungeon2')).toBe(true);
     expect(canEnter(one, 'dungeon3')).toBe(false);
+  });
+});
+
+describe('defeated dungeon enemies', () => {
+  it('are recorded by map, room and place, once, and count as nothing else', () => {
+    const id = enemyId('dungeon1', '1,2', 1);
+    expect(id).toBe('dungeon1/1,2/enemy1');
+    const p = markDefeated(NEW_PROGRESS, id);
+    expect(isOpened(p, id)).toBe(true);
+    expect(markDefeated(p, id)).toBe(p);
+    expect(shardsHeld(p) + heartContainers(p)).toBe(0);
   });
 });

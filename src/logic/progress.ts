@@ -114,3 +114,12 @@ export function shardsToEnter(map: string): number {
 export function canEnter(p: Progress, map: string): boolean {
   return shardsHeld(p) >= shardsToEnter(map);
 }
+
+/** A dungeon enemy's id: its map, room and place in the room's list. */
+export const enemyId = (map: string, roomKey: string, index: number): string =>
+  `${map}/${roomKey}/enemy${index}`;
+
+/** Records a dungeon enemy as defeated, for good (once). */
+export function markDefeated(p: Progress, id: string): Progress {
+  return openChest(p, id);
+}

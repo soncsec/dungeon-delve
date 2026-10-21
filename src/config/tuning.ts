@@ -197,6 +197,9 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
   },
 };
 
+/** Overworld enemies come back once Jarrett has been through this many other rooms (owner 2026-10-21). */
+export const RESPAWN = { roomsAway: 4 } as const;
+
 /** The village shop's prices, in gems (owner 2026-10-21). */
 export const SHOP = {
   prices: { 'health-potion': 10, 'mana-brew': 15, 'iron-shield': 80 },
