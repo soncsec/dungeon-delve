@@ -23,6 +23,10 @@ npm run dev          # http://localhost:5184
 npm run check        # everything CI runs
 ```
 
+The dev machine is shared with other game sessions. Run long test runs and releases through
+`scripts/limit-cpu.sh` (low priority, at most 4 cores), e.g. `scripts/limit-cpu.sh npm run test:e2e`,
+and start them only when both the 1- and 5-minute load averages in `/proc/loadavg` are under 35.
+
 ## Releasing to production
 
 Only with the owner's approval for each release.
