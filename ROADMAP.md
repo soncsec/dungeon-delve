@@ -9,8 +9,8 @@
 | M0 Setup | Done |
 | M1 Walking skeleton | Done (owner play-tested on staging 2026-10-20: "feels good") |
 | M2 Combat, inventory and mana | Done (2026-10-20) |
-| M3 First dungeon, end to end | In progress |
-| M4 The overworld | Not started |
+| M3 First dungeon, end to end | All tasks merged; waiting for the owner's play-test on staging |
+| M4 The overworld | All tasks done (M4.5 and M4.6 in review); waiting for the owner's play-test on staging |
 | M5 Dungeons 2–4 | Not started |
 | M6 Dungeons 5–8 | Not started |
 | M7 Shadow Vault and ending | Not started |
@@ -111,7 +111,7 @@
   - [x] M4.3b Cracked walls and boulders (Axe) and thorn bushes (Fireball), built and tested; placed with M4.4 and M5
 - [x] M4.4 Progression gates: dungeon *n*'s entrance needs *n*−1 shards (owner 2026-10-21); the last five secret caves placed behind thorns, boulders and cracked walls
 - [ ] M4.5 Overworld enemies placed by region; respawn rules
-- [ ] M4.6 Reachability test for the overworld, given the items held
+- [x] M4.6 Reachability test for the overworld, given the items held: every room and dungeon doorway with no items; 7, 9 and 12 secret caves with nothing, Fireball, and the Axe too
 
 ## M5 — Dungeons 2–4
 

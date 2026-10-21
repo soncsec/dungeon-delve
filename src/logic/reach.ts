@@ -29,6 +29,8 @@ export interface Reach {
   broken: string[];
   /** Doorways to other maps reached, as `room/x,y`. */
   exits: string[];
+  /** Every cell he can stand in, as `room/x,y`. */
+  cells: ReadonlySet<string>;
   /** Small keys found but never needed. */
   keys: number;
 }
@@ -49,6 +51,7 @@ export interface ReachStart {
 
 interface Walk {
   rooms: Set<string>;
+  cells: Set<string>;
   exits: Set<string>;
   /** Unopened chests and doors next to a reached cell, and which each is. */
   touched: Map<string, Fixture>;
@@ -77,7 +80,7 @@ function roomOf(world: World, col: number, row: number): Room {
  * nothing, so it is skipped: that keeps the search small.
  */
 function walk(world: World, start: ReachStart, opened: ReadonlySet<string>): Walk {
-  const out: Walk = { rooms: new Set(), exits: new Set(), touched: new Map() };
+  const out: Walk = { rooms: new Set(), cells: new Set(), exits: new Set(), touched: new Map() };
   type Visit = { col: number; row: number; room: Room; x: number; y: number; stones: string[] };
   const enter = (col: number, row: number, x: number, y: number): Visit => {
     const room = roomOf(world, col, row);
@@ -147,6 +150,7 @@ function walk(world: World, start: ReachStart, opened: ReadonlySet<string>): Wal
         todo.push([nx, ny]);
       }
     }
+    for (const cell of area) out.cells.add(`${key}/${cell}`);
     queue.push(...next);
   }
   return out;
@@ -213,6 +217,7 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
     }
     return {
       rooms: [...w.rooms].sort(),
+      cells: w.cells,
       chests: [...chests].sort(),
       doors: [...doors].sort(),
       hollows: [...hollows].sort(),
