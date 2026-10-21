@@ -4,10 +4,12 @@ import {
   ITEMS,
   SLOTS,
   SLOT_NAMES,
+  DUNGEON_PRIZES,
   cycle,
   give,
   moveCursor,
   ownedIn,
+  startingKit,
   type Inventory,
 } from '../../src/logic/inventory';
 
@@ -84,5 +86,23 @@ describe('moveCursor over another list', () => {
   it('wraps round any number of rows (the shop has three)', () => {
     expect(moveCursor(2, 1, 3)).toBe(0);
     expect(moveCursor(0, -1, 3)).toBe(2);
+  });
+});
+
+describe('startingKit', () => {
+  it('a new game starts with nothing: Walker hands over the sword and shield', () => {
+    expect(startingKit(null)).toEqual([]);
+  });
+
+  it('a ?dungeon=n run has the sword, the shield, and the prizes of the dungeons before n', () => {
+    expect(startingKit(1)).toEqual(['wooden-sword', 'wooden-shield']);
+    expect(startingKit(2)).toEqual(['wooden-sword', 'wooden-shield', 'daggers']);
+    expect(startingKit(3)).toEqual(['wooden-sword', 'wooden-shield', 'daggers', 'fireball']);
+  });
+
+  it('the Fireball is dungeon 2’s prize, not part of any start', () => {
+    expect(DUNGEON_PRIZES[2]).toBe('fireball');
+    expect(startingKit(null)).not.toContain('fireball');
+    expect(startingKit(2)).not.toContain('fireball');
   });
 });

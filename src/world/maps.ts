@@ -1,11 +1,13 @@
 /** Every map in the game: the overworld and the dungeons, each with its look and start room. */
 import type { RoomDef } from '../logic/world';
+import { MARSH_TINT } from '../logic/tiles';
 import { DUNGEON_1, DUNGEON_1_START } from './dungeon1';
+import { DUNGEON_2, DUNGEON_2_START } from './dungeon2';
 import { OVERWORLD, START_ROOM } from './overworld';
 import { SHOP, SHOP_START } from './shop';
 import { CAVES, CAVES_START } from './caves';
 
-export type MapId = 'overworld' | 'dungeon1' | 'shop' | 'caves';
+export type MapId = 'overworld' | 'dungeon1' | 'dungeon2' | 'shop' | 'caves';
 /** How a map looks: outdoors, a dungeon, or indoors (drawn like a dungeon, without its small keys). */
 export type Theme = 'forest' | 'dungeon' | 'indoors';
 
@@ -15,14 +17,23 @@ export interface GameMap {
   /** Where Jarrett arrives (and gets back up after falling). */
   start: { col: number; row: number };
   rooms: readonly RoomDef[];
+  /** A tint over the whole map's art (Bog Grotto: the marsh's), if any. */
+  tint?: number;
 }
 
 export const MAPS: Readonly<Record<MapId, GameMap>> = {
   overworld: { name: 'Overworld', theme: 'forest', start: START_ROOM, rooms: OVERWORLD },
   dungeon1: { name: 'Hollow Oak', theme: 'dungeon', start: DUNGEON_1_START, rooms: DUNGEON_1 },
+  dungeon2: {
+    name: 'Bog Grotto',
+    theme: 'dungeon',
+    start: DUNGEON_2_START,
+    rooms: DUNGEON_2,
+    tint: MARSH_TINT,
+  },
   shop: { name: 'Shop', theme: 'indoors', start: SHOP_START, rooms: SHOP },
   caves: { name: 'Secret cave', theme: 'indoors', start: CAVES_START, rooms: CAVES },
 };
 
 /** Dungeon numbers for the ?dungeon=n play-test skip. */
-export const DUNGEON_MAPS: Readonly<Record<number, MapId>> = { 1: 'dungeon1' };
+export const DUNGEON_MAPS: Readonly<Record<number, MapId>> = { 1: 'dungeon1', 2: 'dungeon2' };

@@ -1,8 +1,9 @@
 /**
  * Can a map be finished? (engine-free, unit tested; ROADMAP M3.7). Explores
  * a map the way a player would, a cell at a time: walking, pushing stones,
- * opening every false wall and chest in reach, and spending small keys on
- * locked doors in reach, until nothing new opens. If that reaches every room, chest and door,
+ * opening every false wall and chest in reach (an Axe or Fireball found in
+ * one is used from then on), and spending small keys on locked doors in
+ * reach, until nothing new opens. If that reaches every room, chest and door,
  * there is a valid order to do it in.
  *
  * Simplifications, on the safe side for hand-made rooms:
@@ -165,6 +166,8 @@ function parse(fixture: string): { key: string; x: number; y: number } {
 
 /** Explores a map from `start`: what can be reached and opened, in some valid order. */
 export function explore(world: World, start: ReachStart, items: ReachItems = {}): Reach {
+  // What he holds: the items given, and any found in a chest on the way (a dungeon's prize).
+  const held: ReachItems = { ...items };
   const chests = new Set<string>();
   const doors = new Set<string>();
   const hollows = new Set<string>();
@@ -185,7 +188,7 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
     const breakable = touched
       .filter(
         ([, f]) =>
-          (items.axe && (f === 'cracked' || f === 'boulder')) || (items.fireball && f === 'thorns'),
+          (held.axe && (f === 'cracked' || f === 'boulder')) || (held.fireball && f === 'thorns'),
       )
       .map(([c]) => c);
     for (const cell of breakable) {
@@ -203,6 +206,12 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
       const { key, x, y } = parse(chest);
       const c = world.chests.get(key)?.find((ch) => ch.col === x && ch.row === y);
       if (c?.contents.kind === 'key') keys += 1;
+      if (
+        c?.contents.kind === 'item' &&
+        (c.contents.item === 'axe' || c.contents.item === 'fireball')
+      ) {
+        held[c.contents.item] = true;
+      }
     }
     if (found.length > 0) continue;
     // Then a key on a door in reach.

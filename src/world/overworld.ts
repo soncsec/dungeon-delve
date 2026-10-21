@@ -607,11 +607,20 @@ const ROOMS: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
-  // Bog Grotto: the sealed archway of dungeon 2 (it opens in M5).
+  // Bog Grotto: the archway of dungeon 2 (it opens with one shard).
   {
     col: 1,
     row: 5,
     region: 'marsh',
+    exits: [
+      {
+        cells: [
+          { col: 9, row: 2 },
+          { col: 10, row: 2 },
+        ],
+        to: { map: 'dungeon2', room: { col: 1, row: 3 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     enemies: [
       { kind: 'ghost', col: 11, row: 6 },
       { kind: 'eye', col: 3, row: 2 },
@@ -619,7 +628,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
       'FFFFF...A......FFFFF',
-      'FFF..............FFF',
+      'FFF......DD......FFF',
       'FF................FF',
       '...WWWW.......R.....',
       '...WWWW.........T...',

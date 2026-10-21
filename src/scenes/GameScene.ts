@@ -72,13 +72,20 @@ import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
 import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '../logic/mana';
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
 import type { Axis, Point } from '../logic/movement';
-import { EMPTY_INVENTORY, give, type Inventory, type ItemId } from '../logic/inventory';
+import {
+  EMPTY_INVENTORY,
+  give,
+  startingKit,
+  type Inventory,
+  type ItemId,
+} from '../logic/inventory';
 import {
   NEW_PROGRESS,
   addKey,
   beatBoss,
   bossId,
   canEnter,
+  dungeonNumber,
   enemyId,
   markDefeated,
   fixtureId,
@@ -125,6 +132,7 @@ import {
   MARSH_TINT,
   VOLCANO_TINT,
   THORN_TINT,
+  mixTint,
   dungeonArt,
   propSheet,
   roomArt,
@@ -521,15 +529,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.sfx = new Sfx(this);
     // A restart (or a new game) keeps the player's mute choice.
     this.muted = this.sound.mute;
-    // He starts with the sword and shield (Walker hands them over in M3.8). The daggers are
-    // dungeon 1's prize; Fireball stays in the starting kit until dungeon 2 exists (M5).
-    // A new game starts with Fireball only (until dungeon 2 exists, M5): Walker hands
-    // over the sword and shield in the village. A ?dungeon=n run skips him, so it
-    // starts with them, and he has already spoken.
+    // A new game starts with nothing: Walker hands over the sword and shield in the
+    // village. A ?dungeon=n run skips him, so it starts with them and the earlier
+    // dungeons' prizes, and he has already spoken.
     const skip = !save && this.mapId !== 'overworld';
-    const kit = skip
-      ? (['wooden-sword', 'fireball', 'wooden-shield'] as const)
-      : (['fireball'] as const);
+    const kit = startingKit(skip ? dungeonNumber(this.mapId) : null);
     this.inv = save?.inventory ?? kit.reduce(give, EMPTY_INVENTORY);
     if (skip) this.progress = markTalked(this.progress, 'village');
     this.lastThrowAt = null;
@@ -2184,14 +2188,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
           .setDepth(DEPTH.sorted + o.y + c.y + TILE),
       );
     }
+    const thorns = new Set<Phaser.GameObjects.GameObject>();
     for (const p of art.props) {
-      drawn.push(
-        this.add
-          .image(o.x + p.x, o.y + p.y, propSheet(p.prop, region), `prop:${p.prop}`)
-          .setOrigin(0.5, 1)
-          .setDepth(DEPTH.sorted + o.y + p.y)
-          .setTint(p.prop === 'thorns' ? THORN_TINT : 0xffffff),
-      );
+      const image = this.add
+        .image(o.x + p.x, o.y + p.y, propSheet(p.prop, region), `prop:${p.prop}`)
+        .setOrigin(0.5, 1)
+        .setDepth(DEPTH.sorted + o.y + p.y)
+        .setTint(p.prop === 'thorns' ? THORN_TINT : 0xffffff);
+      if (p.prop === 'thorns') thorns.add(image);
+      drawn.push(image);
     }
     for (const t of art.over) {
       drawn.push(
@@ -2201,10 +2206,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
           .setDepth(DEPTH.over),
       );
     }
-    // The marsh (the forest's art, darkened and greened) and the volcano edge (the mountains, reddened).
-    if (region === 'marsh' || region === 'volcano') {
-      const tint = region === 'marsh' ? MARSH_TINT : VOLCANO_TINT;
-      for (const o of drawn) (o as Phaser.GameObjects.Image).setTint(tint);
+    // The marsh (the forest's art, darkened and greened), the volcano edge (the mountains,
+    // reddened), and a map with a tint of its own (Bog Grotto). Thorn bushes keep theirs under it.
+    const tint =
+      MAPS[this.mapId].tint ??
+      (region === 'marsh' ? MARSH_TINT : region === 'volcano' ? VOLCANO_TINT : null);
+    if (tint !== null) {
+      for (const o of drawn) {
+        (o as Phaser.GameObjects.Image).setTint(thorns.has(o) ? mixTint(THORN_TINT, tint) : tint);
+      }
     }
     return drawn;
   }

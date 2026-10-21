@@ -9,6 +9,7 @@ import {
   unlockDoor,
   beatBoss,
   canEnter,
+  dungeonNumber,
   enemyId,
   markDefeated,
   shardsToEnter,
@@ -114,6 +115,13 @@ describe('shards as keys', () => {
     expect(shardsToEnter('overworld')).toBe(0);
     expect(shardsToEnter('caves')).toBe(0);
     expect(shardsToEnter('dungeon0')).toBe(0);
+  });
+
+  it('reads a dungeon map’s number', () => {
+    expect(dungeonNumber('dungeon2')).toBe(2);
+    expect(dungeonNumber('dungeon12')).toBe(12);
+    expect(dungeonNumber('overworld')).toBeNull();
+    expect(dungeonNumber('caves')).toBeNull();
   });
 
   it('lets Jarrett in with enough shards', () => {
