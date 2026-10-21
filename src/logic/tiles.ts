@@ -58,6 +58,8 @@ export interface RoomArt {
   /** Over the hero: tree tops above a wall's top edge (things further north are behind). */
   over: TileDraw[];
   props: PropDraw[];
+  /** Closed chests, by their cell's top-left corner (room pixels). */
+  chests: { x: number; y: number }[];
 }
 
 /** The frame for a forest wall cell, from which of its neighbours are forest too. */
@@ -78,7 +80,7 @@ export function propDraw(prop: PropKind, x: number, y: number): PropDraw {
 
 /** Everything to draw for a room. */
 export function roomArt(room: Room): RoomArt {
-  const art: RoomArt = { ground: [], over: [], props: [] };
+  const art: RoomArt = { ground: [], over: [], props: [], chests: [] };
   room.cells.forEach((rowCells, y) => {
     rowCells.forEach((cell, x) => {
       const px = x * TILE;
@@ -111,6 +113,8 @@ export const DUNGEON_FRAMES = {
   shadow: dframe(11, 3),
   /** Cracked floor stones, scattered for variety. */
   cracks: [dframe(1, 4), dframe(2, 4), dframe(3, 4)],
+  /** A locked door: the wall face with iron bars. */
+  gate: dframe(8, 7),
 } as const;
 
 /** A fixed scatter: about one floor cell in nine gets cracks, the same every visit. */
@@ -119,19 +123,31 @@ export function crackAt(x: number, y: number): number | null {
   return h === 0 ? (DUNGEON_FRAMES.cracks[(x + y) % 3] as number) : null;
 }
 
-/** The frame for a dungeon cell: wall top or face, floor, shadowed floor or cracked floor. */
-export function dungeonFrame(room: Room, x: number, y: number): number {
+/**
+ * The frame for a dungeon cell: wall top or face, floor, shadowed floor or
+ * cracked floor; a locked door shows the barred gate until `opened`.
+ */
+export function dungeonFrame(room: Room, x: number, y: number, opened = false): number {
+  if (room.cells[y]?.[x]?.fixture === 'door' && !opened) return DUNGEON_FRAMES.gate;
   if (isWall(room, x, y)) return isWall(room, x, y + 1) ? DUNGEON_FRAMES.top : DUNGEON_FRAMES.face;
   if (isWall(room, x - 1, y)) return DUNGEON_FRAMES.shadow;
   return crackAt(x, y) ?? DUNGEON_FRAMES.floor;
 }
 
-/** Everything to draw for a dungeon room: one tile per cell, no props or tree tops. */
-export function dungeonArt(room: Room): RoomArt {
-  const art: RoomArt = { ground: [], over: [], props: [] };
+/**
+ * Everything to draw for a dungeon room: one tile per cell, plus the chests
+ * not yet opened. `opened` says which doors and chests have been opened.
+ */
+export function dungeonArt(
+  room: Room,
+  opened: (x: number, y: number) => boolean = () => false,
+): RoomArt {
+  const art: RoomArt = { ground: [], over: [], props: [], chests: [] };
   room.cells.forEach((rowCells, y) => {
-    rowCells.forEach((_cell, x) => {
-      art.ground.push({ frame: dungeonFrame(room, x, y), x: x * TILE, y: y * TILE });
+    rowCells.forEach((cell, x) => {
+      const isOpen = cell.fixture !== null && opened(x, y);
+      art.ground.push({ frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE });
+      if (cell.fixture === 'chest' && !isOpen) art.chests.push({ x: x * TILE, y: y * TILE });
     });
   });
   return art;

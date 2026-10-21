@@ -79,7 +79,7 @@
 
 - [ ] M3.1 Dungeon tiles, doors, small keys and locked doors, pushable stones, chests, in three PRs:
   - [x] M3.1a Dungeon walls and floors drawn automatically; maps (overworld, dungeon 1); `?dungeon=n` starts in a dungeon
-  - [ ] M3.1b Small keys, locked doors and chests
+  - [x] M3.1b Small keys, locked doors and chests
   - [ ] M3.1c Pushable stones
 - [ ] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
 - [ ] M3.3 Boss framework (phases, health bar) and the Treant

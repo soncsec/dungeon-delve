@@ -6,6 +6,8 @@
  *   .  open ground: grass outdoors, floor in a dungeon (walkable)
  *   F  forest wall (solid; edges and corners are drawn automatically)
  *   #  dungeon wall (solid; its top and its face are drawn automatically)
+ *   K  locked door  (solid until opened with a small key; counts as a doorway between rooms)
+ *   C  chest        (solid until opened; the room lists what it holds)
  *   T  pine tree   (solid trunk; the anchor is the trunk cell, the canopy rises above it)
  *   O  oak tree    (solid along its 3-cell base; the anchor is the middle of the base)
  *   R  boulder     (solid 2×2; the anchor is the top-left cell)
@@ -24,7 +26,11 @@ export interface Cell {
   wall: boolean;
   /** The prop anchored in this cell, if any. */
   prop: PropKind | null;
+  /** A locked door or a chest in this cell, if any (both block until opened). */
+  fixture: Fixture | null;
 }
+
+export type Fixture = 'door' | 'chest';
 
 export interface Room {
   cells: readonly (readonly Cell[])[];
@@ -70,13 +76,16 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       throw new Error(`${name}: row ${y} has ${line.length} columns, expected ${ROOM_COLS}`);
     }
     return Array.from(line, (ch, x): Cell => {
-      if (ch === '.') return { solid: false, forest: false, wall: false, prop: null };
-      if (ch === 'F') return { solid: true, forest: true, wall: false, prop: null };
-      if (ch === '#') return { solid: true, forest: false, wall: true, prop: null };
+      const plain = { forest: false, wall: false, prop: null, fixture: null };
+      if (ch === '.') return { ...plain, solid: false };
+      if (ch === 'F') return { ...plain, solid: true, forest: true };
+      if (ch === '#') return { ...plain, solid: true, wall: true };
+      if (ch === 'K') return { ...plain, solid: true, fixture: 'door' };
+      if (ch === 'C') return { ...plain, solid: true, fixture: 'chest' };
       const prop = PROP_CHARS[ch];
       if (!prop) throw new Error(`${name}: unknown character '${ch}' at column ${x}, row ${y}`);
       anchors.push({ x, y, prop });
-      return { solid: true, forest: false, wall: false, prop };
+      return { ...plain, solid: true, prop };
     });
   });
   // Each prop also blocks its footprint, which must be plain grass in the text.
@@ -127,19 +136,32 @@ export function isWall(room: Room, x: number, y: number): boolean {
   return cellAt(room, cx, cy)?.wall ?? false;
 }
 
-/** For each cell along one edge (left to right, or top to bottom): open (true) or blocked. */
+/** Where Jarrett can pass, given time: open ground, or a door (locked or not). */
+export function isPassage(room: Room, x: number, y: number): boolean {
+  const cell = cellAt(room, x, y);
+  return !cell || !cell.solid || cell.fixture === 'door';
+}
+
+/** Every door and chest in a room. */
+export function fixturesIn(room: Room): { x: number; y: number; fixture: Fixture }[] {
+  return room.cells.flatMap((row, y) =>
+    row.flatMap((cell, x) => (cell.fixture ? [{ x, y, fixture: cell.fixture }] : [])),
+  );
+}
+
+/** For each cell along one edge (left to right, or top to bottom): a way through (true) or blocked. Doors count as ways through. */
 export function edgeOpenings(room: Room, dir: Dir): boolean[] {
   const along = dir === 'north' || dir === 'south' ? ROOM_COLS : ROOM_ROWS;
   return Array.from({ length: along }, (_, i) => {
     switch (dir) {
       case 'north':
-        return !isSolid(room, i, 0);
+        return isPassage(room, i, 0);
       case 'south':
-        return !isSolid(room, i, ROOM_ROWS - 1);
+        return isPassage(room, i, ROOM_ROWS - 1);
       case 'west':
-        return !isSolid(room, 0, i);
+        return isPassage(room, 0, i);
       case 'east':
-        return !isSolid(room, ROOM_COLS - 1, i);
+        return isPassage(room, ROOM_COLS - 1, i);
     }
   });
 }

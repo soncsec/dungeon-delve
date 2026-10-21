@@ -196,9 +196,15 @@ export const PICKUPS = { gemValue: 1, heartHeals: 2 } as const;
 export const HUD = {
   /** CSS font family; Press Start 2P is drawn at 8 px, its native size. */
   font: '"Press Start 2P"',
-  /** First heart's left edge, and the distance between hearts (the small heart art is 11 px wide; 11 hearts fit in 135 px). */
+  /** First heart's left edge, and the distance between hearts (the small heart art is 11 px wide). */
   heartX: 1,
   heartSpacing: 12,
+  /** Hearts per row; a second row starts below (11 hearts fit in 72 × 20 px). */
+  heartsPerRow: 6,
+  /** Where each row of hearts sits: the top of the 16-px heart frame (the art is 9 px tall). */
+  heartRowY: [-4, 6],
+  /** The small-key count, shown in dungeons only, right of the hearts. */
+  keyX: 84,
   /** Left edges of the mana bar, the potion counts and the weapon box. */
   manaBarX: 142,
   manaBarWidth: 44,
@@ -224,7 +230,9 @@ export type SfxName =
   | 'enemyShot'
   | 'fall'
   | 'noMana'
-  | 'menu';
+  | 'menu'
+  | 'unlock'
+  | 'chest';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -270,6 +278,26 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
     noMana: { wave: 'square', seconds: 0.15, from: 110, to: 100, attack: 0.005, volume: 0.25 },
     // Inventory open, close and cursor.
     menu: { wave: 'square', seconds: 0.1, from: 660, to: 880, attack: 0.002, volume: 0.25 },
+    // A door unlocking: a low clunk then a lift.
+    unlock: {
+      wave: 'square',
+      seconds: 0.25,
+      from: 180,
+      to: 360,
+      attack: 0.003,
+      volume: 0.35,
+      steps: [1, 1.5],
+    },
+    // A chest opening, or a key or item found: a bright little fanfare.
+    chest: {
+      wave: 'triangle',
+      seconds: 0.45,
+      from: 523,
+      to: 523,
+      attack: 0.005,
+      volume: 0.4,
+      steps: [1, 1.26, 1.5, 2, 2.52],
+    },
   },
 };
 

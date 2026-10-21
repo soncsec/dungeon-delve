@@ -4,7 +4,9 @@
  */
 import { ROOM_COLS, ROOM_ROWS, TILE } from '../config/tuning';
 import type { EnemyKind } from './enemies';
-import { edgeOpenings, isSolid, parseRoom, type Dir, type Room } from './room';
+import type { ItemId } from './inventory';
+import type { PotionKind } from './potions';
+import { cellAt, edgeOpenings, fixturesIn, isSolid, parseRoom, type Dir, type Room } from './room';
 
 export interface RoomDef {
   /** Grid position: column (west to east) and row (north to south). */
@@ -13,12 +15,29 @@ export interface RoomDef {
   lines: readonly string[];
   /** Enemies that appear each time Jarrett enters the room, by start cell. */
   enemies?: readonly EnemyPlacement[];
+  /** What each chest (`C`) in the room holds. */
+  chests?: readonly ChestPlacement[];
+}
+
+/** What a chest can hold. */
+export type ChestContents =
+  | { kind: 'key' }
+  | { kind: 'gems'; amount: number }
+  | { kind: 'item'; item: ItemId }
+  | { kind: 'potion'; potion: PotionKind };
+
+export interface ChestPlacement {
+  col: number;
+  row: number;
+  contents: ChestContents;
 }
 
 export interface World {
   rooms: ReadonlyMap<string, Room>;
   /** Enemy start cells per room key. */
   enemies: ReadonlyMap<string, readonly EnemyPlacement[]>;
+  /** Chest contents per room key. */
+  chests: ReadonlyMap<string, readonly ChestPlacement[]>;
 }
 
 export interface EnemyPlacement {
@@ -47,6 +66,7 @@ const OPPOSITE: Readonly<Record<Dir, Dir>> = {
 export function buildWorld(defs: readonly RoomDef[]): World {
   const rooms = new Map<string, Room>();
   const enemies = new Map<string, readonly EnemyPlacement[]>();
+  const chests = new Map<string, readonly ChestPlacement[]>();
   for (const d of defs) {
     const key = roomKey(d.col, d.row);
     if (rooms.has(key)) throw new Error(`two rooms at ${key}`);
@@ -59,10 +79,31 @@ export function buildWorld(defs: readonly RoomDef[]): World {
         );
       }
     }
+    checkChests(key, room, d.chests ?? []);
     rooms.set(key, room);
     enemies.set(key, d.enemies ?? []);
+    chests.set(key, d.chests ?? []);
   }
-  return { rooms, enemies };
+  return { rooms, enemies, chests };
+}
+
+/** Every chest in a room has exactly one entry of contents, and every entry is on a chest. */
+function checkChests(key: string, room: Room, placed: readonly ChestPlacement[]): void {
+  for (const c of placed) {
+    if (cellAt(room, c.col, c.row)?.fixture !== 'chest') {
+      throw new Error(
+        `room ${key}: chest contents at column ${c.col}, row ${c.row}, but no chest there`,
+      );
+    }
+  }
+  for (const f of fixturesIn(room).filter((f) => f.fixture === 'chest')) {
+    const n = placed.filter((c) => c.col === f.x && c.row === f.y).length;
+    if (n !== 1) {
+      throw new Error(
+        `room ${key}: the chest at column ${f.x}, row ${f.y} has ${n} lists of contents, not 1`,
+      );
+    }
+  }
 }
 
 /** Grid position of the room next door in a direction (it may not exist). */
@@ -105,6 +146,7 @@ export function joinProblems(world: World): string[] {
  * Whether a cell blocks movement, measured from one room but reaching into its
  * neighbours: (-1, 4) is the west neighbour's column 19, row 4. Where there is
  * no room, everything is solid, so the hero can only leave through real gaps.
+ * `opened` says which doors and chests have been opened (they stop blocking).
  */
 export function solidInWorld(
   world: World,
@@ -112,12 +154,18 @@ export function solidInWorld(
   row: number,
   cx: number,
   cy: number,
+  opened: (roomKey: string, x: number, y: number) => boolean = () => false,
 ): boolean {
   const dc = Math.floor(cx / ROOM_COLS);
   const dr = Math.floor(cy / ROOM_ROWS);
-  const room = world.rooms.get(roomKey(col + dc, row + dr));
+  const key = roomKey(col + dc, row + dr);
+  const room = world.rooms.get(key);
   if (!room) return true;
-  return isSolid(room, cx - dc * ROOM_COLS, cy - dr * ROOM_ROWS);
+  const x = cx - dc * ROOM_COLS;
+  const y = cy - dr * ROOM_ROWS;
+  // An unlocked door or an opened chest no longer blocks.
+  if (cellAt(room, x, y)?.fixture && opened(key, x, y)) return false;
+  return isSolid(room, x, y);
 }
 
 /** The edge the hero has crossed, once the middle of his collision box leaves the room; null while inside. */
@@ -134,4 +182,41 @@ export function exitDirection(feet: { x: number; y: number }, boxHeight: number)
 export function enterFrom(feet: { x: number; y: number }, dir: Dir): { x: number; y: number } {
   const [dc, dr] = STEP[dir];
   return { x: feet.x - dc * ROOM_COLS * TILE, y: feet.y - dr * ROOM_ROWS * TILE };
+}
+
+/**
+ * The cells just in front of a box at `feet` facing a way: every cell its
+ * leading edge touches (one or two), which is where a bump lands.
+ */
+export function cellsAhead(
+  feet: { x: number; y: number },
+  facing: 'up' | 'down' | 'left' | 'right',
+  box: { halfWidth: number; height: number },
+): { cx: number; cy: number }[] {
+  // A hair inside the far edges, so a box flush against a cell line doesn't reach the next cell.
+  const EPS = 1e-6;
+  const left = Math.floor((feet.x - box.halfWidth) / TILE);
+  const right = Math.floor((feet.x + box.halfWidth - EPS) / TILE);
+  const top = Math.floor((feet.y - box.height) / TILE);
+  const bottom = Math.floor((feet.y - EPS) / TILE);
+  const span = (a: number, b: number): number[] => (a === b ? [a] : [a, b]);
+  switch (facing) {
+    case 'left':
+      return span(top, bottom).map((cy) => ({
+        cx: Math.floor((feet.x - box.halfWidth - 1) / TILE),
+        cy,
+      }));
+    case 'right':
+      return span(top, bottom).map((cy) => ({
+        cx: Math.floor((feet.x + box.halfWidth) / TILE),
+        cy,
+      }));
+    case 'up':
+      return span(left, right).map((cx) => ({
+        cx,
+        cy: Math.floor((feet.y - box.height - 1) / TILE),
+      }));
+    case 'down':
+      return span(left, right).map((cx) => ({ cx, cy: Math.floor(feet.y / TILE) }));
+  }
 }

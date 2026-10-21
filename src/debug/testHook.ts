@@ -34,6 +34,8 @@ export interface TestHook {
   holdEnemies(hold: boolean): void;
   /** Set the mana level. */
   setMana(current: number): void;
+  /** Give Jarrett a small key for the map he's on. */
+  giveKey(): void;
   /** Set his hearts (in half hearts) and gems. */
   setHealth(points: number): void;
   setGems(gems: number): void;
@@ -50,6 +52,7 @@ export interface TestHook {
     weapon: string;
     manaWidth: number;
     potions: { health: string; mana: string };
+    keys: string | null;
   };
 }
 
@@ -91,6 +94,7 @@ export function installTestHook(game: Phaser.Game): void {
     fireEnemyShot: (x, y, dx, dy) => gameScene(game).testFireEnemyShot(x, y, dx, dy),
     holdEnemies: (hold) => gameScene(game).testHoldEnemies(hold),
     setMana: (current) => gameScene(game).testSetMana(current),
+    giveKey: () => gameScene(game).testGiveKey(),
     setHealth: (points) => gameScene(game).testSetHealth(points),
     setGems: (gems) => gameScene(game).testSetGems(gems),
     frameTimes: (reset) => {

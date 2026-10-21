@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { OBJECT_FRAMES } from '../assets/manifest';
 import { GAME_HEIGHT, GAME_WIDTH, HUD } from '../config/tuning';
 import { Sfx } from '../audio/Sfx';
+import { ITEM_ICON } from '../assets/itemIcons';
 import { KeyInput } from '../input/keyboard';
 import { gemLabel } from '../logic/hud';
 import {
@@ -12,7 +13,6 @@ import {
   moveCursor,
   ownedIn,
   type Inventory,
-  type ItemId,
 } from '../logic/inventory';
 import type { Potions } from '../logic/potions';
 
@@ -26,13 +26,6 @@ export interface InventoryHost {
   heldShards(): number;
   heldKeys(): number;
 }
-
-/** Item art where the pack has it (no shield art exists, so shields show by name only). */
-const ITEM_ICON: Partial<Record<ItemId, { texture: string; frame: number }>> = {
-  'wooden-sword': { texture: 'sword-icon', frame: 0 },
-  daggers: { texture: 'dagger', frame: 0 },
-  fireball: { texture: 'fire-ball', frame: 0 },
-};
 
 const OPEN_KEYS: ReadonlySet<string> = new Set(['KeyI', 'Tab', 'Escape']);
 const CHANGE_KEYS: ReadonlySet<string> = new Set(['Space', 'KeyJ', 'Enter']);

@@ -225,6 +225,7 @@ test('the status bar shows hearts and gems', async ({ page }) => {
     weapon: 'sword-icon',
     manaWidth: 42,
     potions: { health: '1', mana: '1' },
+    keys: null, // shown in dungeons only
   });
 
   const start = await snapshot(page);
@@ -603,4 +604,50 @@ test('?dungeon=1 starts at dungeon 1, whose walls stop Jarrett', async ({ page }
 test('without ?dungeon, the game starts on the overworld', async ({ page }) => {
   await openGame(page, '?dungeon=99');
   expect((await snapshot(page)).map).toBe('overworld');
+});
+
+test('in dungeon 1: a chest gives a key, the key opens the locked door, and the next chest gives gems', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  const hud = () => page.evaluate(() => window.__game?.hud());
+  await expect.poll(async () => (await hud())?.keys).toBe('0'); // the key count shows in dungeons
+  // The key chest is at column 4, row 3: walk up into it from just below.
+  await page.evaluate(() => window.__game?.placeHero(72, 86, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).keys).toBe(1); // opened, and the key picked up
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).opened).toEqual(['dungeon1/0,1/4,3']);
+  await expect.poll(async () => (await hud())?.keys).toBe('1');
+
+  // The locked door is at columns 9–10, row 1: walk up into it, and on through.
+  await page.evaluate(() => window.__game?.placeHero(160, 44, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 0, row: 0 });
+  await page.keyboard.up('ArrowUp');
+  const s = await snapshot(page);
+  expect(s.keys).toBe(0);
+  expect(s.opened).toEqual(expect.arrayContaining(['dungeon1/0,1/9,1', 'dungeon1/0,1/10,1']));
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+
+  // Straight on up to the gem chest at column 9, row 3.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).gems, { timeout: 15_000 }).toBe(20);
+  await page.keyboard.up('ArrowUp');
+  expect(watched.errors).toEqual([]);
+});
+
+test('without a key, the locked door stays shut', async ({ page }) => {
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.placeHero(160, 44, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(600);
+  await page.keyboard.up('ArrowUp');
+  const s = await snapshot(page);
+  expect(s.opened).toEqual([]);
+  expect(s.room).toEqual({ col: 0, row: 1 });
+  expect(s.player.y).toBe(38); // flush below the gate (row 2's top + his 6-px feet box)
 });
