@@ -27,6 +27,9 @@ async function snapshot(page: Page): Promise<GameSnapshot> {
 const sceneNow = (page: Page) => page.evaluate(() => window.__game?.scene() ?? null);
 
 /** Opens the game; from the title screen (no save yet), Enter starts a new game. */
+/** The opened doors and chests (ids ending in a cell), leaving out seen rooms, bosses and the rest. */
+const fixtures = (opened: string[]): string[] => opened.filter((id) => /\/\d+,\d+$/.test(id));
+
 async function openGame(page: Page, query = ''): Promise<void> {
   await page.goto(`./${query}`);
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toMatch(/^(Title|Game)$/);
@@ -629,7 +632,7 @@ test('in dungeon 1: a chest gives a key, and the key opens the locked door into 
   await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).keys).toBe(1); // opened, and the key picked up
   await page.keyboard.up('ArrowUp');
-  expect((await snapshot(page)).opened).toEqual(['dungeon1/1,3/4,3']);
+  expect(fixtures((await snapshot(page)).opened)).toEqual(['dungeon1/1,3/4,3']);
   await expect.poll(async () => (await hud())?.keys).toBe('1');
 
   // The locked door is at columns 9–10, row 1: walk up into it, and on through.
@@ -652,7 +655,7 @@ test('without a key, the locked door stays shut', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.keyboard.up('ArrowUp');
   const s = await snapshot(page);
-  expect(s.opened).toEqual([]);
+  expect(fixtures(s.opened)).toEqual([]);
   expect(s.room).toEqual({ col: 1, row: 3 });
   expect(s.player.y).toBe(38); // flush below the gate (row 2's top + his 6-px feet box)
 });
