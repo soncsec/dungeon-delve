@@ -117,9 +117,9 @@
 
 ## M5 — Dungeons 2–4
 
-- [ ] M5.1 Dungeon 2, Bog Grotto: Fireball, Giant Frog, in two PRs:
+- [x] M5.1 Dungeon 2, Bog Grotto: Fireball, Giant Frog, in two PRs:
   - [x] M5.1a Seven rooms under the marsh (in the marsh's colours), two keys, thorns that only its prize gets past; the Fireball in a closet behind a stone, and no longer in the starting kit; the marsh archway opens with one shard
-  - [ ] M5.1b The Giant Frog, with its shard and heart container
+  - [x] M5.1b The Giant Frog: it crouches, leaps at Jarrett (out of reach in the air), and each landing throws a ring of shots (four, then eight below half health); beaten, it leaves the second shard and a heart container
 - [ ] M5.2 Dungeon 3, Sunken Crypt: a bigger mana bar, Mummy (the Iron Shield is sold in the village shop: owner 2026-10-21)
 - [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre
 - [ ] M5.4 New enemy types for these regions

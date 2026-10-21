@@ -1079,6 +1079,127 @@ test('the beaten Treant leaves a heart container (+1 heart) and a shard of the S
   expect(watched.errors).toEqual([]);
 });
 
+/**
+ * Into Bog Grotto's boss room from the bog hall, through its locked door (a key given).
+ * The arrow is let go while the view slides, so he stops just inside.
+ */
+async function enterFrogRoom(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=2');
+  await page.evaluate(() => window.__game?.goToRoom(1, 1)); // the bog hall
+  await page.evaluate(() => {
+    window.__game?.clearEnemies();
+    window.__game?.giveKey();
+    window.__game?.placeHero(160, 60, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).sliding, { timeout: 15_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).room).toEqual({ col: 1, row: 0 });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('frog');
+}
+
+/**
+ * Holds the boss still on the ground (if it is mid-leap, lets it land first). Each try
+ * looks and holds in one call, so the boss can't move between the two.
+ */
+async function holdBossOnGround(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const g = window.__game;
+          g?.holdEnemies(true);
+          if (!g?.snapshot()?.boss?.airborne) return true;
+          g.holdEnemies(false);
+          return false;
+        }),
+      { intervals: [50] },
+    )
+    .toBe(true);
+}
+
+test('the Giant Frog crouches, then leaps at Jarrett: out of reach in the air, and each landing throws a ring of four', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterFrogRoom(page);
+  const boss = async () => (await snapshot(page)).boss;
+  const start = await boss();
+  expect(start).toMatchObject({ health: 12, airborne: false });
+  // Jarrett stands to the left and below it. It crouches (the warning), then leaps.
+  await page.evaluate(() => window.__game?.placeHero(80, 120, 'right'));
+  const often = { timeout: 10_000, intervals: [50] };
+  await expect.poll(async () => (await boss())?.crouching, often).toBe(true);
+  // Held still the moment it is seen in the air (looking and holding in one call: a
+  // leap can be over before a second call arrives).
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const g = window.__game;
+          if (!g?.snapshot()?.boss?.airborne) return false;
+          g.holdEnemies(true);
+          return true;
+        }),
+      often,
+    )
+    .toBe(true);
+  // Once Jarrett has no blink of safety left from any earlier hit, he stands right
+  // under it: touching it costs nothing, and a swing doesn't land.
+  const air = await boss();
+  expect(air?.airborne).toBe(true);
+  const fired = (await snapshot(page)).shotsFired;
+  await expect
+    .poll(async () => {
+      const s = await snapshot(page);
+      return !s.invulnerable && !s.knockedBack;
+    })
+    .toBe(true);
+  const hearts = (await snapshot(page)).health.points;
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'up'), {
+    x: air?.x ?? 0,
+    y: air?.y ?? 0,
+  });
+  await swingOnce(page);
+  expect((await boss())?.health).toBe(air?.health);
+  expect((await snapshot(page)).health.points).toBe(hearts);
+  // Out of the way, and let go: it lands nearer where he stood, throwing its ring.
+  await page.evaluate(() => window.__game?.placeHero(260, 120, 'left'));
+  await page.evaluate(() => window.__game?.holdEnemies(false));
+  await expect.poll(async () => (await boss())?.airborne).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(fired + 4);
+  expect((await boss())?.x).toBeLessThan(start?.x ?? 0);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Giant Frog leaves a heart container and Bog Grotto’s shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterFrogRoom(page);
+  await holdBossOnGround(page);
+  await page.evaluate(() => window.__game?.setBossHealth(1));
+  await expect.poll(() => settled(page)).toBe(true); // a press is ignored while knocked back
+  const b = (await snapshot(page)).boss;
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 25, 'up'), {
+    x: b?.x ?? 0,
+    y: b?.y ?? 0,
+  });
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const kinds = async () => (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(await kinds()).toEqual(['heart-container', 'shard']);
+  const shard = (await snapshot(page)).pickups.find((p) => p.kind === 'shard');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard ?? { x: 0, y: 0 });
+  await expect.poll(kinds).toEqual(['heart-container']);
+  const s = await snapshot(page);
+  expect(s.shards).toBe(1);
+  expect(s.opened).toEqual(expect.arrayContaining(['dungeon2/1,0/boss', 'dungeon2/shard']));
+  expect(s.sealed).toBe(false);
+  expect(watched.errors).toEqual([]);
+});
+
 test('a reward left behind is still there when Jarrett comes back', async ({ page }) => {
   await beatTreant(page);
   // Out through the south gap without picking anything up, and back in.

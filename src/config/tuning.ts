@@ -191,9 +191,32 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     health: 10,
     contactDamage: 2,
     box: { halfWidth: 18, height: 60 },
-    shuffle: { speed: 14, range: 48 },
+    moves: { style: 'shuffle', speed: 14, range: 48 },
     calm: { shots: 3, spreadDeg: 18, everyMs: { min: 2200, max: 2800 } },
     fierce: { shots: 5, spreadDeg: 16, everyMs: { min: 1500, max: 1900 } },
+  },
+  // Dungeon 2: a spear-carrying frog that leaps at Jarrett; each landing throws a ring of
+  // shots (four, then eight). Twelve hits, none while it is in the air; a full heart on touch.
+  frog: {
+    health: 12,
+    contactDamage: 2,
+    box: { halfWidth: 14, height: 40 },
+    moves: {
+      style: 'hop',
+      crouchMs: 500,
+      leapMs: 700,
+      reach: 96,
+      peak: 28,
+      // Its feet stay two cells clear of the walls, with its body below the top wall.
+      arena: {
+        x: 2 * TILE + 14,
+        y: 2 * TILE + 40,
+        w: ROOM_COLS * TILE - 4 * TILE - 28,
+        h: 8 * TILE - (2 * TILE + 40),
+      },
+    },
+    calm: { shots: 4, spreadDeg: 90, everyMs: { min: 1400, max: 2000 } },
+    fierce: { shots: 8, spreadDeg: 45, everyMs: { min: 900, max: 1300 } },
   },
 };
 
@@ -215,7 +238,14 @@ export const STAR = { shards: 8, messageMs: 2500 } as const;
 export const BOSS_REWARDS = { heart: { dx: -24, dy: 24 }, shard: { dx: 24, dy: 24 } } as const;
 
 /** A boss flashes this long (ms) when hit; its health bar sits along the bottom of the room. */
-export const BOSS_FX = { flashMs: 150, barWidth: 120, barHeight: 4 } as const;
+export const BOSS_FX = {
+  flashMs: 150,
+  barWidth: 120,
+  barHeight: 4,
+  /** A leaper squats this much while it crouches, and casts this shadow while in the air. */
+  crouch: { x: 1.08, y: 0.9 },
+  shadow: { height: 8, alpha: 0.35 },
+} as const;
 
 /** The flying eye's shot. */
 export const ENEMY_SHOT = {
