@@ -1363,3 +1363,74 @@ test('north of the forest rise the mountains; the mine cave is sealed rock', asy
   expect((await snapshot(page)).region).toBe('volcano');
   expect(watched.errors).toEqual([]);
 });
+
+test('the village shop: in through the house door, buy from the shopkeeper, and back out', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.setGems(100));
+  // The west street's house: its steps (column 5, row 8) lead inside. Walk west along the path onto them.
+  await page.evaluate(() => window.__game?.goToRoom(3, 6));
+  await page.evaluate(() => window.__game?.placeHero(136, 142, 'left'));
+  await page.keyboard.down('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('shop');
+  await page.keyboard.up('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+
+  // Up to the counter, and talk to the shopkeeper behind it.
+  await page.evaluate(() => window.__game?.placeHero(152, 120, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(86); // the counter's row 4 stops him
+  await page.keyboard.up('ArrowUp');
+  await page.keyboard.press('Space');
+  await expect.poll(() => sceneNow(page)).toBe('Shop');
+  const shop = () => page.evaluate(() => window.__game?.shop() ?? null);
+  expect(await shop()).toEqual({
+    cursor: 0,
+    items: [
+      { name: 'Health Potion', price: 10, owned: false },
+      { name: 'Mana Brew', price: 15, owned: false },
+      { name: 'Iron Shield', price: 80, owned: false },
+    ],
+    gems: 100,
+    message: 'WELCOME! WHAT WILL IT BE?',
+  });
+
+  // A Health Potion, then the Iron Shield; then not enough gems for a Mana Brew.
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await shop())?.gems).toBe(90);
+  expect((await shop())?.message).toBe('THANK YOU!');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await shop())?.gems).toBe(10);
+  expect((await shop())?.items[2]?.owned).toBe(true);
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await shop())?.message).toBe('NOT ENOUGH GEMS.');
+  expect((await shop())?.gems).toBe(10);
+
+  // Leave: the purchases are his, and the Iron Shield is in his hand.
+  await page.keyboard.press('Escape');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  const s = await snapshot(page);
+  expect(s.gems).toBe(10);
+  expect(s.potions).toEqual({ health: 2, mana: 1 });
+  await page.keyboard.press('i');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.inventory()))?.slots.shield)
+    .toBe('Iron Shield');
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+
+  // Out through the shop's doorway, onto the path beside the steps.
+  await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
+  await page.keyboard.down('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
+  await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  expect((await snapshot(page)).room).toEqual({ col: 3, row: 6 });
+  expect(watched.errors).toEqual([]);
+});

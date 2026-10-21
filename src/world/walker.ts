@@ -33,6 +33,9 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       },
       { text: 'I OPENS YOUR BAG. 1 AND 2 DRINK POTIONS. M TURNS THE SOUND OFF AND ON.' },
       {
+        text: 'THE HOUSE ON THE WEST STREET IS THE SHOP: POTIONS, AND A STRONGER SHIELD, FOR GEMS.',
+      },
+      {
         text: 'THE FIRST SHARD IS IN HOLLOW OAK, A DUNGEON TO THE NORTH. GO WELL, JARRETT!',
       },
     ],

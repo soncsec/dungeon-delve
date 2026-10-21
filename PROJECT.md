@@ -40,11 +40,11 @@ It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff 
 | Near weapons | Wooden Sword (start) → Steel Sword → Star Blade (stronger, wider swing). The **Axe** also breaks cracked walls and boulders |
 | Far weapons | **Throwing daggers** (cooldown, no ammo) → later a faster triple throw |
 | Spells | Cost **mana**. **Fireball** (burns thorn bushes), **Lightning** (stuns, powers crystal switches), **Ward** (a short energy shield that blocks all damage). Cast with the spell key; the equipped spell is chosen in the inventory |
-| Shields | Wooden Shield (start: blocks arrows and darts from the front while walking or standing), Iron Shield (also blocks fireballs) |
+| Shields | Wooden Shield (start: blocks arrows and darts from the front while walking or standing), Iron Shield (also blocks fireballs; bought in the village shop for 80 gems) |
 | Mana | A mana bar that **refills automatically** after a short pause without casting. A **Mana Brew** potion makes it refill much faster for a while (about 3× for 30 s). A dungeon prize raises the maximum |
 | Potions | **Health Potion** (refills hearts) and **Mana Brew**. Found in chests and pots, bought in the village shop. Up to 3 of each |
 | Inventory | A pause-style **inventory screen**: equip the near weapon, far weapon, spell and shield; see potions, keys, gems, the 8-shard Star of Power, and a map of the dungeon you're in |
-| Money | **Gems** dropped by enemies and found in secrets; spent in the village shop (potions, shield upgrade) |
+| Money | **Gems** dropped by enemies and found in secrets; spent in the village shop: Health Potion 10, Mana Brew 15, Iron Shield 80 |
 | Hidden passages | Cracked walls (Axe), thorn bushes (Fireball), pushable stones, and false walls. They lead to secret caves with gems, potions and upgrades |
 
 ### 3c. Dungeons and bosses (proposed; art to be confirmed in M1.1)
@@ -55,10 +55,10 @@ Each dungeon's item is needed to reach a later dungeon, so the world opens up gr
 |---|---|---|---|---|
 | 1 | Hollow Oak | Forest | Throwing Daggers | Treant |
 | 2 | Bog Grotto | Marsh | Fireball spell | Giant Frog |
-| 3 | Sunken Crypt | Ruins | Iron Shield | Mummy |
+| 3 | Sunken Crypt | Ruins | A bigger mana bar | Mummy |
 | 4 | Stonecrag Mine | Mountains | Axe | Ogre |
 | 5 | Thunder Spire | Mountains | Lightning spell | Centaur |
-| 6 | Witchwood Tower | Forest | Steel Sword and more mana | Witch |
+| 6 | Witchwood Tower | Forest | Steel Sword | Witch |
 | 7 | Crimson Manor | Ruins | Ward spell | Vampire |
 | 8 | Dragon's Maw | Volcano edge | Star Blade | Dragon |
 | — | Shadow Vault | Centre of the map | Princess Kira | Demon sorcerer (final boss) |
@@ -158,6 +158,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | The Shadow Vault's four rooms are walkable stone grounds around the sealed vault building: a hub joining the forest, ruins and mountains (the door opens in M7.1) |
 | 2026-10-20 | Village rooms draw their forest walls and props with the teal ground shadows recoloured to the village's grass and shade |
 | 2026-10-20 | The marsh's ponds have shorelines: the Overworld sheet's island shores used inside out, their grass recoloured to the forest's; ponds are rectangles |
+| 2026-10-21 | The village shop: a house on the west street with a shopkeeper inside (the 'Guy' sprite recoloured: grey hair, red shirt). It sells the Health Potion (10 gems), Mana Brew (15) and the Iron Shield (80). Dungeon 3's prize becomes the bigger mana bar (moved from dungeon 6, which keeps the Steel Sword) |
 | 2026-10-21 | The mountains are cliffs, dirt, rocks and caves from the Tiny RPG Mountain set; the volcano edge (the three north-east rooms) is the mountains under a red runtime tint |
 | 2026-10-20 | A small title screen arrives with the save game (M3.5): CONTINUE when there is a save, and NEW GAME, which asks before wiping it. `?dungeon=n` skips the title and starts a new run marked as a cheat |
 | 2026-10-20 | Each beaten boss leaves a heart container and a shard of the Star of Power; a shard is the pack's crystal recoloured gold |

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Recolours Jarrett's and Kira's hair from the pack's red-orange to brown,
-and Walker's from orange-gold to a paler blonde (owner requests 2026-10-20).
+and Walker's from orange-gold to a paler blonde (owner requests 2026-10-20);
+and makes the village shopkeeper from "Guy" with grey hair and a red shirt
+(owner request 2026-10-21).
 
 Reads the original sheets from the art pack ("Guy" for Jarrett, "PirateGirl"
 for Kira) and writes public/assets/characters/<name>.png. Only the two hair
@@ -9,12 +11,15 @@ Jarrett's shoes and Kira's trousers use the same two colours lower down:
 - Jarrett: the hair is in rows 0-20 of every frame.
 - Kira: the hair ends above her red belt, whose row shifts as she walks, so the
   cut-off is the belt's row in each frame (ignoring her red bandana up top).
+- The shopkeeper ("Guy", like Jarrett): hair grey in rows 0-20, as Jarrett's;
+  his white shirt (and its pale blue shade) red, only from row 21 down, since
+  the same two colours are his eyes higher up.
 - Walker ("Blond_kid"): orange and yellow are only ever hair; the red hair
   shadow (rows 13-16) is also his jacket (rows 20 down), so red changes only
   above row 18.
 Standard library only.
 
-    python3 tools/art/recolor_hair.py            # all three characters
+    python3 tools/art/recolor_hair.py            # all four characters
     python3 tools/art/recolor_hair.py kira       # one character
 """
 import struct
@@ -109,6 +114,35 @@ CHARACTERS = {
 }
 
 
+SHOPKEEPER_HAIR = {
+    (0xB5, 0x55, 0x28): (0xA8, 0xA8, 0xB0),  # hair, lit: grey
+    (0x7F, 0x06, 0x22): (0x6E, 0x6E, 0x7A),  # hair, shadow: dark grey
+}
+SHOPKEEPER_SHIRT = {
+    (0xFA, 0xFD, 0xFF): (0xD9, 0x50, 0x3F),  # shirt: red
+    (0xA6, 0xC2, 0xFF): (0x9C, 0x2E, 0x2E),  # shirt, shadow: dark red
+}
+SHIRT_FROM_ROW = 21
+
+
+def recolour_shopkeeper():
+    output = "public/assets/characters/shopkeeper.png"
+    w, h, rows = read_rgba(f"{PACK}/Guy/aseprite.png")
+    changed = 0
+    for y in range(h):
+        row = rows[y]
+        fy = y % FRAME
+        swap = SHOPKEEPER_HAIR if fy < jarrett_cutoff(rows, 0, 0) else SHOPKEEPER_SHIRT if fy >= SHIRT_FROM_ROW else {}
+        for x in range(w):
+            r, g, b, a = row[x * 4 : x * 4 + 4]
+            new = swap.get((r, g, b))
+            if a and new:
+                row[x * 4 : x * 4 + 3] = bytes(new)
+                changed += 1
+    write_rgba(output, w, h, rows)
+    print(f"shopkeeper: recoloured {changed} pixels -> {output}")
+
+
 def recolour_walker():
     output = "public/assets/characters/walker.png"
     w, h, rows = read_rgba(f"{PACK}/Blond_kid/aseprite.png")
@@ -150,8 +184,10 @@ def recolour(name):
 
 
 if __name__ == "__main__":
-    for name in sys.argv[1:] or [*CHARACTERS, "walker"]:
+    for name in sys.argv[1:] or [*CHARACTERS, "walker", "shopkeeper"]:
         if name == "walker":
             recolour_walker()
+        elif name == "shopkeeper":
+            recolour_shopkeeper()
         else:
             recolour(name)

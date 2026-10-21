@@ -53,6 +53,8 @@ import { paginate, type Page } from '../logic/dialogue';
 import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
 import { markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
 import { WALKER_VISITS } from '../world/walker';
+import { SHOPKEEPER_CELL } from '../world/shop';
+import type { Purse } from '../logic/shop';
 import { rollDrop, type Drop } from '../logic/drops';
 import {
   canThrow,
@@ -138,6 +140,7 @@ import { MAPS, type MapId } from '../world/maps';
 import { SAVE_VERSION, type SaveGame } from '../logic/save';
 import { writeSave } from '../storage/saveStore';
 import type { InventoryHost } from './InventoryScene';
+import type { ShopHost } from './ShopScene';
 
 /**
  * How a game starts: from a save, or new on a map (null: the overworld).
@@ -357,7 +360,7 @@ const KEYS = new Set([
  * × 320, row × 160, below the status bar). The camera shows one room and
  * slides to the next when Jarrett walks through a gap (ADR-D02).
  */
-export class GameScene extends Phaser.Scene implements InventoryHost {
+export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private hero!: Phaser.GameObjects.Sprite;
   private pos: Point = { x: 0, y: 0 };
   private facing: Facing = 'down';
@@ -388,6 +391,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private enemyShots: LiveEnemyShot[] = [];
   private boss: LiveBoss | null = null;
   private walker: LiveWalker | null = null;
+  /** The shopkeeper (in the shop), and his feet. */
+  private shopkeeper: { sprite: Phaser.GameObjects.Sprite; feet: Point } | null = null;
   private talk: Talk | null = null;
   /** The cells shut while a boss fight is on, and the gates drawn over them. */
   private sealed: { x: number; y: number }[] = [];
@@ -463,6 +468,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.enemyShots = [];
     this.boss = null;
     this.walker = null;
+    this.shopkeeper = null;
     this.talk = null;
     this.sealed = [];
     this.announced = 0;
@@ -590,6 +596,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.stepShots(deltaMs);
     if (attack && this.heroKnockMs <= 0 && this.walkerInReach()) {
       this.startTalk();
+      return;
+    }
+    if (attack && this.heroKnockMs <= 0 && this.shopkeeper && this.inReach(this.shopkeeper.feet)) {
+      this.openShop();
       return;
     }
     if (attack && this.heroKnockMs <= 0) {
@@ -725,6 +735,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     if (here && this.sealed.some((c) => c.x === cx && c.y === cy)) return true;
     const w = this.walker?.visit.cell;
     if (here && w && w.col === cx && w.row === cy) return true;
+    if (here && this.shopkeeper && SHOPKEEPER_CELL.col === cx && SHOPKEEPER_CELL.row === cy) {
+      return true;
+    }
     return solidInWorld(this.world, col, row, cx, cy, (key, x, y) =>
       isOpened(this.progress, fixtureId(this.mapId, key, x, y)),
     );
@@ -842,6 +855,53 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     }
     this.placeRewards();
     this.placeWalker();
+    this.placeShopkeeper();
+  }
+
+  /** In the shop, the shopkeeper stands behind his counter. */
+  private placeShopkeeper(): void {
+    if (this.mapId !== 'shop') return;
+    const feet = {
+      x: SHOPKEEPER_CELL.col * TILE + TILE / 2,
+      y: (SHOPKEEPER_CELL.row + 1) * TILE - 1,
+    };
+    const sprite = this.enemyPool
+      .take('shopkeeper', HERO.standFrame.down)
+      .setOrigin(0.5, HERO.feetY / HERO.frameHeight);
+    const o = this.origin(this.room.col, this.room.row);
+    sprite.setPosition(o.x + feet.x, o.y + feet.y).setDepth(DEPTH.sorted + o.y + feet.y);
+    this.shopkeeper = { sprite, feet };
+  }
+
+  /** Whether Jarrett is facing someone (Walker, the shopkeeper) close enough to talk. */
+  private inReach(feet: Point): boolean {
+    const body = {
+      x: feet.x - BODY.halfWidth,
+      y: feet.y - BODY.height,
+      w: BODY.halfWidth * 2,
+      h: BODY.height,
+    };
+    return overlaps(swordBox(this.pos, this.facing, SWORD), body);
+  }
+
+  /** Pauses the game and opens the shop over it. */
+  private openShop(): void {
+    this.moving = false;
+    this.animate(false);
+    this.sfx.play('menu');
+    this.scene.launch('Shop', { host: this });
+    this.scene.pause();
+  }
+
+  purse(): Purse {
+    return { gems: this.gems, potions: { ...this.potions }, inventory: this.inv };
+  }
+
+  setPurse(p: Purse): void {
+    this.gems = p.gems;
+    this.potions = { ...p.potions };
+    this.inv = p.inventory;
+    this.refreshHud();
   }
 
   /** Walker, if he is waiting in this room. */
@@ -859,15 +919,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
 
   /** Whether Jarrett is facing Walker, close enough to talk. */
   private walkerInReach(): boolean {
-    if (!this.walker) return false;
-    const { x, y } = this.walker.feet;
-    const body = {
-      x: x - BODY.halfWidth,
-      y: y - BODY.height,
-      w: BODY.halfWidth * 2,
-      h: BODY.height,
-    };
-    return overlaps(swordBox(this.pos, this.facing, SWORD), body);
+    return this.walker !== null && this.inReach(this.walker.feet);
   }
 
   /** Walker turns to Jarrett and starts talking; the game waits meanwhile. */
@@ -1656,6 +1708,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.unseal();
     if (this.walker) this.enemyPool.give(this.walker.sprite.setFlipX(false));
     this.walker = null;
+    if (this.shopkeeper) this.enemyPool.give(this.shopkeeper.sprite);
+    this.shopkeeper = null;
   }
 
   snapshot(): GameSnapshot {
@@ -1917,8 +1971,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const o = this.origin(col, row);
     const key = roomKey(col, row);
     const region = this.world.regions.get(key) ?? 'forest';
-    // Dungeons, and the vault grounds outdoors, are drawn in stone.
-    const dungeon = MAPS[this.mapId].theme === 'dungeon' || region === 'vault';
+    // Dungeons, indoors (the shop), and the vault grounds outdoors are drawn in stone.
+    const theme = MAPS[this.mapId].theme;
+    const dungeon = theme === 'dungeon' || theme === 'indoors' || region === 'vault';
     const art = dungeon
       ? dungeonArt(room, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)))
       : roomArt(room, region);
