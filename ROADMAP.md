@@ -105,7 +105,7 @@
   - [x] M4.1c The marsh (tinted forest tiles, ponds with shorelines; Bog Grotto's sealed archway)
   - [x] M4.1d The ruins (dungeon stone on grass; Sunken Crypt's and Crimson Manor's sealed archways)
   - [x] M4.1e The mountains and the volcano edge (Tiny RPG Mountain set; the sealed caves of Stonecrag Mine and Dragon's Maw, Thunder Spire's archway)
-- [ ] M4.2 Village: shop (potions, shield), gem prices
+- [x] M4.2 Village shop: a house on the west street with a recoloured shopkeeper; Health Potion 10, Mana Brew 15, Iron Shield 80 gems (owner 2026-10-21)
 - [ ] M4.3 Hidden passages: cracked walls, thorn bushes, false walls; secret caves
 - [ ] M4.4 Progression gates (water, thorns, boulders) tied to dungeon items
 - [ ] M4.5 Overworld enemies placed by region; respawn rules
@@ -114,7 +114,7 @@
 ## M5 — Dungeons 2–4
 
 - [ ] M5.1 Dungeon 2, Bog Grotto: Fireball, Giant Frog
-- [ ] M5.2 Dungeon 3, Sunken Crypt: Iron Shield, Mummy
+- [ ] M5.2 Dungeon 3, Sunken Crypt: a bigger mana bar, Mummy (the Iron Shield is sold in the village shop: owner 2026-10-21)
 - [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre
 - [ ] M5.4 New enemy types for these regions
 - [ ] M5.5 Walker's lines at dungeons 2–4 and on the overworld
@@ -124,7 +124,7 @@
 ## M6 — Dungeons 5–8
 
 - [ ] M6.1 Dungeon 5, Thunder Spire: Lightning, Centaur
-- [ ] M6.2 Dungeon 6, Witchwood Tower: Steel Sword and mana upgrade, Witch
+- [ ] M6.2 Dungeon 6, Witchwood Tower: Steel Sword, Witch (the mana upgrade moved to dungeon 3: owner 2026-10-21)
 - [ ] M6.3 Dungeon 7, Crimson Manor: Ward, Vampire
 - [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon
 - [ ] M6.5 Walker's lines at dungeons 5–8

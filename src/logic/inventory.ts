@@ -77,6 +77,6 @@ export function cycle(inv: Inventory, slot: Slot): Inventory {
 }
 
 /** Moves the slot cursor up (-1) or down (+1), wrapping round. */
-export function moveCursor(index: number, by: -1 | 1): number {
-  return (index + by + SLOTS.length) % SLOTS.length;
+export function moveCursor(index: number, by: -1 | 1, count = SLOTS.length): number {
+  return (index + by + count) % count;
 }

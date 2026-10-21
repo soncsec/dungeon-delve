@@ -65,11 +65,18 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
-  // The village's west street: a house; north to Hollow Oak.
+  // The village's west street: the shop; north to Hollow Oak.
   {
     col: 3,
     row: 6,
     region: 'village',
+    // The house is the shop: its steps lead inside.
+    exits: [
+      {
+        cells: [{ col: 5, row: 8 }],
+        to: { map: 'shop', room: { col: 0, row: 0 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
       'FFF......pp......FFF',
@@ -79,7 +86,7 @@ export const OVERWORLD: readonly RoomDef[] = [
       'F..H.....pp......"..',
       'F........pp.,,.."".F',
       'F........pp..w,,...F',
-      'FFF..pppppp......FFF',
+      'FFF..Dppppp......FFF',
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },

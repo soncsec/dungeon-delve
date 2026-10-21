@@ -83,6 +83,8 @@ export const ASSETS: readonly SheetAsset[] = [
   walker('kira', 6),
   // Walker, the guide: TinyRPG "Blond_kid" with paler blonde hair (owner 2026-10-20).
   walker('walker', 6),
+  // The village shopkeeper: "Guy" with grey hair and a red shirt (owner 2026-10-21).
+  walker('shopkeeper', 6),
 
   // The TinyRPG top-down robot: one sheet per facing, 4 frames of 20×16. The side sheet faces left.
   sheet('enemies', 'robot-front', 20, 16, 4, 1, [anim('walk', range(0, 4), 8)]),

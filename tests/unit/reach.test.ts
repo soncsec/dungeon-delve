@@ -171,10 +171,11 @@ describe('the real maps', () => {
     expect(r.keys).toBe(0); // every key has a door
   });
 
-  it('every overworld room can be walked to, and the archway into dungeon 1', () => {
+  it('every overworld room can be walked to, and the archway into dungeon 1 and the shop door', () => {
     const world = buildWorld(OVERWORLD);
     const r = explore(world, { ...START_ROOM, cx: 10, cy: 5 });
     expect(r.rooms).toEqual([...world.rooms.keys()].sort());
-    expect(r.exits).toEqual(['3,5/10,2', '3,5/9,2']); // Hollow Oak's archway
+    // Hollow Oak's archway, and the shop's door.
+    expect(r.exits).toEqual(['3,5/10,2', '3,5/9,2', '3,6/5,8']);
   });
 });

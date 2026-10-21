@@ -7,6 +7,7 @@ import type { ItemId } from '../logic/inventory';
 import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
 import type { InventoryScene } from '../scenes/InventoryScene';
 import type { TitleScene } from '../scenes/TitleScene';
+import type { ShopScene } from '../scenes/ShopScene';
 
 /**
  * Test-only hook for Playwright (ADR-006). It is loaded only in the e2e build
@@ -50,6 +51,13 @@ export interface TestHook {
   frameTimes(reset?: boolean): { workMs: number[]; fps: number };
   /** Give Jarrett an item (it goes in the inventory). */
   giveItem(item: ItemId): void;
+  /** What the shop screen shows, or null when it isn't open. */
+  shop(): {
+    cursor: number;
+    items: { name: string; price: number; owned: boolean }[];
+    gems: number;
+    message: string;
+  } | null;
   /** What the inventory screen shows, or null when it isn't open. */
   inventory(): {
     cursor: number;
@@ -127,6 +135,10 @@ export function installTestHook(game: Phaser.Game): void {
       return s && game.scene.isActive('Inventory') ? s.shows() : null;
     },
     hud: () => gameScene(game).hudShows(),
+    shop: () => {
+      const s = game.scene.getScene('Shop') as ShopScene | null;
+      return s && game.scene.isActive('Shop') ? s.shows() : null;
+    },
     missingTextures: () => ASSETS.filter((a) => !game.textures.exists(a.key)).map((a) => a.key),
   };
 }

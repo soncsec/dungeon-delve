@@ -197,6 +197,11 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
   },
 };
 
+/** The village shop's prices, in gems (owner 2026-10-21). */
+export const SHOP = {
+  prices: { 'health-potion': 10, 'mana-brew': 15, 'iron-shield': 80 },
+} as const;
+
 /** Talking (Walker): the text box holds this many characters a line, and lines a page. */
 export const DIALOGUE = { width: 36, lines: 3 } as const;
 
