@@ -24,3 +24,129 @@ body {
 canvas {
   image-rendering: pixelated;
 }
+
+/*
+ * Touch controls (phones and tablets): a pad bottom left; attack, switch and spell
+ * bottom right; the potions and the bag above them. Upright, they sit below the
+ * game; sideways, over its edges, see-through.
+ */
+#touch {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: 'Press Start 2P', monospace;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#touch .pad,
+#touch .button {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#touch .pad {
+  position: absolute;
+  left: 5vmin;
+  bottom: 5vmin;
+  width: 34vmin;
+  height: 34vmin;
+  border-radius: 50%;
+  background: rgba(232, 244, 240, 0.08);
+  border: 2px solid rgba(232, 244, 240, 0.3);
+}
+
+#touch .knob {
+  position: absolute;
+  left: 30%;
+  top: 30%;
+  width: 40%;
+  height: 40%;
+  border-radius: 50%;
+  background: rgba(232, 244, 240, 0.3);
+  pointer-events: none;
+}
+
+#touch .actions {
+  position: absolute;
+  right: 5vmin;
+  bottom: 5vmin;
+  display: grid;
+  grid-template-columns: repeat(2, 15vmin);
+  grid-template-areas:
+    '. spell'
+    'switch attack';
+  gap: 3vmin;
+}
+
+#touch .extras {
+  position: absolute;
+  right: 5vmin;
+  bottom: 44vmin;
+  display: flex;
+  gap: 3vmin;
+}
+
+#touch .button {
+  height: 15vmin;
+  min-width: 15vmin;
+  padding: 0;
+  border-radius: 7.5vmin;
+  border: 2px solid rgba(232, 244, 240, 0.45);
+  background: rgba(16, 16, 24, 0.55);
+  color: #e8f4f0;
+  font-family: inherit;
+  font-size: 2.2vmin;
+}
+
+#touch .extras .button {
+  height: 10vmin;
+  min-width: 14vmin;
+  border-radius: 3vmin;
+  font-size: 2.2vmin;
+}
+
+#touch .attack {
+  grid-area: attack;
+  background: rgba(64, 160, 96, 0.55);
+}
+
+#touch .switch {
+  grid-area: switch;
+}
+
+#touch .spell {
+  grid-area: spell;
+  background: rgba(63, 160, 255, 0.45);
+}
+
+#touch .health {
+  background: rgba(208, 64, 64, 0.55);
+}
+
+#touch .mana {
+  background: rgba(63, 160, 255, 0.45);
+}
+
+#touch .button.down {
+  filter: brightness(1.6);
+}
+
+/* Upright: the game at the top of the screen, and every control below it. */
+@media (orientation: portrait) {
+  body.touch #game {
+    align-items: flex-start;
+  }
+}
+
+/* Sideways: the potions and the bag go up the left side, above the pad. */
+@media (orientation: landscape) {
+  #touch .extras {
+    left: 5vmin;
+    right: auto;
+    bottom: auto;
+    top: 5vmin;
+    flex-direction: column;
+  }
+}
