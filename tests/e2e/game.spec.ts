@@ -1113,7 +1113,11 @@ test('Walker waits in the village, tells the story and hands over the sword and 
     const talking = (await snapshot(page)).talking;
     if (!talking) break;
     pages.push(talking.lines);
-    if (sword < 0 && (await snapshot(page)).sounds.chest > 0) sword = talking.page;
+    if (sword < 0 && (await snapshot(page)).sounds.chest > 0) {
+      sword = talking.page;
+      // The status bar shows the sword at once, while he is still talking.
+      expect((await hud())?.weapon).toBe('sword-icon');
+    }
     await page.keyboard.press('Space');
     await expect
       .poll(async () => (await snapshot(page)).talking?.page ?? -1)
