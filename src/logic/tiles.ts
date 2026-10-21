@@ -7,7 +7,7 @@
  * just above its top edge.
  */
 import { TILE } from '../config/tuning';
-import { isForest, isWall, type PropKind, type Room } from './room';
+import { isForest, isWall, type Ground, type PropKind, type Room } from './room';
 
 /** Columns in the forest sheet (432 px / 16). */
 export const FOREST_COLUMNS = 27;
@@ -34,27 +34,75 @@ export const PROP_REGIONS: Readonly<
   bush: { x: 128, y: 64, w: 16, h: 16 },
   // The archway comes from the dungeon sheet (see PROP_SHEET).
   arch: { x: 16, y: 16, w: 64, h: 48 },
+  // Village props come from the Top-Down Town sheet.
+  house: { x: 192, y: 16, w: 80, h: 144 },
+  maple: { x: 112, y: 16, w: 64, h: 64 },
+  stump: { x: 64, y: 96, w: 32, h: 32 },
+  cone: { x: 32, y: 96, w: 16, h: 32 },
+  shrub: { x: 112, y: 96, w: 16, h: 16 },
 };
 
 /** Which sheet each prop's art is on. */
-export const PROP_SHEET: Readonly<Record<PropKind, 'forest' | 'dungeon'>> = {
+export const PROP_SHEET: Readonly<Record<PropKind, 'forest' | 'dungeon' | 'town'>> = {
   pine: 'forest',
   oak: 'forest',
   boulder: 'forest',
   rock: 'forest',
   bush: 'forest',
   arch: 'dungeon',
+  house: 'town',
+  maple: 'town',
+  stump: 'town',
+  cone: 'town',
+  shrub: 'town',
 };
+
+/**
+ * Where each prop's art sits: its bottom-centre, in pixels from its anchor
+ * cell's top-left corner. Most stand on their anchor cell; the boulder and the
+ * archway are anchored top-left; two-cell trunks are anchored on the left one;
+ * the house's steps sit in the row below its 3-row footprint.
+ */
+const PROP_ANCHOR: Readonly<Record<PropKind, { dx: number; dy: number }>> = {
+  pine: { dx: TILE / 2, dy: TILE },
+  oak: { dx: TILE / 2, dy: TILE },
+  rock: { dx: TILE / 2, dy: TILE },
+  bush: { dx: TILE / 2, dy: TILE },
+  cone: { dx: TILE / 2, dy: TILE },
+  shrub: { dx: TILE / 2, dy: TILE },
+  boulder: { dx: TILE, dy: 2 * TILE },
+  arch: { dx: 2 * TILE, dy: 3 * TILE },
+  maple: { dx: TILE, dy: TILE },
+  stump: { dx: TILE, dy: TILE },
+  house: { dx: 2.5 * TILE, dy: 4 * TILE },
+};
+
+/** Columns in the Top-Down Town sheet (384 px / 16). */
+export const TOWN_COLUMNS = 24;
+const tframe = (col: number, row: number): number => row * TOWN_COLUMNS + col;
+
+export const TOWN_FRAMES = {
+  grass: tframe(18, 1),
+  /** Grass with a little texture, scattered for variety. */
+  grassLight: tframe(19, 1),
+  ground: { path: tframe(22, 5), flowers: tframe(21, 1), tall: tframe(20, 1) } as Readonly<
+    Record<Ground, number>
+  >,
+} as const;
+
+/** The overworld's regions (PROJECT.md decisions, 2026-10-20). More arrive with M4.1b–e. */
+export type Region = 'forest' | 'village';
 
 function mod3(n: number): number {
   return ((n % 3) + 3) % 3;
 }
 
-/** A 16×16 frame drawn with its top-left corner at (x, y) in room pixels. */
+/** A 16×16 frame drawn with its top-left corner at (x, y) in room pixels; from `sheet` if given, else the map's own sheet. */
 export interface TileDraw {
   frame: number;
   x: number;
   y: number;
+  sheet?: 'town';
 }
 
 /** A prop drawn with its bottom-centre at (x, y) in room pixels; sorted by y for depth. */
@@ -85,21 +133,28 @@ export function forestFrame(room: Room, x: number, y: number): number {
 
 /** Where a prop's art goes, given its anchor cell. */
 export function propDraw(prop: PropKind, x: number, y: number): PropDraw {
-  // The boulder's anchor is its top-left cell; the others stand on their anchor cell.
-  if (prop === 'boulder') return { prop, x: (x + 1) * TILE, y: (y + 2) * TILE };
-  // The archway's anchor is its top-left cell; it is 4 cells wide and 3 tall.
-  if (prop === 'arch') return { prop, x: (x + 2) * TILE, y: (y + 3) * TILE };
-  return { prop, x: x * TILE + TILE / 2, y: (y + 1) * TILE };
+  const a = PROP_ANCHOR[prop];
+  return { prop, x: x * TILE + a.dx, y: y * TILE + a.dy };
 }
 
-/** Everything to draw for a room. */
-export function roomArt(room: Room): RoomArt {
+/** The same scatter as the dungeon's cracks: about one grass cell in nine looks a little different. */
+function villageGrass(x: number, y: number): number {
+  return (x * 73 + y * 151 + x * y * 7) % 9 === 0 ? TOWN_FRAMES.grassLight : TOWN_FRAMES.grass;
+}
+
+/** Everything to draw for an outdoor room, in its region's look. */
+export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
   const art: RoomArt = { ground: [], over: [], props: [], chests: [] };
   room.cells.forEach((rowCells, y) => {
     rowCells.forEach((cell, x) => {
       const px = x * TILE;
       const py = y * TILE;
-      art.ground.push({ frame: FOREST_FRAMES.grass, x: px, y: py });
+      if (region === 'village') {
+        const frame = cell.ground ? TOWN_FRAMES.ground[cell.ground] : villageGrass(x, y);
+        art.ground.push({ frame, x: px, y: py, sheet: 'town' });
+      } else {
+        art.ground.push({ frame: FOREST_FRAMES.grass, x: px, y: py });
+      }
       if (cell.forest) {
         art.ground.push({ frame: forestFrame(room, x, y), x: px, y: py });
         if (y > 0 && !isForest(room, x, y - 1)) {

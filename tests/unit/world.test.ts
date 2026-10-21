@@ -324,3 +324,15 @@ describe('bosses', () => {
     ).toThrow('not on open ground');
   });
 });
+
+describe('regions', () => {
+  it('keeps each room\u2019s region, forest unless given', () => {
+    const lines = Array.from({ length: 10 }, () => 'FFFFFFFFFFFFFFFFFFFF');
+    const w = buildWorld([
+      { col: 0, row: 0, lines, region: 'village' },
+      { col: 1, row: 0, lines },
+    ]);
+    expect(w.regions.get('0,0')).toBe('village');
+    expect(w.regions.get('1,0')).toBe('forest');
+  });
+});

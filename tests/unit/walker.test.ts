@@ -71,8 +71,8 @@ describe('Walker after dungeon 1', () => {
     const here = (map: string, col: number, row: number, opened: string[] = []) =>
       walkerHere(WALKER_VISITS, map, { col, row }, { opened, keys: {} })?.id ?? null;
     expect(here('dungeon1', 1, 3)).toBe('dungeon1');
-    expect(here('overworld', 1, 0)).toBeNull();
-    expect(here('overworld', 1, 0, ['dungeon1/shard'])).toBe('dungeon1-done');
-    expect(here('overworld', 1, 0, ['dungeon1/shard', 'walker/dungeon1-done'])).toBeNull();
+    expect(here('overworld', 3, 5)).toBeNull();
+    expect(here('overworld', 3, 5, ['dungeon1/shard'])).toBe('dungeon1-done');
+    expect(here('overworld', 3, 5, ['dungeon1/shard', 'walker/dungeon1-done'])).toBeNull();
   });
 });

@@ -175,6 +175,6 @@ describe('the real maps', () => {
     const world = buildWorld(OVERWORLD);
     const r = explore(world, { ...START_ROOM, cx: 10, cy: 5 });
     expect(r.rooms).toEqual([...world.rooms.keys()].sort());
-    expect(r.exits).toEqual(['1,0/10,2', '1,0/9,2']);
+    expect(r.exits).toEqual(['3,5/10,2', '3,5/9,2']); // Hollow Oak's archway
   });
 });

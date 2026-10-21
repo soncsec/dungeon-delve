@@ -63,9 +63,9 @@ function roomOf(world: World, col: number, row: number): Room {
 /**
  * Everywhere he can walk, with the chests and doors opened so far. For each
  * room visit and each way its stones can lie, it floods the area he can walk
- * to; pushing a stone from the edge of that area gives a new layout. Layouts
- * are told apart by the stones and the area (by its first cell), not by where
- * in the area he stands, which keeps the search small.
+ * to; pushing a stone from the edge of that area gives a new layout. A visit
+ * that lands inside an area already flooded for the same room and stones adds
+ * nothing, so it is skipped: that keeps the search small.
  */
 function walk(world: World, start: ReachStart, opened: ReadonlySet<string>): Walk {
   const out: Walk = { rooms: new Set(), exits: new Set(), touched: new Map() };
@@ -76,17 +76,32 @@ function walk(world: World, start: ReachStart, opened: ReadonlySet<string>): Wal
     return { col, row, room, x, y, stones: room.stones.map((st) => `${st.cx},${st.cy}`) };
   };
   const queue: Visit[] = [enter(start.col, start.row, start.cx, start.cy)];
-  const seen = new Set<string>();
+  /** Cells already flooded, per room and stone layout. */
+  const flooded = new Map<string, Set<string>>();
   const isOpen = (k: string, x: number, y: number): boolean => opened.has(id(k, x, y));
+  const solidCache = new Map<string, boolean>();
   while (queue.length > 0) {
     const v = queue.shift() as Visit;
     const key = roomKey(v.col, v.row);
-    const solid = (x: number, y: number): boolean =>
-      solidInWorld(world, v.col, v.row, x, y, isOpen);
+    const layout = `${key}|${[...v.stones].sort().join(';')}`;
+    const known = flooded.get(layout) ?? new Set<string>();
+    if (known.has(`${v.x},${v.y}`)) continue;
+    flooded.set(layout, known);
+    out.rooms.add(key);
+    const solid = (x: number, y: number): boolean => {
+      const c = `${key}/${x},${y}`;
+      let s = solidCache.get(c);
+      if (s === undefined) {
+        s = solidInWorld(world, v.col, v.row, x, y, isOpen);
+        solidCache.set(c, s);
+      }
+      return s;
+    };
     const inside = (x: number, y: number): boolean =>
       x >= 0 && y >= 0 && x < ROOM_COLS && y < ROOM_ROWS;
     // The area he can walk to without pushing anything.
-    const area = new Set<string>([`${v.x},${v.y}`]);
+    const area = known;
+    area.add(`${v.x},${v.y}`);
     const todo: [number, number][] = [[v.x, v.y]];
     const next: Visit[] = [];
     while (todo.length > 0) {
@@ -123,11 +138,6 @@ function walk(world: World, start: ReachStart, opened: ReadonlySet<string>): Wal
         todo.push([nx, ny]);
       }
     }
-    const first = [...area].sort()[0];
-    const state = `${key}|${[...v.stones].sort().join(';')}|${first}`;
-    if (seen.has(state)) continue;
-    seen.add(state);
-    out.rooms.add(key);
     queue.push(...next);
   }
   return out;
