@@ -100,6 +100,13 @@ describe('startingKit', () => {
     expect(startingKit(1)).toEqual(['wooden-sword', 'wooden-shield']);
     expect(startingKit(2)).toEqual(['wooden-sword', 'wooden-shield', 'daggers', 'fireball']);
     expect(startingKit(3)).toEqual(['wooden-sword', 'wooden-shield', 'daggers', 'fireball']);
+    expect(startingKit(4)).toEqual([
+      'wooden-sword',
+      'wooden-shield',
+      'daggers',
+      'fireball',
+      'lightning',
+    ]);
   });
 
   it('the Fireball comes from Walker after dungeon 1, with its daggers', () => {

@@ -558,3 +558,23 @@ describe('crystal switches and gates in a dungeon', () => {
     expect(SWITCH_DIM).toBeLessThan(0xffffff);
   });
 });
+
+describe('rubble in a dungeon', () => {
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 1 ? '#########xx#########' : y === 0 ? '#########..#########' : '##..................',
+    ),
+  );
+
+  it('draws the mountain set’s rubble over the floor, until the Axe smashes it', () => {
+    const rubble = dungeonArt(r).ground.filter((t) => t.sheet === 'mountain');
+    expect(rubble).toEqual([
+      { frame: MOUNTAIN_FRAMES.rubble[1], x: 144, y: 16, sheet: 'mountain' },
+      { frame: MOUNTAIN_FRAMES.rubble[0], x: 160, y: 16, sheet: 'mountain' },
+    ]);
+    const smashed = dungeonArt(r, (x, y) => y === 1 && x === 9).ground.filter(
+      (t) => t.sheet === 'mountain',
+    );
+    expect(smashed).toHaveLength(1);
+  });
+});
