@@ -3,6 +3,8 @@ import {
   cellAt,
   edgeOpenings,
   isForest,
+  fixturesIn,
+  isPassage,
   isSolid,
   isWall,
   parseRoom,
@@ -18,19 +20,54 @@ const room = (rows: Record<number, string> = {}): string[] =>
 describe('parseRoom', () => {
   it('reads grass and forest', () => {
     const r = parseRoom(room({ 0: WALL }));
-    expect(cellAt(r, 0, 0)).toEqual({ solid: true, forest: true, wall: false, prop: null });
-    expect(cellAt(r, 0, 1)).toEqual({ solid: false, forest: false, wall: false, prop: null });
+    expect(cellAt(r, 0, 0)).toEqual({
+      solid: true,
+      forest: true,
+      wall: false,
+      prop: null,
+      fixture: null,
+    });
+    expect(cellAt(r, 0, 1)).toEqual({
+      solid: false,
+      forest: false,
+      wall: false,
+      prop: null,
+      fixture: null,
+    });
   });
 
   it('reads dungeon walls', () => {
     const r = parseRoom(room({ 0: '####################' }));
-    expect(cellAt(r, 3, 0)).toEqual({ solid: true, forest: false, wall: true, prop: null });
+    expect(cellAt(r, 3, 0)).toEqual({
+      solid: true,
+      forest: false,
+      wall: true,
+      prop: null,
+      fixture: null,
+    });
     expect(isWall(r, 3, 0)).toBe(true);
     expect(isWall(r, 3, 1)).toBe(false);
     // Outside the room, walls run on from the nearest edge cell.
     expect(isWall(r, 3, -2)).toBe(true);
     expect(isWall(r, -1, 5)).toBe(false);
     expect(isWall({ cells: [] } as Room, 0, 0)).toBe(false);
+  });
+
+  it('reads locked doors and chests, which block, and lists them', () => {
+    const r = parseRoom(room({ 0: '#########KK#########', 4: '.....C..............' }));
+    expect(cellAt(r, 9, 0)).toMatchObject({ solid: true, fixture: 'door' });
+    expect(cellAt(r, 5, 4)).toMatchObject({ solid: true, fixture: 'chest' });
+    expect(fixturesIn(r)).toEqual([
+      { x: 9, y: 0, fixture: 'door' },
+      { x: 10, y: 0, fixture: 'door' },
+      { x: 5, y: 4, fixture: 'chest' },
+    ]);
+    // A door is a way through (once opened); a chest is not.
+    expect(isPassage(r, 9, 0)).toBe(true);
+    expect(isPassage(r, 5, 4)).toBe(false);
+    expect(isPassage(r, 3, 3)).toBe(true);
+    expect(isPassage(r, 30, 3)).toBe(true);
+    expect(edgeOpenings(r, 'north').filter(Boolean)).toHaveLength(2);
   });
 
   it('anchors props and blocks their footprints', () => {

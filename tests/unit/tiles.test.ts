@@ -147,12 +147,34 @@ describe('dungeon tiles', () => {
     expect(art.ground[0]).toEqual({ frame: DUNGEON_FRAMES.top, x: 0, y: 0 });
   });
 
+  it('draws a locked door as the barred gate, and as floor once opened', () => {
+    const d = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        y === 0
+          ? '#########KK#########'
+          : y === 4
+            ? '##..C...............'
+            : '##..................',
+      ),
+    );
+    expect(dungeonFrame(d, 9, 0)).toBe(DUNGEON_FRAMES.gate);
+    expect(dungeonFrame(d, 9, 0, true)).not.toBe(DUNGEON_FRAMES.gate);
+    const closed = dungeonArt(d);
+    expect(closed.chests).toEqual([{ x: 64, y: 64 }]);
+    expect(closed.ground[9]?.frame).toBe(DUNGEON_FRAMES.gate);
+    // Opened: the door is floor and the chest is gone.
+    const open = dungeonArt(d, () => true);
+    expect(open.chests).toEqual([]);
+    expect(open.ground[9]?.frame).not.toBe(DUNGEON_FRAMES.gate);
+  });
+
   it('every dungeon frame is visible art on the sheet', () => {
     for (const f of [
       DUNGEON_FRAMES.top,
       DUNGEON_FRAMES.face,
       DUNGEON_FRAMES.floor,
       DUNGEON_FRAMES.shadow,
+      DUNGEON_FRAMES.gate,
       ...DUNGEON_FRAMES.cracks,
     ]) {
       const x = (f % DUNGEON_COLUMNS) * 16;

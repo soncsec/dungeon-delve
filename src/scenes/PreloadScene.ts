@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { KEY_COLOURS, KEY_PIXELS } from '../assets/keyArt';
 import { ASSETS, animKey } from '../assets/manifest';
 import { PROP_REGIONS } from '../logic/tiles';
 
@@ -35,6 +36,18 @@ export class PreloadScene extends Phaser.Scene {
     const forest = this.textures.get('forest');
     for (const [name, r] of Object.entries(PROP_REGIONS))
       forest.add(`prop:${name}`, 0, r.x, r.y, r.w, r.h);
+
+    // The small key is drawn in code: the art pack has none (owner, 2026-10-20).
+    const g = this.make.graphics({}, false);
+    KEY_PIXELS.forEach((row, y) => {
+      Array.from(row).forEach((ch, x) => {
+        const colour = KEY_COLOURS[ch];
+        if (colour === undefined) return;
+        g.fillStyle(colour).fillRect(x, y, 1, 1);
+      });
+    });
+    g.generateTexture('key', KEY_PIXELS[0]?.length ?? 0, KEY_PIXELS.length);
+    g.destroy();
 
     const wanted = new URLSearchParams(window.location.search).get('scene');
     this.scene.start(wanted === 'preview' ? 'AssetPreview' : 'Game');

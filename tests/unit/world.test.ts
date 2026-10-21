@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildWorld,
+  cellsAhead,
   enterFrom,
   exitDirection,
   joinProblems,
@@ -150,5 +151,109 @@ describe('enemy placements', () => {
   it('every enemy in the overworld starts on open ground', () => {
     expect(() => buildWorld(OVERWORLD)).not.toThrow();
     expect([...buildWorld(OVERWORLD).enemies.values()].flat().length).toBeGreaterThan(0);
+  });
+});
+
+describe('doors and chests', () => {
+  const lines = (rows: Record<number, string>): string[] =>
+    Array.from({ length: 10 }, (_, y) => rows[y] ?? '#..................#');
+  const room = lines({
+    0: '#########KK#########',
+    4: '#....C.............#',
+    9: '####################',
+  });
+
+  it('a locked door counts as a doorway when rooms join up', () => {
+    const above = {
+      col: 0,
+      row: -1,
+      lines: lines({ 0: '####################', 9: '#########..#########' }),
+    };
+    const w = buildWorld([
+      { col: 0, row: 0, lines: room, chests: [{ col: 5, row: 4, contents: { kind: 'key' } }] },
+      above,
+    ]);
+    expect(joinProblems(w)).toEqual([]);
+    expect(w.chests.get('0,0')).toEqual([{ col: 5, row: 4, contents: { kind: 'key' } }]);
+  });
+
+  it('every chest needs exactly one list of contents, on a chest', () => {
+    expect(() => buildWorld([{ col: 0, row: 0, lines: room }])).toThrow(
+      'room 0,0: the chest at column 5, row 4 has 0 lists of contents, not 1',
+    );
+    expect(() =>
+      buildWorld([
+        {
+          col: 0,
+          row: 0,
+          lines: room,
+          chests: [
+            { col: 5, row: 4, contents: { kind: 'key' } },
+            { col: 5, row: 4, contents: { kind: 'gems', amount: 5 } },
+          ],
+        },
+      ]),
+    ).toThrow('has 2 lists of contents');
+    expect(() =>
+      buildWorld([
+        {
+          col: 0,
+          row: 0,
+          lines: room,
+          chests: [
+            { col: 5, row: 4, contents: { kind: 'key' } },
+            { col: 6, row: 4, contents: { kind: 'potion', potion: 'mana' } },
+          ],
+        },
+      ]),
+    ).toThrow('room 0,0: chest contents at column 6, row 4, but no chest there');
+  });
+
+  it('doors and chests block until opened', () => {
+    const w = buildWorld([
+      {
+        col: 0,
+        row: 0,
+        lines: room,
+        chests: [{ col: 5, row: 4, contents: { kind: 'item', item: 'daggers' } }],
+      },
+    ]);
+    expect(solidInWorld(w, 0, 0, 9, 0)).toBe(true);
+    expect(solidInWorld(w, 0, 0, 5, 4)).toBe(true);
+    const opened = (key: string, x: number, y: number): boolean =>
+      key === '0,0' && x === 9 && y === 0;
+    expect(solidInWorld(w, 0, 0, 9, 0, opened)).toBe(false);
+    expect(solidInWorld(w, 0, 0, 5, 4, opened)).toBe(true);
+    // Being "opened" only matters for doors and chests: a wall stays a wall.
+    expect(solidInWorld(w, 0, 0, 0, 0, () => true)).toBe(true);
+  });
+
+  it('cellsAhead finds every cell the leading edge of the feet box touches', () => {
+    const box = { halfWidth: 5, height: 6 };
+    // Box x 35–45, y 42–48: all in cell (2, 2).
+    const feet = { x: 40, y: 48 };
+    expect(cellsAhead(feet, 'left', box)).toEqual([{ cx: 2, cy: 2 }]); // x 34 is still cell 2
+    expect(cellsAhead({ x: 37, y: 48 }, 'left', box)).toEqual([{ cx: 1, cy: 2 }]);
+    expect(cellsAhead({ x: 43, y: 48 }, 'right', box)).toEqual([{ cx: 3, cy: 2 }]);
+    expect(cellsAhead({ x: 40, y: 38 }, 'up', box)).toEqual([{ cx: 2, cy: 1 }]);
+    expect(cellsAhead(feet, 'down', box)).toEqual([{ cx: 2, cy: 3 }]);
+    // Straddling two columns (x 155–165: cells 9 and 10), both are ahead.
+    expect(cellsAhead({ x: 160, y: 70 }, 'up', box)).toEqual([
+      { cx: 9, cy: 3 },
+      { cx: 10, cy: 3 },
+    ]);
+    expect(cellsAhead({ x: 160, y: 70 }, 'down', box)).toEqual([
+      { cx: 9, cy: 4 },
+      { cx: 10, cy: 4 },
+    ]);
+    // Straddling two rows (y 60–66: rows 3 and 4).
+    expect(cellsAhead({ x: 40, y: 66 }, 'left', box)).toEqual([
+      { cx: 2, cy: 3 },
+      { cx: 2, cy: 4 },
+    ]);
+    expect(cellsAhead({ x: 43, y: 66 }, 'right', box)).toEqual([
+      { cx: 3, cy: 3 },
+      { cx: 3, cy: 4 },
+    ]);
   });
 });

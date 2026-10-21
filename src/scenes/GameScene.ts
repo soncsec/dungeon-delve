@@ -24,6 +24,7 @@ import {
   SWORD,
   TILE,
 } from '../config/tuning';
+import { ITEM_ICON } from '../assets/itemIcons';
 import { Sfx } from '../audio/Sfx';
 import type { SfxName } from '../config/tuning';
 import { Hud } from '../entities/Hud';
@@ -46,6 +47,16 @@ import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '.
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
 import type { Axis, Point } from '../logic/movement';
 import { EMPTY_INVENTORY, give, type Inventory, type ItemId } from '../logic/inventory';
+import {
+  NEW_PROGRESS,
+  addKey,
+  fixtureId,
+  isOpened,
+  keysIn,
+  openChest,
+  unlockDoor,
+  type Progress,
+} from '../logic/progress';
 import { createRng, type Rng } from '../logic/rng';
 import { shieldBlocks } from '../logic/shield';
 import {
@@ -72,11 +83,13 @@ import {
 import { dungeonArt, roomArt } from '../logic/tiles';
 import {
   buildWorld,
+  cellsAhead,
   enterFrom,
   exitDirection,
   neighbour,
   roomKey,
   solidInWorld,
+  type ChestContents,
   type World,
 } from '../logic/world';
 import { DUNGEON_MAPS, MAPS, type MapId } from '../world/maps';
@@ -129,6 +142,9 @@ export interface GameSnapshot {
   shotsFired: number;
   blocked: number;
   pickups: { kind: PickupKind; x: number; y: number }[];
+  /** Small keys held on this map, and the ids of opened doors and chests. */
+  keys: number;
+  opened: string[];
   /** Enemies defeated since the game started. */
   defeated: number;
   /** Which weapon the attack key uses. */
@@ -171,7 +187,7 @@ interface LiveEnemy {
 }
 
 /** Things on the ground: drops, and potions. */
-export type PickupKind = Drop | 'health-potion' | 'mana-brew';
+export type PickupKind = Drop | 'health-potion' | 'mana-brew' | 'key' | 'item';
 
 interface LiveEnemyShot {
   s: EnemyShot;
@@ -195,6 +211,10 @@ interface Pickup {
   kind: PickupKind;
   pos: Point;
   sprite: Phaser.GameObjects.Sprite;
+  /** Gems from a chest count several; a single dropped gem counts one. */
+  amount: number;
+  /** For an item from a chest: which one. */
+  item: ItemId | null;
 }
 
 /** Jarrett's body, for touching enemies and pickups: 10 px wide, 20 px tall above his feet. */
@@ -288,6 +308,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private lastCastAt: number | null = null;
   private potions: Potions = { ...POTIONS.start };
   private inv: Inventory = EMPTY_INVENTORY;
+  /** Opened doors and chests, and small keys held. */
+  private progress: Progress = NEW_PROGRESS;
   /** True from the moment he runs out of hearts until he is back on his feet. */
   private falling = false;
   private falls = 0;
@@ -330,6 +352,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.mana = fullMana(MANA.max);
     this.lastCastAt = null;
     this.potions = { ...POTIONS.start };
+    this.progress = NEW_PROGRESS;
     this.falling = false;
     this.falls = 0;
     this.sfx = new Sfx(this);
@@ -365,7 +388,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.slash.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.slash.setVisible(false));
     this.swing = { startedAt: null };
     this.spawnEnemies();
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
   }
 
   override update(time: number, deltaMs: number): void {
@@ -426,7 +449,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       isInvulnerable(this.health, time) && Math.floor(time / 80) % 2 === 0 ? 0.3 : 1,
     );
     this.placeSprite();
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
     if (isOut(this.health)) {
       this.fall();
       return;
@@ -443,10 +466,84 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const before = this.pos;
     const { col, row } = this.room;
     this.pos = moveHero(this.pos, axis, (HERO.speed * deltaMs) / 1000, HERO.box, (cx, cy) =>
-      solidInWorld(this.world, col, row, cx, cy),
+      this.solidAt(col, row, cx, cy),
     );
     this.moving = this.pos.x !== before.x || this.pos.y !== before.y;
     this.animate(axis.x !== 0 || axis.y !== 0);
+    // Walking into a locked door or a chest tries to open it.
+    if ((axis.x !== 0 || axis.y !== 0) && !this.moving) this.bump();
+  }
+
+  /** Walls, props, and doors and chests not yet opened, reaching into the rooms next door. */
+  private solidAt(col: number, row: number, cx: number, cy: number): boolean {
+    return solidInWorld(this.world, col, row, cx, cy, (key, x, y) =>
+      isOpened(this.progress, fixtureId(this.mapId, key, x, y)),
+    );
+  }
+
+  /** The small-key count for the status bar: in a dungeon only. */
+  private hudKeys(): number | null {
+    return MAPS[this.mapId].theme === 'dungeon' ? keysIn(this.progress, this.mapId) : null;
+  }
+
+  /** Jarrett walked into something: if it's a locked door he unlocks it with a key; a chest, he opens it. */
+  private bump(): void {
+    for (const { cx, cy } of cellsAhead(this.pos, this.facing, HERO.box)) this.bumpInto(cx, cy);
+  }
+
+  private bumpInto(cx: number, cy: number): void {
+    const key = roomKey(this.room.col, this.room.row);
+    const room = this.world.rooms.get(key);
+    const fixture = room?.cells[cy]?.[cx]?.fixture;
+    if (!fixture) return;
+    const id = fixtureId(this.mapId, key, cx, cy);
+    if (isOpened(this.progress, id)) return;
+    if (fixture === 'door') {
+      const r = unlockDoor(this.progress, this.mapId, id);
+      if (!r.unlocked) return;
+      // A door is two cells wide: the key opens both halves.
+      let progress = r.progress;
+      for (const [dx, dy] of [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ] as const) {
+        if (room?.cells[cy + dy]?.[cx + dx]?.fixture === 'door') {
+          const other = fixtureId(this.mapId, key, cx + dx, cy + dy);
+          if (!isOpened(progress, other))
+            progress = { ...progress, opened: [...progress.opened, other] };
+        }
+      }
+      this.progress = progress;
+      this.sfx.play('unlock');
+      this.redrawRoom();
+      return;
+    }
+    const contents = this.world.chests
+      .get(key)
+      ?.find((c) => c.col === cx && c.row === cy)?.contents;
+    if (!contents) return;
+    this.progress = openChest(this.progress, id);
+    this.sfx.play('chest');
+    const at = { x: cx * TILE + TILE / 2, y: (cy + 1) * TILE - 1 };
+    this.effect('puff', at.x, at.y - TILE / 2);
+    this.redrawRoom();
+    this.dropContents(contents, at);
+  }
+
+  /** What falls out of a chest. */
+  private dropContents(c: ChestContents, at: Point): void {
+    if (c.kind === 'key') this.addPickup('key', at);
+    else if (c.kind === 'gems') this.addPickup('gem', at, c.amount);
+    else if (c.kind === 'item') this.addPickup('item', at, 1, c.item);
+    else this.addPickup(c.potion === 'health' ? 'health-potion' : 'mana-brew', at);
+  }
+
+  /** Draws the current room again (after a door or chest opens). */
+  private redrawRoom(): void {
+    for (const o of this.roomObjects) o.destroy();
+    this.roomObjects = this.drawRoom(this.room.col, this.room.row);
   }
 
   /** Pushed back after a hit; he can't walk or swing meanwhile. */
@@ -460,7 +557,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       facingVector(this.heroKnockDir),
       (HEALTH.knockback.speed * ms) / 1000,
       HERO.box,
-      (cx, cy) => this.outsideRoom(cx, cy) || solidInWorld(this.world, col, row, cx, cy),
+      (cx, cy) => this.outsideRoom(cx, cy) || this.solidAt(col, row, cx, cy),
     );
     this.moving = false;
   }
@@ -550,7 +647,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const kept = gemsAfterFalling(this.gems, DEATH.gemLossPercent);
     const lost = this.gems - kept;
     this.gems = kept;
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
     const veil = this.add
       .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000)
       .setOrigin(0)
@@ -606,7 +703,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.placeSprite();
     this.hero.setAlpha(1);
     this.spawnEnemies();
-    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions);
+    this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
     this.falls += 1;
     this.falling = false;
   }
@@ -728,20 +825,25 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     if (drop) this.addPickup(drop, live.e.pos);
   }
 
-  private addPickup(kind: PickupKind, pos: Point): void {
+  private addPickup(kind: PickupKind, pos: Point, amount = 1, item: ItemId | null = null): void {
+    const icon = item ? ITEM_ICON[item] : undefined;
     const sprite =
       kind === 'gem'
         ? this.pickupPool.take('gems').play(animKey('gems', 'teal'))
         : kind === 'mana-brew'
           ? this.pickupPool.take('mana-brew')
-          : this.pickupPool.take(
-              'objects',
-              kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
-            );
+          : kind === 'key'
+            ? this.pickupPool.take('key')
+            : kind === 'item'
+              ? this.pickupPool.take(icon?.texture ?? 'sword-icon', icon?.frame ?? 0)
+              : this.pickupPool.take(
+                  'objects',
+                  kind === 'heart' ? OBJECT_FRAMES.smallHeart : OBJECT_FRAMES.potion,
+                );
     sprite.setOrigin(0.5, 1);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);
-    this.pickups.push({ kind, pos: { ...pos }, sprite });
+    this.pickups.push({ kind, pos: { ...pos }, sprite, amount, item });
   }
 
   private collectPickups(): void {
@@ -750,8 +852,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       if (!overlaps(body, { x: p.pos.x - 6, y: p.pos.y - 12, w: 12, h: 12 })) continue;
       let sound: SfxName = 'potion';
       if (p.kind === 'gem') {
-        this.gems += PICKUPS.gemValue;
+        this.gems += PICKUPS.gemValue * p.amount;
         sound = 'gem';
+      } else if (p.kind === 'key') {
+        this.progress = addKey(this.progress, this.mapId);
+        sound = 'chest';
+      } else if (p.kind === 'item') {
+        if (p.item) this.inv = give(this.inv, p.item);
+        sound = 'chest';
       } else if (p.kind === 'heart') {
         this.health = heal(this.health, PICKUPS.heartHeals);
         sound = 'heart';
@@ -955,6 +1063,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       sounds: this.sfx.counts(),
       muted: this.muted,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
+      keys: keysIn(this.progress, this.mapId),
+      opened: [...this.progress.opened],
       defeated: this.defeated,
       mode: this.mode,
       daggers: this.shotsOf('dagger'),
@@ -994,6 +1104,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.addPickup(kind, { x, y });
   }
 
+  /** Test hook only: give Jarrett a small key for this map. */
+  testGiveKey(): void {
+    this.progress = addKey(this.progress, this.mapId);
+  }
+
   /** Test hook only: an enemy shot from a room position, flying along (dx, dy) (normalised). */
   testFireEnemyShot(x: number, y: number, dx: number, dy: number): void {
     const len = Math.hypot(dx, dy) || 1;
@@ -1031,6 +1146,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     weapon: string;
     manaWidth: number;
     potions: { health: string; mana: string };
+    keys: string | null;
   } {
     return this.hud.shows();
   }
@@ -1122,7 +1238,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     if (!room) throw new Error(`no room at ${col},${row}`);
     const o = this.origin(col, row);
     const dungeon = MAPS[this.mapId].theme === 'dungeon';
-    const art = dungeon ? dungeonArt(room) : roomArt(room);
+    const key = roomKey(col, row);
+    const art = dungeon
+      ? dungeonArt(room, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)))
+      : roomArt(room);
     const sheet = dungeon ? 'dungeon' : 'forest';
     const drawn: Phaser.GameObjects.GameObject[] = [];
     for (const t of art.ground) {
@@ -1131,6 +1250,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
           .image(o.x + t.x, o.y + t.y, sheet, t.frame)
           .setOrigin(0)
           .setDepth(DEPTH.ground),
+      );
+    }
+    for (const c of art.chests) {
+      drawn.push(
+        this.add
+          .image(o.x + c.x, o.y + c.y, 'objects', OBJECT_FRAMES.chest)
+          .setOrigin(0)
+          .setDepth(DEPTH.sorted + o.y + c.y + TILE),
       );
     }
     for (const p of art.props) {

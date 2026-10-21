@@ -4,14 +4,18 @@ import { gemLabel, heartIcons } from '../../src/logic/hud';
 
 describe('heartIcons', () => {
   it('lays out one icon per heart with its state', () => {
-    expect(heartIcons({ points: 3, max: 6, invulnerableUntil: 0 }, 4, 15)).toEqual([
-      { x: 4, state: 'full' },
-      { x: 19, state: 'half' },
-      { x: 34, state: 'empty' },
+    expect(heartIcons({ points: 3, max: 6, invulnerableUntil: 0 }, 4, 15, 6)).toEqual([
+      { x: 4, row: 0, state: 'full' },
+      { x: 19, row: 0, state: 'half' },
+      { x: 34, row: 0, state: 'empty' },
     ]);
   });
-  it('grows with heart containers', () => {
-    expect(heartIcons(fullHealth(11), 0, 15)).toHaveLength(11);
+  it('grows with heart containers, wrapping onto a second row', () => {
+    const icons = heartIcons(fullHealth(11), 1, 12, 6);
+    expect(icons).toHaveLength(11);
+    expect(icons[5]).toMatchObject({ x: 61, row: 0 });
+    expect(icons[6]).toMatchObject({ x: 1, row: 1 });
+    expect(icons[10]).toMatchObject({ x: 49, row: 1 });
   });
 });
 

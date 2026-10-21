@@ -153,6 +153,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | Instead of a high score, the fastest finish time is kept in localStorage and shown on the title screen; runs that used `?dungeon=n` don't count |
 | 2026-10-20 | First enemy roster: robot, bird, ghost, flying eye, wolf (the fire skull is too big for a common enemy; it may return as a mini-boss). M2.6 built before M2.4 so the shield can be tested against real shots. The Mana Brew is a recoloured blue potion |
 | 2026-10-20 | Frame-rate check: every frame's work in a crowded fight within the 60 fps budget (median ≤ half a frame, 95% ≤ one frame); Linux WebKit is held to the median only, real Safari is checked on the owner's iPhone |
+| 2026-10-20 | Small keys are drawn in code (the art pack has no key); keys work only in the dungeon they were found in. An opened chest vanishes in a puff and leaves its contents on the floor (the pack has no open chest). Hearts show in two rows of six in the status bar |
 
 ## 8. Open questions
 

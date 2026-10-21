@@ -22,6 +22,8 @@ export class Hud {
   private readonly fronts: Phaser.GameObjects.Image[] = [];
   private readonly gemText: Phaser.GameObjects.Text;
   private readonly weapon: Phaser.GameObjects.Image;
+  private readonly keyIcon: Phaser.GameObjects.Image;
+  private readonly keyText: Phaser.GameObjects.Text;
   private readonly manaFill: Phaser.GameObjects.Rectangle;
   private readonly potionText: Record<'health' | 'mana', Phaser.GameObjects.Text>;
   private shown = '';
@@ -52,6 +54,21 @@ export class Hud {
       .setOrigin(0)
       .setScrollFactor(0)
       .setDepth(depth + 2);
+    // The small-key count (dungeons only): the key drawn in code, and its number.
+    this.keyIcon = scene.add
+      .image(HUD.keyX, HUD_HEIGHT / 2, 'key')
+      .setScrollFactor(0)
+      .setDepth(depth + 1)
+      .setVisible(false);
+    this.keyText = scene.add
+      .text(HUD.keyX + 9, HUD_HEIGHT / 2 - 4, '0', {
+        fontFamily: HUD.font,
+        fontSize: '8px',
+        color: '#e8f4f0',
+      })
+      .setScrollFactor(0)
+      .setDepth(depth + 1)
+      .setVisible(false);
     // Potions: a red Health Potion and a blue Mana Brew, each with its count.
     const potion = (x: number, texture: string, frame: number) => {
       scene.add
@@ -93,19 +110,31 @@ export class Hud {
       .setDepth(depth + 1);
   }
 
-  update(health: Health, gems: number, mode: WeaponMode, mana: Mana, potions: Potions): void {
+  /**
+   * Redraws what changed. `keys` is the small-key count in a dungeon, or null
+   * outdoors (where keys don't show).
+   */
+  update(
+    health: Health,
+    gems: number,
+    mode: WeaponMode,
+    mana: Mana,
+    potions: Potions,
+    keys: number | null,
+  ): void {
     const filled = Math.round((MANA_BAR.w - 2) * (mana.current / mana.max));
-    const key = `${health.points}/${health.max}/${gems}/${mode}/${filled}/${potions.health}/${potions.mana}`;
+    const key = `${health.points}/${health.max}/${gems}/${mode}/${filled}/${potions.health}/${potions.mana}/${keys}`;
     if (key === this.shown) return;
     this.shown = key;
-    const icons = heartIcons(health, HUD.heartX, HUD.heartSpacing);
+    const icons = heartIcons(health, HUD.heartX, HUD.heartSpacing, HUD.heartsPerRow);
     while (this.backs.length < icons.length) this.addHeartSlot();
     icons.forEach((icon, i) => {
       const back = this.backs[i];
       const front = this.fronts[i];
       if (!back || !front) return;
-      back.setX(icon.x).setVisible(true);
-      front.setX(icon.x).setVisible(icon.state !== 'empty');
+      const y = HUD.heartRowY[icon.row] ?? 0;
+      back.setPosition(icon.x, y).setVisible(true);
+      front.setPosition(icon.x, y).setVisible(icon.state !== 'empty');
       if (icon.state === 'half') front.setCrop(0, 0, HALF_WIDTH, 16);
       else front.setCrop();
     });
@@ -119,6 +148,8 @@ export class Hud {
     this.potionText.health.setText(String(potions.health));
     this.potionText.mana.setText(String(potions.mana));
     this.manaFill.setVisible(filled > 0);
+    this.keyIcon.setVisible(keys !== null);
+    this.keyText.setVisible(keys !== null).setText(String(keys ?? 0));
   }
 
   /** What the bar shows, for the e2e test hook. */
@@ -128,6 +159,7 @@ export class Hud {
     weapon: string;
     manaWidth: number;
     potions: { health: string; mana: string };
+    keys: string | null;
   } {
     const hearts = this.backs
       .map((back, i) => ({ back, front: this.fronts[i] }))
@@ -142,14 +174,14 @@ export class Hud {
       weapon: this.weapon.texture.key,
       manaWidth: this.manaFill.visible ? this.manaFill.width : 0,
       potions: { health: this.potionText.health.text, mana: this.potionText.mana.text },
+      keys: this.keyText.visible ? this.keyText.text : null,
     };
   }
 
   private addHeartSlot(): void {
-    const y = (HUD_HEIGHT - 16) / 2;
     const make = () =>
       this.scene.add
-        .image(0, y, 'objects', OBJECT_FRAMES.smallHeart)
+        .image(0, 0, 'objects', OBJECT_FRAMES.smallHeart)
         .setOrigin(0)
         .setScrollFactor(0);
     this.backs.push(
