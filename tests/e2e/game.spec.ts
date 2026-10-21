@@ -1224,10 +1224,11 @@ test('a new game starts at the village gate; a house’s walls stop Jarrett', as
   let s = await snapshot(page);
   expect(s.room).toEqual({ col: 4, row: 7 });
   expect(s.region).toBe('village');
-  // The west street: a house whose walls fill columns 3–7, rows 5–7; its steps are below.
+  // The west street: a house whose walls fill columns 3–7, rows 5–7. Its steps (column 5,
+  // below the door) lead into the shop, so walk up into the wall beside them, at column 4.
   await page.evaluate(() => window.__game?.goToRoom(3, 6));
   await page.evaluate(() => window.__game?.holdEnemies(true));
-  await page.evaluate(() => window.__game?.placeHero(88, 142, 'up'));
+  await page.evaluate(() => window.__game?.placeHero(72, 142, 'up'));
   await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).player.y).toBe(134); // row 8's top + his 6-px feet box
   await page.waitForTimeout(300);
