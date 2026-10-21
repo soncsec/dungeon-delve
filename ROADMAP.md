@@ -9,13 +9,15 @@
 | M0 Setup | Done |
 | M1 Walking skeleton | Done (owner play-tested on staging 2026-10-20: "feels good") |
 | M2 Combat, inventory and mana | Done (2026-10-20) |
-| M3 First dungeon, end to end | All tasks merged; waiting for the owner's play-test on staging |
-| M4 The overworld | All tasks done; waiting for the owner's play-test on staging |
+| M3 First dungeon, end to end | Done (owner play-tested 2026-10-21: "looks good"; the walking direction fixed in #52) |
+| M4 The overworld | Done (owner play-tested 2026-10-21) |
 | M5 Dungeons 2–4 | In progress |
 | M6 Dungeons 5–8 | Not started |
 | M7 Shadow Vault and ending | Not started |
 | M8 Polish and balance | Not started |
 | M9 v1.0 release | Not started |
+
+**In production:** first release 2026-10-21, `20261021T165122Z-fe100746` (M0–M4 and the walking fix), at http://games.soncrant.com/dungeon-delve/.
 
 ## Risks driving this order
 
