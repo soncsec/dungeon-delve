@@ -104,7 +104,7 @@ import {
   type EnemyKind,
 } from '../logic/enemies';
 import { fireShot, shotBox, stepShot, type EnemyShot } from '../logic/enemyShots';
-import { isSolid, sealCells, type Dir } from '../logic/room';
+import { PROP_FOOTPRINT, isSolid, sealCells, type Dir } from '../logic/room';
 import {
   centre,
   facingVector,
@@ -119,6 +119,7 @@ import {
   DUNGEON_FRAMES,
   MARSH_TINT,
   VOLCANO_TINT,
+  THORN_TINT,
   dungeonArt,
   propSheet,
   roomArt,
@@ -395,6 +396,17 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private walker: LiveWalker | null = null;
   /** False walls struck once (in this room visit), by id, with the swing that struck them. */
   private struckWalls = new Map<string, number>();
+  /** The swing that last clinked off rubble or a boulder (one clink a swing). */
+  private clinked = -1;
+  /** Test hook only: cells changed by testSetCell. */
+  private testEdits: {
+    map: MapId;
+    col: number;
+    row: number;
+    cx: number;
+    cy: number;
+    ch: string;
+  }[] = [];
   /** The shopkeeper (in the shop), and his feet. */
   private shopkeeper: { sprite: Phaser.GameObjects.Sprite; feet: Point } | null = null;
   private talk: Talk | null = null;
@@ -1466,6 +1478,57 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.strikeBoss(SWORD.damage, this.swings);
     }
     this.strikeFalseWalls(box);
+    this.strikeBreakables(box);
+  }
+
+  /**
+   * Rubble or a boulder under the blade: the Axe smashes it (a whole boulder
+   * at once); the sword only clinks off it.
+   */
+  private strikeBreakables(box: Rect): void {
+    const key = roomKey(this.room.col, this.room.row);
+    const room = this.world.rooms.get(key);
+    if (!room) return;
+    const axe = this.inv.equipped.near === 'axe';
+    for (const { x, y } of cellsUnder(box)) {
+      const cell = room.cells[y]?.[x];
+      if (cell?.fixture !== 'cracked' && cell?.fixture !== 'boulder') continue;
+      const id = fixtureId(this.mapId, key, x, y);
+      if (isOpened(this.progress, id)) continue;
+      if (!axe) {
+        if (this.clinked !== this.swings) this.sfx.play('block');
+        this.clinked = this.swings;
+        continue;
+      }
+      // A boulder goes all at once: every cell of its footprint.
+      const anchor = cell.anchor;
+      const cells = anchor
+        ? PROP_FOOTPRINT.boulder.map(([dx, dy]) => ({ x: anchor.x + dx, y: anchor.y + dy }))
+        : [{ x, y }];
+      for (const c of cells)
+        this.progress = openChest(this.progress, fixtureId(this.mapId, key, c.x, c.y));
+      this.sfx.play('crumble');
+      this.effect('puff', x * TILE + TILE / 2, y * TILE + TILE / 2);
+      this.redrawRoom();
+      return;
+    }
+  }
+
+  /** A thorn bush in a fireball's path burns away. */
+  private burnThorns(box: Rect): boolean {
+    const key = roomKey(this.room.col, this.room.row);
+    const room = this.world.rooms.get(key);
+    for (const { x, y } of cellsUnder(box)) {
+      if (room?.cells[y]?.[x]?.fixture !== 'thorns') continue;
+      const id = fixtureId(this.mapId, key, x, y);
+      if (isOpened(this.progress, id)) continue;
+      this.progress = openChest(this.progress, id);
+      this.sfx.play('burn');
+      this.effect('puff', x * TILE + TILE / 2, y * TILE + TILE / 2);
+      this.redrawRoom();
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -1476,29 +1539,23 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const key = roomKey(this.room.col, this.room.row);
     const room = this.world.rooms.get(key);
     if (!room) return;
-    const x0 = Math.floor(box.x / TILE);
-    const x1 = Math.floor((box.x + box.w - 1) / TILE);
-    const y0 = Math.floor(box.y / TILE);
-    const y1 = Math.floor((box.y + box.h - 1) / TILE);
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        if (room.cells[y]?.[x]?.fixture !== 'hollow') continue;
-        const id = fixtureId(this.mapId, key, x, y);
-        if (isOpened(this.progress, id)) continue;
-        const struck = this.struckWalls.get(id);
-        if (struck === this.swings) continue;
-        const at = { x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 };
-        if (struck === undefined) {
-          this.struckWalls.set(id, this.swings);
-          this.sfx.play('hollow');
-          this.effect('hit', at.x, at.y);
-        } else {
-          this.struckWalls.delete(id);
-          this.progress = openChest(this.progress, id);
-          this.sfx.play('crumble');
-          this.effect('puff', at.x, at.y);
-          this.redrawRoom();
-        }
+    for (const { x, y } of cellsUnder(box)) {
+      if (room.cells[y]?.[x]?.fixture !== 'hollow') continue;
+      const id = fixtureId(this.mapId, key, x, y);
+      if (isOpened(this.progress, id)) continue;
+      const struck = this.struckWalls.get(id);
+      if (struck === this.swings) continue;
+      const at = { x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 };
+      if (struck === undefined) {
+        this.struckWalls.set(id, this.swings);
+        this.sfx.play('hollow');
+        this.effect('hit', at.x, at.y);
+      } else {
+        this.struckWalls.delete(id);
+        this.progress = openChest(this.progress, id);
+        this.sfx.play('crumble');
+        this.effect('puff', at.x, at.y);
+        this.redrawRoom();
       }
     }
   }
@@ -1708,12 +1765,17 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Flies every dagger and fireball; one that hits a wall, an enemy, or the end of its range is gone. */
   private stepShots(deltaMs: number): void {
-    const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
+    const { col, row } = this.room;
+    const room = this.world.rooms.get(roomKey(col, row));
+    // Shots stop where Jarrett would: walls, stones, and anything not yet broken open.
     const solid = (cx: number, cy: number): boolean =>
-      this.outsideRoom(cx, cy) || (room ? isSolid(room, cx, cy) : true);
+      this.outsideRoom(cx, cy) || this.solidAt(col, row, cx, cy);
     for (const shot of [...this.shots]) {
       const t = SHOT_TUNING[shot.kind];
-      const step = stepProjectile(shot.d, deltaMs, t, solid);
+      // A fireball flies on into a thorn bush, which then burns.
+      const into = (cx: number, cy: number): boolean =>
+        solid(cx, cy) && !(shot.kind === 'fireball' && room?.cells[cy]?.[cx]?.fixture === 'thorns');
+      const step = stepProjectile(shot.d, deltaMs, t, into);
       shot.d = step.projectile;
       const box = projectileBox(shot.d, t);
       const target = this.enemies.find((live) =>
@@ -1725,7 +1787,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         this.boss !== null &&
         overlaps(box, bossBody(this.boss.b, BOSSES[this.boss.b.kind]));
       if (boss) this.strikeBoss(t.damage, shot.d.id);
-      if (target || boss || step.stopped) this.dropShot(shot);
+      const burned = shot.kind === 'fireball' && this.burnThorns(box);
+      if (target || boss || burned || step.stopped) this.dropShot(shot);
       else this.drawShot(shot);
     }
   }
@@ -1918,6 +1981,30 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.gems = Math.max(0, gems);
   }
 
+  /**
+   * Test hook only: change one cell of the current room's text (e.g. put a thorn
+   * bush there) and redraw it, so tests can try things not yet placed in the world.
+   */
+  testSetCell(cx: number, cy: number, ch: string): void {
+    // Earlier changes on this map are kept: each builds on the last.
+    const edits = [
+      ...this.testEdits.filter((e) => e.map === this.mapId),
+      { map: this.mapId, col: this.room.col, row: this.room.row, cx, cy, ch },
+    ];
+    this.testEdits = edits;
+    const defs = MAPS[this.mapId].rooms.map((d) => {
+      const mine = edits.filter((e) => e.col === d.col && e.row === d.row);
+      if (mine.length === 0) return d;
+      const lines = d.lines.map((line, y) =>
+        mine.reduce((l, e) => (e.cy === y ? l.slice(0, e.cx) + e.ch + l.slice(e.cx + 1) : l), line),
+      );
+      return { ...d, lines };
+    });
+    this.world = buildWorld(defs);
+    this.resetStones();
+    this.redrawRoom();
+  }
+
   /** Test hook only: set the boss's health (it still needs a hit to be beaten). */
   testSetBossHealth(health: number): void {
     if (this.boss) this.boss.b = { ...this.boss.b, health: Math.max(1, health) };
@@ -2068,7 +2155,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         this.add
           .image(o.x + p.x, o.y + p.y, propSheet(p.prop, region), `prop:${p.prop}`)
           .setOrigin(0.5, 1)
-          .setDepth(DEPTH.sorted + o.y + p.y),
+          .setDepth(DEPTH.sorted + o.y + p.y)
+          .setTint(p.prop === 'thorns' ? THORN_TINT : 0xffffff),
       );
     }
     for (const t of art.over) {
@@ -2105,4 +2193,15 @@ function seedFromUrl(): number {
   const raw = new URLSearchParams(window.location.search).get('seed');
   const n = raw === null ? Number.NaN : Number.parseInt(raw, 10);
   return Number.isFinite(n) ? n : DEFAULT_SEED;
+}
+
+/** The cells a box covers. */
+function cellsUnder(box: Rect): { x: number; y: number }[] {
+  const cells: { x: number; y: number }[] = [];
+  for (let y = Math.floor(box.y / TILE); y <= Math.floor((box.y + box.h - 1) / TILE); y++) {
+    for (let x = Math.floor(box.x / TILE); x <= Math.floor((box.x + box.w - 1) / TILE); x++) {
+      cells.push({ x, y });
+    }
+  }
+  return cells;
 }

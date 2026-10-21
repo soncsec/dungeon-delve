@@ -34,6 +34,9 @@
  *   h  false wall  (looks and blocks like the room's wall until struck twice with the sword)
  *   o  hole        (stairs down to a secret cave; the room lists where it leads)
  *   Q  a pushable stone on top of a hole
+ *   x  cracked wall (rubble; solid until the Axe smashes it)
+ *   t  thorn bush  (solid until a Fireball burns it)
+ *   Every boulder (R) also smashes to the Axe.
  *
  * Mountains:
  *   V  cave entrance (3×3, anchored top-left: rock all round, the doorway in the middle column open)
@@ -57,7 +60,8 @@ export type PropKind =
   | 'stump'
   | 'cone'
   | 'shrub'
-  | 'cave';
+  | 'cave'
+  | 'thorns';
 
 /** Open ground drawn with something on it (village). */
 export type Ground = 'path' | 'flowers' | 'tall' | 'paving' | 'hole';
@@ -78,10 +82,15 @@ export interface Cell {
   ground?: Ground;
   /** Pond water (marsh). */
   water?: boolean;
+  /** A boulder's cells: where its art is anchored (one blow breaks the whole boulder). */
+  anchor?: { x: number; y: number };
 }
 
-/** Things that block until opened: a locked door (a key), a chest, a false wall (the sword). */
-export type Fixture = 'door' | 'chest' | 'hollow';
+/**
+ * Things that block until opened: a locked door (a key), a chest, a false wall
+ * (the sword), a cracked wall or a boulder (the Axe), a thorn bush (Fireball).
+ */
+export type Fixture = 'door' | 'chest' | 'hollow' | 'cracked' | 'boulder' | 'thorns';
 
 export interface Room {
   cells: readonly (readonly Cell[])[];
@@ -105,6 +114,7 @@ const PROP_CHARS: Readonly<Record<string, PropKind>> = {
   n: 'cone',
   w: 'shrub',
   V: 'cave',
+  t: 'thorns',
 };
 
 const GROUND_CHARS: Readonly<Record<string, Ground>> = {
@@ -152,6 +162,7 @@ export const PROP_FOOTPRINT: Readonly<Record<PropKind, readonly (readonly [numbe
   shrub: [[0, 0]],
   // The cave: rock all round its 3×3, but for the doorway down the middle below the top row.
   cave: block(3, 3).filter(([x, y]) => !(x === 1 && y > 0)),
+  thorns: [[0, 0]],
 };
 
 /** Parses a room's text. Throws with a clear message on any mistake in the data. */
@@ -170,6 +181,7 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       if (ch === '.') return { ...plain, solid: false };
       if (ch === 'W') return { ...plain, solid: true, water: true };
       if (ch === 'h') return { ...plain, solid: true, forest: true, fixture: 'hollow' };
+      if (ch === 'x') return { ...plain, solid: true, forest: true, fixture: 'cracked' };
       if (ch === 'o') return { ...plain, solid: false, exit: true, ground: 'hole' };
       if (ch === 'Q') {
         stones.push({ cx: x, cy: y });
@@ -211,6 +223,12 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       }
       covered.add(key);
       target.solid = true;
+      // Boulders and thorn bushes can be broken or burned away.
+      if (prop === 'boulder') {
+        target.fixture = 'boulder';
+        target.anchor = { x, y };
+      }
+      if (prop === 'thorns') target.fixture = 'thorns';
     }
   }
   checkPonds(cells, name);
