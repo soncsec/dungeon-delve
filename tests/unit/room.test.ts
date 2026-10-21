@@ -70,6 +70,16 @@ describe('parseRoom', () => {
     expect(edgeOpenings(r, 'north').filter(Boolean)).toHaveLength(2);
   });
 
+  it('lists pushable stones, with open floor under them', () => {
+    const r = parseRoom(room({ 3: '..B.....B...........' }));
+    expect(r.stones).toEqual([
+      { cx: 2, cy: 3 },
+      { cx: 8, cy: 3 },
+    ]);
+    expect(isSolid(r, 2, 3)).toBe(false);
+    expect(parseRoom(room()).stones).toEqual([]);
+  });
+
   it('anchors props and blocks their footprints', () => {
     const r = parseRoom(room({ 2: '.T...O...R....r..b.' + '.' }));
     expect(cellAt(r, 1, 2)?.prop).toBe('pine');

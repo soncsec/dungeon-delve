@@ -1,7 +1,7 @@
 /**
  * Dungeon 1, Hollow Oak (PROJECT.md §3c). M3.1b: the entrance room with a
- * chest holding a small key, and a locked door north to a room with a chest
- * of gems. M3.2 lays out the whole dungeon.
+ * chest holding a small key, a pushable stone, and a locked door north to a
+ * room with a chest of gems. M3.2 lays out the whole dungeon.
  */
 import type { RoomDef } from '../logic/world';
 
@@ -35,7 +35,7 @@ export const DUNGEON_1: readonly RoomDef[] = [
       '#########KK#########',
       '##................##',
       '##..C.............##',
-      '##................##',
+      '##..........B.....##',
       '##................##',
       '##................##',
       '##................##',

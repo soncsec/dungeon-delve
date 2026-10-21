@@ -138,4 +138,6 @@ export const OBJECT_FRAMES = {
   potion: 3 * 17 + 13,
   chest: 5 * 17 + 3,
   pot: 5 * 17 + 7,
+  /** A pushable stone block. */
+  stone: 7 * 17 + 9,
 } as const;

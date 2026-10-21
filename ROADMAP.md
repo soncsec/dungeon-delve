@@ -77,10 +77,10 @@
 
 **Playable result:** walk from the village to dungeon 1, solve it, beat the Treant, collect shard 1 and a heart container, and come back. Progress survives a page reload.
 
-- [ ] M3.1 Dungeon tiles, doors, small keys and locked doors, pushable stones, chests, in three PRs:
+- [x] M3.1 Dungeon tiles, doors, small keys and locked doors, pushable stones, chests, in three PRs:
   - [x] M3.1a Dungeon walls and floors drawn automatically; maps (overworld, dungeon 1); `?dungeon=n` starts in a dungeon
   - [x] M3.1b Small keys, locked doors and chests
-  - [ ] M3.1c Pushable stones
+  - [x] M3.1c Pushable stones
 - [ ] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
 - [ ] M3.3 Boss framework (phases, health bar) and the Treant
 - [ ] M3.4 Shard pickup, heart container, the Star of Power display

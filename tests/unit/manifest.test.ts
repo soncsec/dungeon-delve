@@ -11,9 +11,20 @@ import { pngAlpha } from './png';
 
 const PUBLIC_DIR = `${process.cwd()}/public`;
 
+/** Each image decoded once: the checks below look at many frames of the same sheets. */
+const cache = new Map<string, ReturnType<typeof pngAlpha>>();
+function decoded(path: string): ReturnType<typeof pngAlpha> {
+  let png = cache.get(path);
+  if (!png) {
+    png = pngAlpha(`${PUBLIC_DIR}/${path}`);
+    cache.set(path, png);
+  }
+  return png;
+}
+
 /** Whether a frame of a sheet has at least one visible pixel. */
 function frameHasPixels(sheet: SheetAsset, frame: number): boolean {
-  const png = pngAlpha(`${PUBLIC_DIR}/${sheet.path}`);
+  const png = decoded(sheet.path);
   const x0 = (frame % sheet.columns) * sheet.frameWidth;
   const y0 = Math.floor(frame / sheet.columns) * sheet.frameHeight;
   for (let y = y0; y < y0 + sheet.frameHeight; y++)

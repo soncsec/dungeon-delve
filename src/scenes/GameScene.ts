@@ -20,6 +20,7 @@ import {
   ENEMIES,
   ENEMY_SHOT,
   ROOM_SLIDE_MS,
+  STONE,
   SHIELD,
   SWORD,
   TILE,
@@ -57,6 +58,7 @@ import {
   unlockDoor,
   type Progress,
 } from '../logic/progress';
+import { NO_LEAN, lean, stoneAt, type Lean, type Stone } from '../logic/push';
 import { createRng, type Rng } from '../logic/rng';
 import { shieldBlocks } from '../logic/shield';
 import {
@@ -145,6 +147,8 @@ export interface GameSnapshot {
   /** Small keys held on this map, and the ids of opened doors and chests. */
   keys: number;
   opened: string[];
+  /** The current room's pushable stones, by cell. */
+  stones: { cx: number; cy: number }[];
   /** Enemies defeated since the game started. */
   defeated: number;
   /** Which weapon the attack key uses. */
@@ -310,6 +314,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
   private inv: Inventory = EMPTY_INVENTORY;
   /** Opened doors and chests, and small keys held. */
   private progress: Progress = NEW_PROGRESS;
+  /** The current room's pushable stones (reset on entering a room), and their sprites. */
+  private stones: readonly Stone[] = [];
+  private stoneSprites: Phaser.GameObjects.Image[] = [];
+  private lean: Lean = NO_LEAN;
   /** True from the moment he runs out of hearts until he is back on his feet. */
   private falling = false;
   private falls = 0;
@@ -371,6 +379,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.room = { ...MAPS[this.mapId].start };
     this.sliding = false;
     this.enteredAt = null;
+    this.resetStones();
     this.roomObjects = this.drawRoom(this.room.col, this.room.row);
     this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
     this.hud = new Hud(this, DEPTH.hud);
@@ -470,12 +479,69 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     );
     this.moving = this.pos.x !== before.x || this.pos.y !== before.y;
     this.animate(axis.x !== 0 || axis.y !== 0);
-    // Walking into a locked door or a chest tries to open it.
-    if ((axis.x !== 0 || axis.y !== 0) && !this.moving) this.bump();
+    // Walking into a locked door or a chest tries to open it; into a stone, leans on it.
+    if ((axis.x !== 0 || axis.y !== 0) && !this.moving) {
+      this.bump();
+      this.leanOnStone(deltaMs);
+    } else {
+      this.lean = NO_LEAN;
+    }
+  }
+
+  /** Leaning on a stone long enough slides it one cell (if the cell beyond is clear). */
+  private leanOnStone(deltaMs: number): void {
+    const ahead = cellsAhead(this.pos, this.facing, HERO.box)
+      .map(({ cx, cy }) => stoneAt(this.stones, cx, cy))
+      .find((i) => i >= 0);
+    if (ahead === undefined) {
+      this.lean = NO_LEAN;
+      return;
+    }
+    const { col, row } = this.room;
+    const r = lean(
+      this.stones,
+      this.lean,
+      ahead,
+      this.facing,
+      deltaMs,
+      STONE.pushMs,
+      (cx, cy) =>
+        !this.outsideRoom(cx, cy) && !this.solidAt(col, row, cx, cy) && !this.enemyIn(cx, cy),
+    );
+    this.stones = r.stones;
+    this.lean = r.lean;
+    if (r.moved === null) return;
+    const sprite = this.stoneSprites[r.moved];
+    const to = this.stones[r.moved];
+    if (!sprite || !to) return;
+    const o = this.origin(this.room.col, this.room.row);
+    this.sfx.play('push');
+    this.tweens.add({
+      targets: sprite,
+      x: o.x + to.cx * TILE,
+      y: o.y + to.cy * TILE,
+      duration: STONE.slideMs,
+      onComplete: () => sprite.setDepth(DEPTH.sorted + o.y + (to.cy + 1) * TILE),
+    });
+  }
+
+  /** Whether an enemy's feet are in a cell (a stone won't slide onto one). */
+  private enemyIn(cx: number, cy: number): boolean {
+    return this.enemies.some(
+      ({ e }) => Math.floor(e.pos.x / TILE) === cx && Math.floor((e.pos.y - 1) / TILE) === cy,
+    );
+  }
+
+  /** On entering a room, its stones go back to where they started. */
+  private resetStones(): void {
+    const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
+    this.stones = [...(room?.stones ?? [])];
+    this.lean = NO_LEAN;
   }
 
   /** Walls, props, and doors and chests not yet opened, reaching into the rooms next door. */
   private solidAt(col: number, row: number, cx: number, cy: number): boolean {
+    if (stoneAt(this.stones, cx, cy) >= 0) return true;
     return solidInWorld(this.world, col, row, cx, cy, (key, x, y) =>
       isOpened(this.progress, fixtureId(this.mapId, key, x, y)),
     );
@@ -690,6 +756,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.clearRoom();
     for (const o of this.roomObjects) o.destroy();
     this.room = { ...MAPS[this.mapId].start };
+    this.resetStones();
     this.roomObjects = this.drawRoom(this.room.col, this.room.row);
     this.cameras.main.setScroll(this.room.col * ROOM_W, this.room.row * ROOM_H);
     this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
@@ -1064,6 +1131,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       muted: this.muted,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
       keys: keysIn(this.progress, this.mapId),
+      stones: this.stones.map((st) => ({ ...st })),
       opened: [...this.progress.opened],
       defeated: this.defeated,
       mode: this.mode,
@@ -1166,6 +1234,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.enteredAt = { ...this.pos };
     this.clearRoom();
     this.room = next;
+    this.resetStones();
     this.roomObjects = this.drawRoom(next.col, next.row);
     this.sliding = true;
     this.moving = false;
@@ -1251,6 +1320,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
           .setOrigin(0)
           .setDepth(DEPTH.ground),
       );
+    }
+    if (col === this.room.col && row === this.room.row) {
+      this.stoneSprites = this.stones.map((st) =>
+        this.add
+          .image(o.x + st.cx * TILE, o.y + st.cy * TILE, 'objects', OBJECT_FRAMES.stone)
+          .setOrigin(0)
+          .setDepth(DEPTH.sorted + o.y + (st.cy + 1) * TILE),
+      );
+      drawn.push(...this.stoneSprites);
     }
     for (const c of art.chests) {
       drawn.push(
