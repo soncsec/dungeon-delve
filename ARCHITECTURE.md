@@ -44,6 +44,7 @@ src/
 ├── scenes/             Boot, Title, World, Inventory, Pause, Ending (thin; call logic/)
 ├── entities/           hero, enemies, bosses, projectiles (pooled)
 ├── audio/              sound effects made in code
+├── storage/            the save game in localStorage (guarded; checked by logic/save.ts)
 └── debug/testHook.ts   window.__dungeonDelve (e2e build only)
 tests/
 ├── unit/               Vitest, 100% coverage on src/logic

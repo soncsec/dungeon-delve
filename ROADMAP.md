@@ -86,7 +86,7 @@
   - [x] M3.2b Six rooms (entrance, hub, west, east, great hall, boss room), two keys, the daggers behind a stone; Jarrett no longer starts with the daggers
 - [x] M3.3 Boss framework (phases, health bar) and the Treant: the boss room shuts while it lives; beaten bosses stay beaten
 - [x] M3.4 Shard pickup, heart container, the Star of Power display: the beaten boss leaves both; a message says how many shards are left
-- [ ] M3.5 Save and continue (ADR-D04); `?dungeon=n` play-test skip that counts as a cheat
+- [x] M3.5 Save and continue (ADR-D04); `?dungeon=n` play-test skip that counts as a cheat. A small title screen (CONTINUE / NEW GAME, with a confirm before wiping a save) came forward from M8.3 (owner 2026-10-20)
 - [ ] M3.6 Dungeon map in the inventory
 - [ ] M3.8 Walker (PROJECT.md §3f): his sprite with paler blonde hair, a text box for talking, and his lines in the village (story, first sword and shield) and at dungeon 1's entrance and exit
 - [ ] M3.7 Reachability test: every room, key and chest in dungeon 1 can be reached in a valid order
@@ -135,7 +135,7 @@
 
 - [ ] M8.1 Difficulty pass with the owner (enemy health, damage, drop rates, prices)
 - [ ] M8.2 Touch controls and phone layout
-- [ ] M8.3 Title screen, controls legend, quit-to-arcade, pause menu
+- [ ] M8.3 Title screen (the intro, art and the rest; the CONTINUE / NEW GAME menu came with M3.5), controls legend, quit-to-arcade, pause menu
 - [ ] M8.4 Portal card image (256×192) and `coming-soon` status (portal PR)
 - [ ] M8.5 Full playthrough with no console errors in every browser project
 

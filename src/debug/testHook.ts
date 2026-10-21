@@ -6,6 +6,7 @@ import type { Facing } from '../logic/hero';
 import type { ItemId } from '../logic/inventory';
 import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
 import type { InventoryScene } from '../scenes/InventoryScene';
+import type { TitleScene } from '../scenes/TitleScene';
 
 /**
  * Test-only hook for Playwright (ADR-006). It is loaded only in the e2e build
@@ -16,6 +17,8 @@ export interface TestHook {
   /** The key of the scene that is running, or null while loading. */
   scene(): string | null;
   snapshot(): GameSnapshot | null;
+  /** What the title screen's menu shows, or null when it isn't running. */
+  title(): { screen: 'menu' | 'confirm'; options: string[]; cursor: number } | null;
   /** The asset group the preview scene shows, or null when it isn't running. */
   previewGroup(): string | null;
   /** Texture keys that failed to load or are missing. */
@@ -86,6 +89,10 @@ export function installTestHook(game: Phaser.Game): void {
     snapshot: () => {
       const s = game.scene.getScene('Game') as GameScene | null;
       return s && game.scene.isActive('Game') ? s.snapshot() : null;
+    },
+    title: () => {
+      const s = game.scene.getScene('Title') as TitleScene | null;
+      return s && game.scene.isActive('Title') ? s.shows() : null;
     },
     previewGroup: () => {
       const s = game.scene.getScene('AssetPreview') as AssetPreviewScene | null;

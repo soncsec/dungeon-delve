@@ -12,7 +12,9 @@ test('a crowded fight keeps each frame within the 60 fps budget (M2.9)', async (
   await page.goto('./');
   await expect
     .poll(() => page.evaluate(() => window.__game?.scene() ?? null), { timeout: 15_000 })
-    .toBe('Game');
+    .toBe('Title');
+  await page.keyboard.press('Enter'); // NEW GAME
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
   // Two of every enemy kind around the start room, all moving (and the eyes shooting).
   await page.evaluate(() => {
     const h = window.__game;

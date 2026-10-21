@@ -6,6 +6,7 @@ import { AssetPreviewScene } from './scenes/AssetPreviewScene';
 import { GameScene } from './scenes/GameScene';
 import { InventoryScene } from './scenes/InventoryScene';
 import { PreloadScene } from './scenes/PreloadScene';
+import { TitleScene } from './scenes/TitleScene';
 
 const zoomForWindow = (): number =>
   integerZoom(window.innerWidth, window.innerHeight, GAME_WIDTH, GAME_HEIGHT);
@@ -26,7 +27,7 @@ export const game = new Phaser.Game({
     mode: Phaser.Scale.NONE,
     zoom: zoomForWindow(),
   },
-  scene: [PreloadScene, GameScene, InventoryScene, AssetPreviewScene],
+  scene: [PreloadScene, TitleScene, GameScene, InventoryScene, AssetPreviewScene],
 });
 
 window.addEventListener('resize', () => {
