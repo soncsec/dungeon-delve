@@ -282,6 +282,13 @@ export const FRAME_BUDGET = {
   frameMs: 1000 / 60,
   medianMs: 1000 / 60 / 2,
   p95Ms: 1000 / 60,
+  /**
+   * Linux WebKit (Safari's engine in the tests) has slow-frame spikes that say
+   * little about Safari itself (64–100 ms for its slowest 5% even on GitHub's
+   * runners), so it is held to the median only (owner, 2026-10-20). Real Safari
+   * is checked on the owner's iPhone.
+   */
+  webkit: { medianMs: 1000 / 60 / 2, p95Ms: Number.POSITIVE_INFINITY },
 } as const;
 
 /** Seed for the random number generator; override with ?seed= in the URL. */

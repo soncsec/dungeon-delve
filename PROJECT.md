@@ -152,6 +152,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | **Walker**, an ancient blonde-haired child, guides Jarrett: he appears at the village, dungeon entrances and the vault to give hints, story, the first sword and shield, and spell lessons. He doesn't follow or fight. "Blond_kid" sprite with paler blonde hair (section 3f) |
 | 2026-10-20 | Instead of a high score, the fastest finish time is kept in localStorage and shown on the title screen; runs that used `?dungeon=n` don't count |
 | 2026-10-20 | First enemy roster: robot, bird, ghost, flying eye, wolf (the fire skull is too big for a common enemy; it may return as a mini-boss). M2.6 built before M2.4 so the shield can be tested against real shots. The Mana Brew is a recoloured blue potion |
+| 2026-10-20 | Frame-rate check: every frame's work in a crowded fight within the 60 fps budget (median ≤ half a frame, 95% ≤ one frame); Linux WebKit is held to the median only, real Safari is checked on the owner's iPhone |
 
 ## 8. Open questions
 

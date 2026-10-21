@@ -144,7 +144,7 @@ describe('enemy placements', () => {
     ).toThrow('room 0,0: robot at column 0, row 0 is not on open ground');
     expect(() =>
       buildWorld([{ ...walled(0, 0, {}), enemies: [{ kind: 'eye', col: 25, row: 3 }] }]),
-    ).toThrow('not on open ground');
+    ).toThrow('room 0,0: eye at column 25, row 3 is not on open ground');
   });
 
   it('every enemy in the overworld starts on open ground', () => {

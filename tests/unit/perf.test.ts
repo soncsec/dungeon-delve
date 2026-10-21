@@ -28,4 +28,13 @@ describe('frame-time summaries (M2.9)', () => {
     expect(FRAME_BUDGET.medianMs).toBeLessThanOrEqual(FRAME_BUDGET.frameMs / 2);
     expect(FRAME_BUDGET.p95Ms).toBeLessThanOrEqual(FRAME_BUDGET.frameMs);
   });
+
+  it('holds WebKit to the median limit only (owner, 2026-10-20)', () => {
+    expect(FRAME_BUDGET.webkit.medianMs).toBe(FRAME_BUDGET.medianMs);
+    const slowTail = summariseFrames([1, 1, 1, 1, 1, 1, 1, 1, 1, 200]);
+    expect(withinBudget(slowTail, FRAME_BUDGET.webkit)).toBe(true);
+    expect(withinBudget(slowTail, FRAME_BUDGET)).toBe(false);
+    const slowMedian = summariseFrames([9, 9, 9, 9, 9]);
+    expect(withinBudget(slowMedian, FRAME_BUDGET.webkit)).toBe(false);
+  });
 });
