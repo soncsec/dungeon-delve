@@ -8,7 +8,7 @@
 |---|---|
 | M0 Setup | Done |
 | M1 Walking skeleton | Done (owner play-tested on staging 2026-10-20: "feels good") |
-| M2 Combat, inventory and mana | In progress |
+| M2 Combat, inventory and mana | Built; M2.9 in review |
 | M3 First dungeon, end to end | Not started |
 | M4 The overworld | Not started |
 | M5 Dungeons 2–4 | Not started |
@@ -69,7 +69,7 @@
 - [x] M2.6 Four more enemy types: bird, ghost, flying eye (shoots), wolf (charges); built before M2.4 (owner 2026-10-20)
 - [x] M2.7 Death and respawn rules (back in the start room until the village exists; keeps items and potions; loses 10% of gems)
 - [x] M2.8 Sound effects made in code (14 sounds; M mutes)
-- [ ] M2.9 Frame-time budget test with a crowded room
+- [x] M2.9 Frame-time budget test with a crowded room (WebKit: median only, owner 2026-10-20)
 
 **Acceptance criteria:** owner play-test; each system has unit tests; e2e covers switching weapons, casting with and without enough mana, and drinking a potion.
 

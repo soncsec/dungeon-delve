@@ -55,7 +55,7 @@ export function buildWorld(defs: readonly RoomDef[]): World {
       const cell = room.cells[r.row]?.[r.col];
       if (!cell || cell.solid) {
         throw new Error(
-          `room ${key}: robot at column ${r.col}, row ${r.row} is not on open ground`,
+          `room ${key}: ${r.kind} at column ${r.col}, row ${r.row} is not on open ground`,
         );
       }
     }
