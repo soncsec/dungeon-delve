@@ -992,6 +992,96 @@ test('a prize left in an opened chest waits there until Jarrett picks it up', as
   expect(watched.errors).toEqual([]);
 });
 
+test('Sunken Crypt’s archway in the ruins opens once Jarrett holds two shards', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  const shards = async () => (await snapshot(page)).shards;
+  // Dungeon 1's shard (put at his feet), then out to the overworld.
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  const at = (await snapshot(page)).player;
+  await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), at);
+  await expect.poll(shards).toBe(1);
+  await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
+  await page.keyboard.down('ArrowDown');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(5, 4);
+    window.__game?.clearEnemies();
+  });
+  // With one shard, he stands in the crypt's doorway and nothing happens.
+  await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(48);
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  // A second shard, and the way opens.
+  await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
+  await page.evaluate(() => window.__game?.spawnPickup('shard', 160, 70));
+  await expect.poll(shards).toBe(2);
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const s = await snapshot(page);
+  expect(s.map).toBe('dungeon3');
+  expect(s.room).toEqual({ col: 1, row: 3 });
+  expect(s.enteredAt).toEqual({ x: 160, y: 140 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('Sunken Crypt’s prize: Lightning, in hand at once; the hub’s crystal switch opens the way north', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=3'); // with the daggers and the Fireball
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(2, 2); // the east crypt
+    window.__game?.clearEnemies();
+  });
+  // Push the stone in the closet's west doorway (column 12, row 5) in, east.
+  expect((await snapshot(page)).stones).toEqual([{ cx: 12, cy: 5 }]);
+  await page.evaluate(() => window.__game?.placeHero(184, 94, 'right'));
+  await holdUntil(
+    page,
+    'ArrowRight',
+    async () => ((await snapshot(page)).stones[0]?.cx ?? 0) >= 14,
+  );
+  // Round the stone, beside the chest (column 16, row 4), and it opens: Lightning drops.
+  await page.evaluate(() => window.__game?.placeHero(248, 78, 'right'));
+  await page.evaluate(() => window.__game?.bump(16, 4));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon3/2,2/16,4');
+  const bolt = (await snapshot(page)).pickups.find((p) => p.kind === 'item');
+  expect(bolt).toBeDefined();
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), bolt ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
+
+  // In the hub, a bolt up into the switch in the north wall: the gates open, and on he goes.
+  await page.evaluate(() => {
+    window.__game?.goToRoom(1, 2);
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(72, 46, 'up');
+  });
+  await page.keyboard.press('c'); // Lightning is in his hand already
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon3/1,2/4,1');
+  await page.evaluate(() => window.__game?.placeHero(160, 46, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 1 && room.row === 1;
+  });
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {

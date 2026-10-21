@@ -89,6 +89,7 @@ import {
   give,
   knowsMagic,
   startingKit,
+  takeFound,
   type Inventory,
   type ItemId,
 } from '../logic/inventory';
@@ -1812,7 +1813,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         this.announce(shardMessage(shardsHeld(this.progress), STAR.shards));
         sound = 'shard';
       } else if (p.kind === 'item') {
-        if (p.item) this.inv = give(this.inv, p.item);
+        if (p.item) this.inv = takeFound(this.inv, p.item);
         sound = 'chest';
       } else if (p.kind === 'heart') {
         this.health = heal(this.health, PICKUPS.heartHeals);
