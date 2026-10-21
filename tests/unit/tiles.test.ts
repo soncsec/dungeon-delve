@@ -310,3 +310,35 @@ describe('ponds', () => {
     for (let f = 0; f <= POND_FRAMES.se; f++) expect(hasPixels(png, f * 16, 0, 16, 16)).toBe(true);
   });
 });
+
+describe('ruins', () => {
+  // A two-high ruined wall on grass, with paving below it.
+  const ruin = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 3 || y === 4
+        ? '....####............'
+        : y === 5
+          ? '....qqqq............'
+          : '....................',
+    ),
+  );
+
+  it('draws ruined walls with the dungeon wall top over its face, on grass', () => {
+    const art = roomArt(ruin, 'ruins');
+    const at = (x: number, y: number) => art.ground.filter((t) => t.x === x * 16 && t.y === y * 16);
+    expect(at(5, 3)).toEqual([
+      { frame: FOREST_FRAMES.grass, x: 80, y: 48 },
+      { frame: DUNGEON_FRAMES.top, x: 80, y: 48, sheet: 'dungeon' },
+    ]);
+    expect(at(5, 4)[1]).toEqual({ frame: DUNGEON_FRAMES.face, x: 80, y: 64, sheet: 'dungeon' });
+  });
+
+  it('draws paving from the dungeon floor, cracked here and there', () => {
+    const art = roomArt(ruin, 'ruins');
+    const paving = art.ground.filter((t) => t.y === 80 && t.x >= 64 && t.x < 128);
+    expect(paving.every((t) => t.sheet === 'dungeon')).toBe(true);
+    for (const t of paving) {
+      expect([DUNGEON_FRAMES.floor, ...DUNGEON_FRAMES.cracks]).toContain(t.frame);
+    }
+  });
+});

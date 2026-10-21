@@ -1294,3 +1294,34 @@ test('west of the meadows lies the marsh, whose ponds stop Jarrett', async ({ pa
   expect((await snapshot(page)).player.y).toBe(118);
   expect(watched.errors).toEqual([]);
 });
+
+test('east of the vault grounds lie the ruins, whose broken walls stop Jarrett', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // From the vault grounds' south-east room, out through its new east gap (rows 4–5).
+  await page.evaluate(() => window.__game?.goToRoom(4, 4));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(260, 94, 'right'));
+  await page.keyboard.down('ArrowRight');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 5, row: 4 });
+  await page.keyboard.up('ArrowRight');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  expect((await snapshot(page)).region).toBe('ruins');
+
+  // A ruined wall fills columns 13–15, rows 6–7, of Sunken Crypt's clearing: walk up into it.
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(232, 142, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(134); // row 8's top + his 6-px feet box
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).player.y).toBe(134);
+  expect(watched.errors).toEqual([]);
+});
