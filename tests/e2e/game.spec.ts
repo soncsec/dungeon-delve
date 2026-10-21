@@ -451,6 +451,68 @@ test('one Fireball defeats a robot', async ({ page }) => {
   expect((await snapshot(page)).casts).toBe(1);
 });
 
+test('Lightning stuns an enemy, and powers a crystal switch that opens its gates', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.giveItem('lightning'); // Sunken Crypt's prize
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the hub
+    window.__game?.clearEnemies();
+  });
+  // A robot two cells below him: one bolt stuns it, without hurting it.
+  await page.evaluate(() => window.__game?.placeHero(160, 94, 'down'));
+  await page.evaluate(() => window.__game?.spawnEnemy('robot', 160, 130));
+  await page.evaluate(() => window.__game?.holdEnemies(false));
+  await page.keyboard.press('c');
+  const robot = async () => (await snapshot(page)).enemies[0];
+  await expect.poll(async () => (await robot())?.stunned, { intervals: [50] }).toBe(true);
+  const stunned = await robot();
+  expect(stunned?.health).toBe(2);
+  expect((await snapshot(page)).casts).toBe(1);
+  expect((await snapshot(page)).sounds.zap).toBeGreaterThanOrEqual(1);
+  // Stunned, it stands still, and touching it costs nothing.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), {
+    x: stunned?.x ?? 0,
+    y: stunned?.y ?? 0,
+  });
+  await page.waitForTimeout(400);
+  expect((await robot())?.stunned).toBe(true);
+  expect((await robot())?.x).toBe(stunned?.x);
+  expect((await robot())?.y).toBe(stunned?.y);
+  expect((await snapshot(page)).health.points).toBe((await snapshot(page)).health.max);
+  await page.evaluate(() => window.__game?.clearEnemies());
+
+  // A crystal switch in the wall (column 4, row 1), and a gate across the way north.
+  await page.evaluate(() => {
+    window.__game?.setCell(4, 1, 'z');
+    window.__game?.setCell(9, 1, 'g');
+    window.__game?.setCell(10, 1, 'g');
+    window.__game?.setMana(100);
+  });
+  // The gate stops him.
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(40);
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).room).toEqual({ col: 1, row: 2 });
+  expect((await snapshot(page)).player.y).toBeGreaterThanOrEqual(32);
+  // A bolt up into the switch powers it, and the gate opens: he walks on north.
+  await page.evaluate(() => window.__game?.placeHero(72, 46, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon1/1,2/4,1');
+  expect((await snapshot(page)).sounds.switch).toBe(1);
+  await page.evaluate(() => window.__game?.placeHero(160, 46, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 1 && room.row === 1;
+  });
+  expect(watched.errors).toEqual([]);
+});
+
 test('1 drinks a Health Potion, but only when Jarrett is hurt', async ({ page }) => {
   await openGame(page);
   expect((await snapshot(page)).potions).toEqual({ health: 1, mana: 1 });

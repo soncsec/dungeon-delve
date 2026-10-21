@@ -38,6 +38,10 @@
  *   t  thorn bush  (solid until a Fireball burns it)
  *   Every boulder (R) also smashes to the Axe.
  *
+ * Lightning puzzles (dungeons):
+ *   z  crystal switch (part of a wall; a Lightning bolt powers it, for good)
+ *   g  gate           (barred until a crystal switch in the same room is powered)
+ *
  * Mountains:
  *   V  cave entrance (3×3, anchored top-left: rock all round, the doorway in the middle column open)
  *
@@ -89,8 +93,11 @@ export interface Cell {
 /**
  * Things that block until opened: a locked door (a key), a chest, a false wall
  * (the sword), a cracked wall or a boulder (the Axe), a thorn bush (Fireball).
+ * A crystal switch (Lightning) is powered rather than opened, and opens the
+ * gates in its room.
  */
-export type Fixture = 'door' | 'chest' | 'hollow' | 'cracked' | 'boulder' | 'thorns';
+export type Fixture =
+  'door' | 'chest' | 'hollow' | 'cracked' | 'boulder' | 'thorns' | 'switch' | 'gate';
 
 export interface Room {
   cells: readonly (readonly Cell[])[];
@@ -192,6 +199,8 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       if (ch === 'F') return { ...plain, solid: true, forest: true };
       if (ch === '#') return { ...plain, solid: true, wall: true };
       if (ch === 'K') return { ...plain, solid: true, fixture: 'door' };
+      if (ch === 'z') return { ...plain, solid: true, wall: true, fixture: 'switch' };
+      if (ch === 'g') return { ...plain, solid: true, fixture: 'gate' };
       if (ch === 'C') return { ...plain, solid: true, fixture: 'chest' };
       if (ch === 'D') return { ...plain, solid: false, exit: true };
       if (ch === 'B') {
@@ -269,6 +278,13 @@ export function cellAt(room: Room, x: number, y: number): Cell | null {
   return room.cells[y]?.[x] ?? null;
 }
 
+/** Whether a crystal switch in the room is powered (`powered` says which are): its gates are open. */
+export function gatesOpen(room: Room, powered: (x: number, y: number) => boolean): boolean {
+  return room.cells.some((row, y) =>
+    row.some((cell, x) => cell.fixture === 'switch' && powered(x, y)),
+  );
+}
+
 /** Whether (x, y) blocks movement. Outside the room counts as open: exits are handled by the world. */
 export function isSolid(room: Room, x: number, y: number): boolean {
   return cellAt(room, x, y)?.solid ?? false;
@@ -293,7 +309,7 @@ export function isPassage(room: Room, x: number, y: number): boolean {
   const cell = cellAt(room, x, y);
   if (!cell) return true;
   if (cell.exit) return false;
-  return !cell.solid || cell.fixture === 'door';
+  return !cell.solid || cell.fixture === 'door' || cell.fixture === 'gate';
 }
 
 /** Every doorway cell to another map in a room. */

@@ -26,7 +26,7 @@ export interface Reach {
   chests: string[];
   doors: string[];
   hollows: string[];
-  /** Cracked walls, boulders and thorn bushes broken or burned (with the items held). */
+  /** Cracked walls, boulders and thorn bushes broken or burned, and crystal switches powered (with the items held). */
   broken: string[];
   /** Doorways to other maps reached, as `room/x,y`. */
   exits: string[];
@@ -36,10 +36,11 @@ export interface Reach {
   keys: number;
 }
 
-/** Items that open secrets: the Axe (cracked walls, boulders), Fireball (thorn bushes). */
+/** Items that open the way: the Axe (cracked walls, boulders), Fireball (thorn bushes), Lightning (crystal switches, and so their gates). */
 export interface ReachItems {
   axe?: boolean;
   fireball?: boolean;
+  lightning?: boolean;
 }
 
 /** Where the exploring starts: a room, and a cell in it. */
@@ -132,7 +133,8 @@ function walk(world: World, start: ReachStart, opened: ReadonlySet<string>): Wal
           continue;
         }
         const fixture = v.room.cells[ny]?.[nx]?.fixture;
-        if (fixture && !isOpen(key, nx, ny)) {
+        // A gate opens with its room's crystal switch, not by itself: solidInWorld knows.
+        if (fixture && fixture !== 'gate' && !isOpen(key, nx, ny)) {
           out.touched.set(id(key, nx, ny), fixture);
           continue;
         }
@@ -188,7 +190,9 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
     const breakable = touched
       .filter(
         ([, f]) =>
-          (held.axe && (f === 'cracked' || f === 'boulder')) || (held.fireball && f === 'thorns'),
+          (held.axe && (f === 'cracked' || f === 'boulder')) ||
+          (held.fireball && f === 'thorns') ||
+          (held.lightning && f === 'switch'),
       )
       .map(([c]) => c);
     for (const cell of breakable) {
@@ -206,12 +210,8 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
       const { key, x, y } = parse(chest);
       const c = world.chests.get(key)?.find((ch) => ch.col === x && ch.row === y);
       if (c?.contents.kind === 'key') keys += 1;
-      if (
-        c?.contents.kind === 'item' &&
-        (c.contents.item === 'axe' || c.contents.item === 'fireball')
-      ) {
-        held[c.contents.item] = true;
-      }
+      const item = c?.contents.kind === 'item' ? c.contents.item : null;
+      if (item === 'axe' || item === 'fireball' || item === 'lightning') held[item] = true;
     }
     if (found.length > 0) continue;
     // Then a key on a door in reach.

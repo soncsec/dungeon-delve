@@ -19,6 +19,7 @@ import {
   MOUNTAIN_PROP_REGIONS,
   cliffFrame,
   THORN_TINT,
+  SWITCH_DIM,
   mixTint,
   propSheet,
   roomArt,
@@ -519,5 +520,41 @@ describe('mixTint', () => {
     expect(mixTint(THORN_TINT, 0xffffff)).toBe(THORN_TINT);
     expect(mixTint(0x808080, 0x808080)).toBe(0x404040);
     expect(mixTint(0xff0000, 0x00ff00)).toBe(0x000000);
+  });
+});
+
+describe('crystal switches and gates in a dungeon', () => {
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 0
+        ? '###z################'
+        : y === 1
+          ? '####################'
+          : y === 9
+            ? '#########gg#########'
+            : '##..................',
+    ),
+  );
+  const powered = (x: number, y: number) => x === 3 && y === 0;
+
+  it('a switch is the orb in the wall; a gate is barred until opened', () => {
+    expect(dungeonFrame(r, 3, 0)).toBe(DUNGEON_FRAMES.orb);
+    expect(dungeonFrame(r, 9, 9)).toBe(DUNGEON_FRAMES.gate);
+    expect(dungeonFrame(r, 9, 9, true)).not.toBe(DUNGEON_FRAMES.gate);
+  });
+
+  it('draws a switch dim until powered, and its gates open once it is', () => {
+    const before = dungeonArt(r);
+    expect(before.ground.filter((t) => t.dim)).toEqual([
+      { frame: DUNGEON_FRAMES.orb, x: 48, y: 0, dim: true },
+    ]);
+    const gateBefore = before.ground.find((t) => t.x === 144 && t.y === 144);
+    expect(gateBefore?.frame).toBe(DUNGEON_FRAMES.gate);
+    const after = dungeonArt(r, powered);
+    expect(after.ground.filter((t) => t.dim)).toEqual([]);
+    expect(after.ground.find((t) => t.x === 144 && t.y === 144)?.frame).not.toBe(
+      DUNGEON_FRAMES.gate,
+    );
+    expect(SWITCH_DIM).toBeLessThan(0xffffff);
   });
 });

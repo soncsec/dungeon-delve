@@ -5,6 +5,7 @@ import {
   isForest,
   exitsIn,
   fixturesIn,
+  gatesOpen,
   isPassage,
   isSolid,
   isWall,
@@ -350,5 +351,27 @@ describe('things the Axe and Fireball open', () => {
         anchor: { x: 5, y: 3 },
       });
     }
+  });
+});
+
+describe('crystal switches and gates (Lightning)', () => {
+  // A switch in the top wall at column 3; a gate across the way south at columns 9-10.
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 0 ? '###z################' : y === 9 ? '#########gg#########' : '#..................#',
+    ),
+  );
+
+  it('parses a switch as part of the wall, and a gate as a blocking way through', () => {
+    expect(cellAt(r, 3, 0)).toMatchObject({ solid: true, wall: true, fixture: 'switch' });
+    expect(cellAt(r, 9, 9)).toMatchObject({ solid: true, wall: false, fixture: 'gate' });
+    expect(isPassage(r, 9, 9)).toBe(true);
+    expect(edgeOpenings(r, 'south').filter(Boolean)).toHaveLength(2);
+  });
+
+  it('opens its gates once a switch in the room is powered', () => {
+    expect(gatesOpen(r, () => false)).toBe(false);
+    expect(gatesOpen(r, (x, y) => x === 3 && y === 0)).toBe(true);
+    expect(gatesOpen(r, (x, y) => x === 9 && y === 9)).toBe(false); // a gate isn't a switch
   });
 });

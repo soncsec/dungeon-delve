@@ -13,6 +13,7 @@ import {
   edgeOpenings,
   exitsIn,
   fixturesIn,
+  gatesOpen,
   isSolid,
   parseRoom,
   type Dir,
@@ -244,8 +245,11 @@ export function solidInWorld(
   if (!room) return true;
   const x = cx - dc * ROOM_COLS;
   const y = cy - dr * ROOM_ROWS;
+  const fixture = cellAt(room, x, y)?.fixture;
+  // A gate opens once its room's crystal switch is powered.
+  if (fixture === 'gate') return !gatesOpen(room, (sx, sy) => opened(key, sx, sy));
   // An unlocked door or an opened chest no longer blocks.
-  if (cellAt(room, x, y)?.fixture && opened(key, x, y)) return false;
+  if (fixture && opened(key, x, y)) return false;
   return isSolid(room, x, y);
 }
 

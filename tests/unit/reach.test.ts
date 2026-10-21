@@ -362,3 +362,46 @@ describe('the overworld, stage by stage (M4.6)', () => {
     for (const b of boulders) expect(r.broken, b).toContain(b);
   });
 });
+
+describe('explore, with Lightning', () => {
+  // A switch in the top wall; a gate shuts the corridor (columns 9-10) to a chest below.
+  const defs: RoomDef[] = [
+    {
+      col: 0,
+      row: 0,
+      lines: room({
+        0: '###z################',
+        5: '#########gg#########',
+        6: '#########..#########',
+        7: '#########C.#########',
+      }),
+      chests: [{ col: 9, row: 7, contents: { kind: 'gems', amount: 1 } }],
+    },
+  ];
+  const start = { col: 0, row: 0, cx: 5, cy: 2 };
+
+  it('without it, the gate stays shut', () => {
+    const r = explore(buildWorld(defs), start);
+    expect(r.chests).toEqual([]);
+    expect(r.broken).toEqual([]);
+  });
+
+  it('with it, the switch is powered, the gate opens, and the chest beyond is reached', () => {
+    const r = explore(buildWorld(defs), start, { lightning: true });
+    expect(r.broken).toEqual(['0,0/3,0']);
+    expect(r.chests).toEqual(['0,0/9,7']);
+  });
+
+  it('found in a chest, it counts from then on', () => {
+    const withBolt = defs.map((d) => ({
+      ...d,
+      lines: d.lines.map((line, y) => (y === 3 ? '#.C................#' : line)),
+      chests: [
+        ...(d.chests ?? []),
+        { col: 2, row: 3, contents: { kind: 'item' as const, item: 'lightning' as const } },
+      ],
+    }));
+    const r = explore(buildWorld(withBolt), start);
+    expect(r.chests).toEqual(['0,0/2,3', '0,0/9,7']);
+  });
+});

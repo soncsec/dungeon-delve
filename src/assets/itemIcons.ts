@@ -5,4 +5,5 @@ export const ITEM_ICON: Partial<Record<ItemId, { texture: string; frame: number 
   'wooden-sword': { texture: 'sword-icon', frame: 0 },
   daggers: { texture: 'dagger', frame: 0 },
   fireball: { texture: 'fire-ball', frame: 0 },
+  lightning: { texture: 'bolt', frame: 0 },
 };

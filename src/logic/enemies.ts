@@ -64,6 +64,8 @@ export interface Enemy {
   circle: 1 | -1;
   /** Time until its next shot (ms). */
   shootInMs: number;
+  /** Time left stunned by Lightning (ms): it stands still, and can't hurt by touch. */
+  stunMs: number;
 }
 
 export interface StepContext {
@@ -128,10 +130,11 @@ export function spawnEnemy(kind: EnemyKind, pos: Point, s: EnemyStats, rng: Rng)
     restMs: 0,
     circle: rng.pick([1, -1] as const),
     shootInMs: s.shootMs ? rng.int(s.shootMs.min, s.shootMs.max) : 0,
+    stunMs: 0,
   };
 }
 
-/** Advances an enemy by `dtMs`: knockback first, otherwise its own way of moving. */
+/** Advances an enemy by `dtMs`: knockback first; stunned, it stands still; otherwise its own way of moving. */
 export function stepEnemy(e: Enemy, dtMs: number, s: EnemyStats, ctx: StepContext): StepResult {
   const solid = s.flies ? ctx.flySolid : ctx.walkSolid;
   if (e.knockMs > 0) {
@@ -145,6 +148,7 @@ export function stepEnemy(e: Enemy, dtMs: number, s: EnemyStats, ctx: StepContex
     );
     return { enemy: { ...e, pos, knockMs: e.knockMs - ms }, shot: null };
   }
+  if (e.stunMs > 0) return { enemy: { ...e, stunMs: Math.max(0, e.stunMs - dtMs) }, shot: null };
   switch (s.behaviour) {
     case 'wander':
       return { enemy: wander(e, dtMs, s, ctx.rng, solid, FOUR), shot: null };
@@ -295,6 +299,16 @@ export function hitEnemy(
     lastHitBy: hitId,
     chargeMs: 0,
   };
+}
+
+/** A Lightning bolt (by id, so each lands once): stunned for `ms`, and any charge stops. */
+export function stunEnemy(e: Enemy, ms: number, hitId: number): Enemy {
+  if (e.lastHitBy === hitId) return e;
+  return { ...e, stunMs: ms, lastHitBy: hitId, chargeMs: 0 };
+}
+
+export function isStunned(e: Enemy): boolean {
+  return e.stunMs > 0;
 }
 
 export function isDefeated(e: Enemy): boolean {
