@@ -659,22 +659,39 @@ test('leaning on a stone slides it one cell', async ({ page }) => {
   // Just left of the stone (x 192–207, row 4), facing it.
   await page.evaluate(() => window.__game?.placeHero(186, 78, 'right'));
   await page.keyboard.down('ArrowRight');
-  await expect.poll(async () => (await snapshot(page)).stones).toEqual([{ cx: 13, cy: 4 }]);
+  // Read the sound count from the snapshot that first shows the stone moved: with the
+  // arrow still held, he goes on leaning, and a later snapshot may show the next push.
+  let moved = await snapshot(page);
+  await expect
+    .poll(async () => {
+      moved = await snapshot(page);
+      return moved.stones;
+    })
+    .toEqual([{ cx: 13, cy: 4 }]);
   await page.keyboard.up('ArrowRight');
-  expect((await snapshot(page)).sounds.push).toBe(1);
+  expect(moved.sounds.push).toBe(1);
 });
 
 test('through the archway into dungeon 1, and back out again', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page);
+  // Enemies held and out of the way: held ones still hurt to touch, and a knock sideways
+  // would push him off line with the archway's opening.
   await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.clearEnemies());
   // North from the start room, then on up through the archway's opening.
   await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 1, row: 0 });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).map, { timeout: 20_000 }).toBe('dungeon1');
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const inside = await snapshot(page);
   expect(inside.room).toEqual({ col: 1, row: 3 });
+  expect(inside.health.points).toBe(inside.health.max); // nothing touched him on the way
   expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived (the arrow was still held after)
 
   // Back down through the doorway in the south wall.
