@@ -29,12 +29,45 @@ const sceneNow = (page: Page) => page.evaluate(() => window.__game?.scene() ?? n
 /** The opened doors and chests (ids ending in a cell), leaving out seen rooms, bosses and the rest. */
 const fixtures = (opened: string[]): string[] => opened.filter((id) => /\/\d+,\d+$/.test(id));
 
-/** Opens the game; from the title screen (no save yet), Enter starts a new game. */
+/**
+ * Talks to Walker (he must be in the room): stand beside him facing him, press
+ * Space, and turn every page. Returns the pages shown.
+ */
+async function talkToWalker(page: Page): Promise<string[][]> {
+  const w = (await snapshot(page)).walker;
+  if (!w) throw new Error('Walker is not here');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), w);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).talking).not.toBeNull();
+  const pages: string[][] = [];
+  for (;;) {
+    const talking = (await snapshot(page)).talking;
+    if (!talking) break;
+    pages.push(talking.lines);
+    await page.keyboard.press('Space');
+    // Wait for the page to turn (or the talk to end) before reading the next.
+    await expect
+      .poll(async () => (await snapshot(page)).talking?.page ?? -1)
+      .not.toBe(talking.page);
+  }
+  return pages;
+}
+
+/**
+ * Opens the game; from the title screen (no save yet), Enter starts a new game.
+ * In a new game Walker hands over the sword and shield first, and Jarrett goes
+ * back to where he started.
+ */
 async function openGame(page: Page, query = ''): Promise<void> {
   await page.goto(`./${query}`);
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toMatch(/^(Title|Game)$/);
   if ((await sceneNow(page)) === 'Title') await page.keyboard.press('Enter');
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Game');
+  const start = await snapshot(page);
+  if (start.walker) {
+    await talkToWalker(page);
+    await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'down'), start.player);
+  }
 }
 
 test('boots with no console errors and no third-party requests', async ({ page }) => {
@@ -284,8 +317,11 @@ test('X or K switches between the sword and the daggers, and the status bar show
   await openGame(page);
   const hud = () => page.evaluate(() => window.__game?.hud());
   expect((await snapshot(page)).mode).toBe('near');
+  // No daggers yet (they're dungeon 1's prize): the far box is empty.
   await page.keyboard.press('x');
   await expect.poll(async () => (await snapshot(page)).mode).toBe('far');
+  await expect.poll(async () => (await hud())?.weapon).toBe('');
+  await page.evaluate(() => window.__game?.giveItem('daggers'));
   await expect.poll(async () => (await hud())?.weapon).toBe('dagger');
   await page.keyboard.press('k');
   await expect.poll(async () => (await snapshot(page)).mode).toBe('near');
@@ -686,13 +722,17 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   // would push him off line with the archway's opening.
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.clearEnemies());
-  // North from the start room, then on up through the archway's opening.
+  // North from the start room. He stops as the view slides, so the archway room's
+  // enemies (which appear when the slide ends) are cleared before he walks on.
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
     .toEqual({ col: 1, row: 0 });
+  await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   await page.evaluate(() => window.__game?.clearEnemies());
+  // On up through the archway's opening.
+  await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).map, { timeout: 20_000 }).toBe('dungeon1');
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
@@ -1029,5 +1069,85 @@ test('the inventory shows a map of the dungeon rooms Jarrett has been in, kept i
   await page.keyboard.press('Enter'); // YES, start over
   await expect.poll(() => sceneNow(page)).toBe('Game');
   expect(await mapShown()).toBeNull();
+  expect(watched.errors).toEqual([]);
+});
+
+test('Walker waits in the village, tells the story and hands over the sword and shield', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await page.goto('./');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  const inventory = () => page.evaluate(() => window.__game?.inventory() ?? null);
+  const s = await snapshot(page);
+  expect(s.walker).toEqual({ x: 216, y: 79 });
+  expect(s.talking).toBeNull();
+  const hud = () => page.evaluate(() => window.__game?.hud());
+  expect((await hud())?.weapon).toBe(''); // no sword yet
+  // Empty-handed but for Fireball: Space by himself does nothing. Keys are handled
+  // in order, so once the X that follows has switched modes, the Space was handled too.
+  await page.keyboard.press('Space');
+  await page.keyboard.press('x');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('far');
+  expect((await snapshot(page)).swings).toBe(0);
+  await page.keyboard.press('x');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('near');
+
+  // Beside him, facing him: Space starts the talk, and the game waits.
+  await page.evaluate(() => window.__game?.placeHero(204, 79, 'right'));
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).talking?.page).toBe(0);
+  expect((await snapshot(page)).talking?.lines).toEqual(['HELLO, JARRETT. I AM WALKER.']);
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowLeft');
+  expect((await snapshot(page)).player).toEqual({ x: 204, y: 79 });
+  expect((await snapshot(page)).swings).toBe(0); // the press turned no page into a swing
+
+  // Page by page; the sword and shield arrive with the page that offers them.
+  const pages: string[][] = [];
+  let sword = -1;
+  for (;;) {
+    const talking = (await snapshot(page)).talking;
+    if (!talking) break;
+    pages.push(talking.lines);
+    if (sword < 0 && (await snapshot(page)).sounds.chest > 0) {
+      sword = talking.page;
+      // The status bar shows the sword at once, while he is still talking.
+      expect((await hud())?.weapon).toBe('sword-icon');
+    }
+    await page.keyboard.press('Space');
+    await expect
+      .poll(async () => (await snapshot(page)).talking?.page ?? -1)
+      .not.toBe(talking.page);
+  }
+  expect(pages.length).toBeGreaterThanOrEqual(8);
+  expect(pages.flat().join(' ')).toContain('TAKE THESE: A SWORD AND A SHIELD.');
+  expect(pages[sword]?.join(' ')).toContain('TAKE THESE');
+  const after = await snapshot(page);
+  expect((await hud())?.weapon).toBe('sword-icon');
+  expect(after.walker).toBeNull(); // gone in a shimmer
+  expect(after.opened).toContain('walker/village');
+  expect(after.saves).toBe(2); // the village is a save point: saved again with the gifts
+  await page.keyboard.press('i');
+  await expect
+    .poll(async () => (await inventory())?.slots)
+    .toEqual({
+      near: 'Wooden Sword',
+      far: '',
+      spell: 'Fireball',
+      shield: 'Wooden Shield',
+    });
+  await page.keyboard.press('i');
+
+  // Continue later: he's gone, and the gifts are kept.
+  await reloadToTitle(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  expect((await snapshot(page)).walker).toBeNull();
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).swings).toBe(1);
   expect(watched.errors).toEqual([]);
 });
