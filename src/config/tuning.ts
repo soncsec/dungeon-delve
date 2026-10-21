@@ -171,6 +171,9 @@ export const DEATH = {
   fadeInMs: 400,
 } as const;
 
+/** Pushable stones: lean on one this long (ms) to slide it a cell, taking this long to slide. */
+export const STONE = { pushMs: 350, slideMs: 180 } as const;
+
 /** The Wooden Shield: blocks shots arriving within 60° of straight at Jarrett's front. */
 export const SHIELD = {
   /** Cosine of the widest angle it still covers (cos 60° = 0.5). */
@@ -232,7 +235,8 @@ export type SfxName =
   | 'noMana'
   | 'menu'
   | 'unlock'
-  | 'chest';
+  | 'chest'
+  | 'push';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -288,6 +292,8 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
       volume: 0.35,
       steps: [1, 1.5],
     },
+    // A stone scraping across the floor.
+    push: { wave: 'noise', seconds: 0.2, from: 900, to: 300, attack: 0.02, volume: 0.35 },
     // A chest opening, or a key or item found: a bright little fanfare.
     chest: {
       wave: 'triangle',

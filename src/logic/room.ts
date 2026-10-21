@@ -8,6 +8,7 @@
  *   #  dungeon wall (solid; its top and its face are drawn automatically)
  *   K  locked door  (solid until opened with a small key; counts as a doorway between rooms)
  *   C  chest        (solid until opened; the room lists what it holds)
+ *   B  pushable stone (starts here on floor; the game moves it, see logic/push.ts)
  *   T  pine tree   (solid trunk; the anchor is the trunk cell, the canopy rises above it)
  *   O  oak tree    (solid along its 3-cell base; the anchor is the middle of the base)
  *   R  boulder     (solid 2×2; the anchor is the top-left cell)
@@ -34,6 +35,8 @@ export type Fixture = 'door' | 'chest';
 
 export interface Room {
   cells: readonly (readonly Cell[])[];
+  /** Where its pushable stones start (the floor under them is open). */
+  stones?: readonly { cx: number; cy: number }[];
 }
 
 export type Dir = 'north' | 'south' | 'east' | 'west';
@@ -71,6 +74,7 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
     throw new Error(`${name}: expected ${ROOM_ROWS} rows, got ${lines.length}`);
   }
   const anchors: { x: number; y: number; prop: PropKind }[] = [];
+  const stones: { cx: number; cy: number }[] = [];
   const cells: Cell[][] = lines.map((line, y) => {
     if (line.length !== ROOM_COLS) {
       throw new Error(`${name}: row ${y} has ${line.length} columns, expected ${ROOM_COLS}`);
@@ -82,6 +86,10 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       if (ch === '#') return { ...plain, solid: true, wall: true };
       if (ch === 'K') return { ...plain, solid: true, fixture: 'door' };
       if (ch === 'C') return { ...plain, solid: true, fixture: 'chest' };
+      if (ch === 'B') {
+        stones.push({ cx: x, cy: y });
+        return { ...plain, solid: false };
+      }
       const prop = PROP_CHARS[ch];
       if (!prop) throw new Error(`${name}: unknown character '${ch}' at column ${x}, row ${y}`);
       anchors.push({ x, y, prop });
@@ -109,7 +117,7 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       target.solid = true;
     }
   }
-  return { cells };
+  return { cells, stones };
 }
 
 /** The cell at (x, y), or null outside the room. */

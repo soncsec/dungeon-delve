@@ -651,3 +651,14 @@ test('without a key, the locked door stays shut', async ({ page }) => {
   expect(s.room).toEqual({ col: 0, row: 1 });
   expect(s.player.y).toBe(38); // flush below the gate (row 2's top + his 6-px feet box)
 });
+
+test('leaning on a stone slides it one cell', async ({ page }) => {
+  await openGame(page, '?dungeon=1');
+  expect((await snapshot(page)).stones).toEqual([{ cx: 12, cy: 4 }]);
+  // Just left of the stone (x 192–207, row 4), facing it.
+  await page.evaluate(() => window.__game?.placeHero(186, 78, 'right'));
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => (await snapshot(page)).stones).toEqual([{ cx: 13, cy: 4 }]);
+  await page.keyboard.up('ArrowRight');
+  expect((await snapshot(page)).sounds.push).toBe(1);
+});
