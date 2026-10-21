@@ -757,53 +757,47 @@ test('leaning on a stone slides it one cell', async ({ page }) => {
   expect(moved.sounds.push).toBe(1);
 });
 
-test('through the archway into dungeon 1, and back out again', async ({ page }) => {
+test('out of dungeon 1 through its doorway, and back in through the archway', async ({ page }) => {
   const watched = watchPage(page);
-  await openGame(page);
+  // From the dungeon's entrance (owner 2026-10-21): a new game's ten-page talk with
+  // Walker and the walk from the village made this test take up to 35 s of its 30 s
+  // in WebKit here. The reachability unit tests cover the way from the village.
+  await openGame(page, '?dungeon=1');
   // Enemies held and out of the way: held ones still hurt to touch, and a knock sideways
-  // would push him off line with the archway's opening.
+  // would push him off line with the doorways.
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.clearEnemies());
-  // West out of the village gate, then north up the west street to Hollow Oak's
-  // archway. He stops for each slide, so each room's enemies (which appear when
-  // the slide ends) are cleared before he walks on.
-  const walkTo = async (key: string, room: { col: number; row: number }) => {
-    await page.keyboard.down(key);
-    await expect.poll(async () => (await snapshot(page)).room, { timeout: 15_000 }).toEqual(room);
-    await page.keyboard.up(key);
-    await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
-    await page.evaluate(() => window.__game?.clearEnemies());
-  };
-  await walkTo('ArrowLeft', { col: 3, row: 7 });
-  // In line with the meadow's north gap (columns 9–10), then north.
-  await page.evaluate(() => window.__game?.placeHero(160, 94, 'up'));
-  await walkTo('ArrowUp', { col: 3, row: 6 });
-  await walkTo('ArrowUp', { col: 3, row: 5 });
-  // On up through the archway's opening. The arrow is let go as soon as the trip
-  // starts, so he can't walk on after he arrives.
-  await page.keyboard.down('ArrowUp');
-  await expect
-    .poll(async () => (await snapshot(page)).travelling, { timeout: 20_000, intervals: [50] })
-    .toBe(true);
-  await page.keyboard.up('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).map).toBe('dungeon1');
-  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
-  const inside = await snapshot(page);
-  expect(inside.room).toEqual({ col: 1, row: 3 });
-  expect(inside.health.points).toBe(inside.health.max); // nothing touched him on the way
-  expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived
+  const start = await snapshot(page);
+  expect(start.map).toBe('dungeon1');
+  expect(start.room).toEqual({ col: 1, row: 3 });
 
-  // Back down through the doorway in the south wall, letting go once the trip starts.
-  await page.keyboard.down('ArrowDown');
-  await expect
-    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
-    .toBe(true);
-  await page.keyboard.up('ArrowDown');
-  await expect.poll(async () => (await snapshot(page)).map).toBe('overworld');
-  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  /** Holds a key until a trip to another map starts (so he can't walk on after he arrives). */
+  const travel = async (key: 'ArrowUp' | 'ArrowDown') => {
+    await page.keyboard.down(key);
+    await expect
+      .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+      .toBe(true);
+    await page.keyboard.up(key);
+    await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  };
+
+  // Down through the doorway in the entrance's south wall.
+  await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
+  await travel('ArrowDown');
   const outside = await snapshot(page);
+  expect(outside.map).toBe('overworld');
   expect(outside.room).toEqual({ col: 3, row: 5 });
+  expect(outside.enteredAt).toEqual({ x: 160, y: 78 }); // just below the archway
   expect(outside.facing).toBe('down');
+
+  // And straight back up through the archway's opening.
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await travel('ArrowUp');
+  const inside = await snapshot(page);
+  expect(inside.map).toBe('dungeon1');
+  expect(inside.room).toEqual({ col: 1, row: 3 });
+  expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived
+  expect(inside.health.points).toBe(inside.health.max); // nothing touched him on the way
   expect(watched.errors).toEqual([]);
 });
 
