@@ -92,3 +92,11 @@ export function shardMessage(held: number, total: number): string[] {
     left === 1 ? '1 MORE TO FIND.' : `${left} MORE TO FIND.`,
   ];
 }
+
+/** A room Jarrett has been in (for the dungeon map): its map and room. */
+export const seenId = (map: string, roomKey: string): string => `${map}/${roomKey}/seen`;
+
+/** Records a room as seen (once). */
+export function markSeen(p: Progress, id: string): Progress {
+  return openChest(p, id);
+}

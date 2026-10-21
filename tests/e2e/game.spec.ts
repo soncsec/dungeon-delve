@@ -26,6 +26,9 @@ async function snapshot(page: Page): Promise<GameSnapshot> {
 
 const sceneNow = (page: Page) => page.evaluate(() => window.__game?.scene() ?? null);
 
+/** The opened doors and chests (ids ending in a cell), leaving out seen rooms, bosses and the rest. */
+const fixtures = (opened: string[]): string[] => opened.filter((id) => /\/\d+,\d+$/.test(id));
+
 /** Opens the game; from the title screen (no save yet), Enter starts a new game. */
 async function openGame(page: Page, query = ''): Promise<void> {
   await page.goto(`./${query}`);
@@ -498,6 +501,7 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
     cursor: 0,
     // No far weapon yet: the daggers are dungeon 1's prize.
     slots: { near: 'Wooden Sword', far: '', spell: 'Fireball', shield: 'Wooden Shield' },
+    map: null, // outdoors: no dungeon map
   });
   // The game is paused: holding a direction doesn't move Jarrett.
   await page.keyboard.down('ArrowRight');
@@ -628,7 +632,7 @@ test('in dungeon 1: a chest gives a key, and the key opens the locked door into 
   await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).keys).toBe(1); // opened, and the key picked up
   await page.keyboard.up('ArrowUp');
-  expect((await snapshot(page)).opened).toEqual(['dungeon1/1,3/4,3']);
+  expect(fixtures((await snapshot(page)).opened)).toEqual(['dungeon1/1,3/4,3']);
   await expect.poll(async () => (await hud())?.keys).toBe('1');
 
   // The locked door is at columns 9–10, row 1: walk up into it, and on through.
@@ -651,7 +655,7 @@ test('without a key, the locked door stays shut', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.keyboard.up('ArrowUp');
   const s = await snapshot(page);
-  expect(s.opened).toEqual([]);
+  expect(fixtures(s.opened)).toEqual([]);
   expect(s.room).toEqual({ col: 1, row: 3 });
   expect(s.player.y).toBe(38); // flush below the gate (row 2's top + his 6-px feet box)
 });
@@ -981,5 +985,49 @@ test('a damaged save is ignored: the title offers only NEW GAME', async ({ page 
   await page.evaluate(() => window.localStorage.setItem('dungeon-delve:save', '{oops'));
   await reloadToTitle(page);
   expect((await titleShows(page))?.options).toEqual(['NEW GAME']);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the inventory shows a map of the dungeon rooms Jarrett has been in, kept in the save', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  const mapShown = async () => {
+    await page.keyboard.press('i');
+    await expect.poll(() => sceneNow(page)).toBe('Inventory');
+    const m = (await page.evaluate(() => window.__game?.inventory()))?.map ?? null;
+    await page.keyboard.press('i');
+    await expect.poll(() => sceneNow(page)).toBe('Game');
+    return m;
+  };
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  expect(await mapShown()).toEqual({
+    name: 'Hollow Oak',
+    rooms: [{ x: 1, y: 3, current: true, boss: false }],
+  });
+  await page.evaluate(() => window.__game?.goToRoom(1, 2)); // the hub
+  await page.evaluate(() => window.__game?.goToRoom(0, 2)); // the west room
+  expect((await mapShown())?.rooms).toEqual([
+    { x: 0, y: 2, current: true, boss: false },
+    { x: 1, y: 2, current: false, boss: false },
+    { x: 1, y: 3, current: false, boss: false },
+  ]);
+
+  // Back at the entrance (a save point), then reload and continue: the map is kept.
+  await page.evaluate(() => window.__game?.goToRoom(1, 3));
+  await reloadToTitle(page);
+  await page.keyboard.press('Enter'); // CONTINUE
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  expect((await mapShown())?.rooms).toHaveLength(3);
+
+  // Outdoors there is no dungeon map.
+  await reloadToTitle(page);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter'); // YES, start over
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  expect(await mapShown()).toBeNull();
   expect(watched.errors).toEqual([]);
 });
