@@ -498,6 +498,7 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
     cursor: 0,
     // No far weapon yet: the daggers are dungeon 1's prize.
     slots: { near: 'Wooden Sword', far: '', spell: 'Fireball', shield: 'Wooden Shield' },
+    map: null, // outdoors: no dungeon map
   });
   // The game is paused: holding a direction doesn't move Jarrett.
   await page.keyboard.down('ArrowRight');
@@ -981,5 +982,49 @@ test('a damaged save is ignored: the title offers only NEW GAME', async ({ page 
   await page.evaluate(() => window.localStorage.setItem('dungeon-delve:save', '{oops'));
   await reloadToTitle(page);
   expect((await titleShows(page))?.options).toEqual(['NEW GAME']);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the inventory shows a map of the dungeon rooms Jarrett has been in, kept in the save', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  const mapShown = async () => {
+    await page.keyboard.press('i');
+    await expect.poll(() => sceneNow(page)).toBe('Inventory');
+    const m = (await page.evaluate(() => window.__game?.inventory()))?.map ?? null;
+    await page.keyboard.press('i');
+    await expect.poll(() => sceneNow(page)).toBe('Game');
+    return m;
+  };
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  expect(await mapShown()).toEqual({
+    name: 'Hollow Oak',
+    rooms: [{ x: 1, y: 3, current: true, boss: false }],
+  });
+  await page.evaluate(() => window.__game?.goToRoom(1, 2)); // the hub
+  await page.evaluate(() => window.__game?.goToRoom(0, 2)); // the west room
+  expect((await mapShown())?.rooms).toEqual([
+    { x: 0, y: 2, current: true, boss: false },
+    { x: 1, y: 2, current: false, boss: false },
+    { x: 1, y: 3, current: false, boss: false },
+  ]);
+
+  // Back at the entrance (a save point), then reload and continue: the map is kept.
+  await page.evaluate(() => window.__game?.goToRoom(1, 3));
+  await reloadToTitle(page);
+  await page.keyboard.press('Enter'); // CONTINUE
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  expect((await mapShown())?.rooms).toHaveLength(3);
+
+  // Outdoors there is no dungeon map.
+  await reloadToTitle(page);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter'); // YES, start over
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  expect(await mapShown()).toBeNull();
   expect(watched.errors).toEqual([]);
 });

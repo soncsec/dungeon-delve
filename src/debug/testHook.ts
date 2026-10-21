@@ -51,7 +51,14 @@ export interface TestHook {
   /** Give Jarrett an item (it goes in the inventory). */
   giveItem(item: ItemId): void;
   /** What the inventory screen shows, or null when it isn't open. */
-  inventory(): { cursor: number; slots: Record<string, string> } | null;
+  inventory(): {
+    cursor: number;
+    slots: Record<string, string>;
+    map: {
+      name: string;
+      rooms: { x: number; y: number; current: boolean; boss: boolean }[];
+    } | null;
+  } | null;
   /** What the status bar shows: each heart's state, and the gem count text. */
   hud(): {
     hearts: ('full' | 'half' | 'empty')[];

@@ -9,6 +9,8 @@ import {
   unlockDoor,
   beatBoss,
   heartContainers,
+  markSeen,
+  seenId,
   rewardId,
   shardMessage,
   shardsHeld,
@@ -85,5 +87,17 @@ describe('rewards', () => {
     expect(shardMessage(1, 8)).toEqual(['A SHARD OF THE', 'STAR OF POWER!', '', '7 MORE TO FIND.']);
     expect(shardMessage(7, 8).at(-1)).toBe('1 MORE TO FIND.');
     expect(shardMessage(8, 8)).toEqual(['THE STAR OF POWER', 'IS WHOLE!']);
+  });
+});
+
+describe('seen rooms', () => {
+  it('records a room once, and it is not a shard or heart', () => {
+    const id = seenId('dungeon1', '1,2');
+    expect(id).toBe('dungeon1/1,2/seen');
+    const p = markSeen(NEW_PROGRESS, id);
+    expect(isOpened(p, id)).toBe(true);
+    expect(markSeen(p, id)).toBe(p);
+    expect(shardsHeld(p)).toBe(0);
+    expect(heartContainers(p)).toBe(0);
   });
 });

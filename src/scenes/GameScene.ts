@@ -48,6 +48,7 @@ import {
   type Boss,
   type BossKind,
 } from '../logic/boss';
+import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
 import { rollDrop, type Drop } from '../logic/drops';
 import {
   canThrow,
@@ -71,6 +72,8 @@ import {
   bossId,
   fixtureId,
   heartContainers,
+  markSeen,
+  seenId,
   rewardId,
   shardMessage,
   shardsHeld,
@@ -482,6 +485,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.swing = { startedAt: null };
     this.spawnEnemies();
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
+    this.enteredRoom();
+  }
+
+  /** On entering a room: a dungeon room goes on the map, and a save point saves. */
+  private enteredRoom(): void {
+    if (MAPS[this.mapId].theme === 'dungeon') {
+      const id = seenId(this.mapId, roomKey(this.room.col, this.room.row));
+      this.progress = markSeen(this.progress, id);
+    }
     this.saveAtSavePoint();
   }
 
@@ -1057,7 +1069,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
     this.falls += 1;
     this.falling = false;
-    this.saveAtSavePoint();
+    this.enteredRoom();
   }
 
   /** Through a doorway: the screen goes dark, and he is on the other map. */
@@ -1107,7 +1119,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     this.placeSprite();
     this.spawnEnemies();
     this.hud.update(this.health, this.gems, this.mode, this.mana, this.potions, this.hudKeys());
-    this.saveAtSavePoint();
+    this.enteredRoom();
   }
 
   /** Pauses the game and shows the inventory over it. */
@@ -1133,6 +1145,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
 
   heldGems(): number {
     return this.gems;
+  }
+
+  /** The map of the dungeon he's in, or null outdoors. */
+  dungeonMap(): { name: string; map: DungeonMap } | null {
+    const m = MAPS[this.mapId];
+    if (m.theme !== 'dungeon') return null;
+    const map = dungeonMap(
+      m.rooms,
+      (col, row) => isOpened(this.progress, seenId(this.mapId, roomKey(col, row))),
+      this.room,
+      (col, row) => this.world.bosses.has(roomKey(col, row)),
+    );
+    return { name: m.name, map };
   }
 
   heldShards(): number {
@@ -1648,7 +1673,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
         for (const o of old) o.destroy();
         this.sliding = false;
         this.spawnEnemies();
-        this.saveAtSavePoint();
+        this.enteredRoom();
       },
     });
   }

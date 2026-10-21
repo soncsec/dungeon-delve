@@ -14,6 +14,7 @@ import {
   ownedIn,
   type Inventory,
 } from '../logic/inventory';
+import type { DungeonMap } from '../logic/dungeonMap';
 import type { Potions } from '../logic/potions';
 
 /** What the inventory screen reads from, and writes back to, the game. */
@@ -25,6 +26,8 @@ export interface InventoryHost {
   /** Shards of the Star of Power found (0–8), and small keys held. */
   heldShards(): number;
   heldKeys(): number;
+  /** The map of the dungeon he's in (rooms he has been in), or null outdoors. */
+  dungeonMap(): { name: string; map: DungeonMap } | null;
 }
 
 const OPEN_KEYS: ReadonlySet<string> = new Set(['KeyI', 'Tab', 'Escape']);
@@ -35,6 +38,8 @@ const TEXT = { fontFamily: HUD.font, fontSize: '8px', color: '#e8f4f0' } as cons
 const DIM = '#7f8ca8';
 const ACCENT = '#4fd3d6';
 const ROW = { y: 30, h: 22 } as const;
+/** The dungeon map, under the slots: one small box per room. */
+const MAP = { labelX: 26, x: 116, y: 120, w: 10, h: 6, gap: 2 } as const;
 
 /**
  * The inventory (I or Tab): a pause screen over the game. Up and down choose
@@ -93,19 +98,45 @@ export class InventoryScene extends Phaser.Scene {
   }
 
   /** For the e2e test hook. */
-  shows(): { cursor: number; slots: Record<string, string> } {
+  shows(): {
+    cursor: number;
+    slots: Record<string, string>;
+    map: { name: string; rooms: DungeonMap['rooms'] } | null;
+  } {
     const inv = this.host.inventory();
     const slots: Record<string, string> = {};
     for (const slot of SLOTS) {
       const item = inv.equipped[slot];
       slots[slot] = item ? ITEMS[item].name : '';
     }
-    return { cursor: this.cursor, slots };
+    const m = this.host.dungeonMap();
+    return { cursor: this.cursor, slots, map: m ? { name: m.name, rooms: m.map.rooms } : null };
   }
 
   private close(): void {
     this.scene.resume('Game');
     this.scene.stop();
+  }
+
+  /** The dungeon's name, and a box for each room he has been in: gold where he is, a red dot for the boss. */
+  private drawMap(): void {
+    const m = this.host.dungeonMap();
+    if (!m) return;
+    this.dynamic.push(
+      this.add.text(MAP.labelX, MAP.y, m.name.toUpperCase(), { ...TEXT, color: DIM }),
+    );
+    for (const room of m.map.rooms) {
+      const x = MAP.x + room.x * (MAP.w + MAP.gap);
+      const y = MAP.y + room.y * (MAP.h + MAP.gap);
+      this.dynamic.push(
+        this.add.rectangle(x, y, MAP.w, MAP.h, room.current ? 0xffd166 : 0x3a5a8a).setOrigin(0),
+      );
+      if (room.boss) {
+        this.dynamic.push(
+          this.add.rectangle(x + MAP.w / 2 - 1, y + MAP.h / 2 - 1, 2, 2, 0xd04040).setOrigin(0),
+        );
+      }
+    }
   }
 
   /** Redraws everything that changes: the cursor, the equipped items and the counts. */
@@ -136,6 +167,8 @@ export class InventoryScene extends Phaser.Scene {
         );
       }
     });
+
+    this.drawMap();
 
     // Right-hand column: potions, gems, keys, and the Star of Power.
     const x = 250;
