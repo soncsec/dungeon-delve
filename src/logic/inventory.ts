@@ -87,6 +87,15 @@ export function give(inv: Inventory, item: ItemId): Inventory {
   };
 }
 
+/**
+ * An item found in a chest: his, and in his hand at once (the newest find is the
+ * one he wants to try, as in Zelda). A gift (Walker's) only fills an empty slot: `give`.
+ */
+export function takeFound(inv: Inventory, item: ItemId): Inventory {
+  const had = give(inv, item);
+  return { owned: had.owned, equipped: { ...had.equipped, [ITEMS[item].slot]: item } };
+}
+
 /** The items he owns for one slot, in the order found. */
 export function ownedIn(inv: Inventory, slot: Slot): ItemId[] {
   return inv.owned.filter((i) => ITEMS[i].slot === slot);

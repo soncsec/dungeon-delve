@@ -11,6 +11,7 @@ import {
   moveCursor,
   ownedIn,
   startingKit,
+  takeFound,
   type Inventory,
 } from '../../src/logic/inventory';
 
@@ -113,5 +114,20 @@ describe('knowsMagic', () => {
     expect(knowsMagic(EMPTY_INVENTORY)).toBe(false);
     expect(knowsMagic(kit('wooden-sword', 'daggers', 'wooden-shield'))).toBe(false);
     expect(knowsMagic(kit('wooden-sword', 'fireball'))).toBe(true);
+  });
+});
+
+describe('takeFound', () => {
+  it('an item found in a chest goes straight into his hand, even over another', () => {
+    const inv = takeFound(kit('wooden-sword', 'fireball'), 'lightning');
+    expect(inv.owned).toEqual(['wooden-sword', 'fireball', 'lightning']);
+    expect(inv.equipped.spell).toBe('lightning');
+    expect(inv.equipped.near).toBe('wooden-sword');
+  });
+
+  it('finding one he already owns just takes it in hand', () => {
+    const inv = takeFound(kit('fireball', 'lightning'), 'fireball');
+    expect(inv.owned).toEqual(['fireball', 'lightning']);
+    expect(inv.equipped.spell).toBe('fireball');
   });
 });

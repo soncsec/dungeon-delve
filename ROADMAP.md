@@ -123,7 +123,7 @@
   - [x] M5.1c Magic from Walker (owner 2026-10-21): no spell or mana bar at the start; after Hollow Oak, Walker thanks Jarrett and teaches him the Fireball. Bog Grotto's prize becomes a Mana Crystal (mana 100 → 150, a longer bar)
 - [ ] M5.2 Dungeon 3, Sunken Crypt: Lightning (moved from Thunder Spire, owner 2026-10-21), Mummy (the Iron Shield is sold in the village shop: owner 2026-10-21), in three PRs:
   - [x] M5.2a The Lightning spell: a bolt that stuns an enemy (3 s; it can't move, shoot or hurt by touch) and powers crystal switches (`z`), which open their room's gates (`g`); the reachability test knows them
-  - [ ] M5.2b The crypt's rooms, in the ruins (needs two shards), with Lightning as its prize and switch-and-gate puzzles
+  - [x] M5.2b Seven rooms under the ruins (in sandy stone; the archway needs two shards): Lightning in a closet behind a stone, crystal switches that open the way to the tomb hall and a caged key, thorns before the first key; a found item goes straight into Jarrett's hand
   - [ ] M5.2c The Mummy
 - [ ] Touch controls and the phone layout (M8.2), brought forward to here (owner 2026-10-21)
 - [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre
