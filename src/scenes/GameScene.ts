@@ -164,6 +164,8 @@ export interface GameSnapshot {
   player: Point;
   facing: Facing;
   moving: boolean;
+  /** Jarrett's sprite: the animation playing (null when standing) and whether it is mirrored. */
+  heroSprite: { anim: string | null; flipped: boolean };
   seed: number;
   /** The map he is on, the room in it, and its region (outdoors; dungeons say 'forest'). */
   map: MapId;
@@ -973,8 +975,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.facing
     ];
     live.sprite
-      .setFrame(HERO.standFrame[faces === 'right' ? 'left' : faces])
-      .setFlipX(faces === 'right');
+      .setFrame(HERO.standFrame[faces === 'left' ? 'right' : faces])
+      .setFlipX(faces === 'left');
     // The box goes at the bottom of the screen, or at the top when they stand low in the room.
     const top = this.pos.y > ROOM_H / 2 ? HUD_HEIGHT + 8 : GAME_HEIGHT - 56;
     const box = this.add
@@ -1866,6 +1868,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       player: { ...this.pos },
       facing: this.facing,
       moving: this.moving,
+      heroSprite: {
+        anim: this.hero.anims.isPlaying ? (this.hero.anims.currentAnim?.key ?? null) : null,
+        flipped: this.hero.flipX,
+      },
       seed: this.seed,
       map: this.mapId,
       room: { ...this.room },
@@ -2116,8 +2122,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Walk animation while a direction is held (even against a wall); stand still otherwise. */
   private animate(walking: boolean): void {
-    const row = this.facing === 'right' ? 'left' : this.facing;
-    this.hero.setFlipX(this.facing === 'right');
+    // The sheets' side row faces right; facing left is that row mirrored.
+    const row = this.facing === 'left' ? 'right' : this.facing;
+    this.hero.setFlipX(this.facing === 'left');
     if (walking) {
       this.hero.play(animKey('jarrett', `walk-${row}`), true);
     } else {

@@ -84,14 +84,18 @@ test('boots with no console errors and no third-party requests', async ({ page }
 
 test('arrow keys move the player and it stays on screen', async ({ page }) => {
   await openGame(page);
+  // Row 7 of the start room, which trees close at the west edge. (Row 5, where he
+  // starts, is the way west out of the village.)
+  await page.evaluate(() => window.__game?.placeHero(160, 126, 'down'));
   const start = (await snapshot(page)).player;
   await page.keyboard.down('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(start.x - 20);
   await page.waitForTimeout(2000); // long enough to reach the edge
   await page.keyboard.up('ArrowLeft');
-  const left = (await snapshot(page)).player;
-  expect(left.x).toBeGreaterThan(0);
-  expect(left.y).toBe(start.y);
+  const left = await snapshot(page);
+  expect(left.room).toEqual({ col: 4, row: 7 });
+  expect(left.player.x).toBeGreaterThan(0);
+  expect(left.player.y).toBe(start.y);
 });
 
 test('?seed= in the URL sets the random seed', async ({ page }) => {
@@ -134,7 +138,21 @@ test('Jarrett faces the way he walks, and walls stop him', async ({ page }) => {
   await page.waitForTimeout(300);
   expect((await snapshot(page)).player).toEqual({ x: 59, y: 126 });
   expect((await snapshot(page)).facing).toBe('right');
+  // The art's side row faces right: walking right plays it as drawn.
+  expect((await snapshot(page)).heroSprite).toEqual({
+    anim: 'jarrett:walk-right',
+    flipped: false,
+  });
   await page.keyboard.up('ArrowRight');
+
+  // Walking left plays the same row mirrored, and he stands facing left.
+  await page.keyboard.down('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(55);
+  expect((await snapshot(page)).heroSprite).toEqual({ anim: 'jarrett:walk-right', flipped: true });
+  await page.keyboard.up('ArrowLeft');
+  await expect
+    .poll(async () => (await snapshot(page)).heroSprite)
+    .toEqual({ anim: null, flipped: true });
 });
 
 test('walking through a gap slides to the next room, and back', async ({ page }) => {
@@ -745,20 +763,27 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   await page.evaluate(() => window.__game?.placeHero(160, 94, 'up'));
   await walkTo('ArrowUp', { col: 3, row: 6 });
   await walkTo('ArrowUp', { col: 3, row: 5 });
-  // On up through the archway's opening.
+  // On up through the archway's opening. The arrow is let go as soon as the trip
+  // starts, so he can't walk on after he arrives.
   await page.keyboard.down('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).map, { timeout: 20_000 }).toBe('dungeon1');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 20_000, intervals: [50] })
+    .toBe(true);
   await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).map).toBe('dungeon1');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const inside = await snapshot(page);
   expect(inside.room).toEqual({ col: 1, row: 3 });
   expect(inside.health.points).toBe(inside.health.max); // nothing touched him on the way
-  expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived (the arrow was still held after)
+  expect(inside.enteredAt).toEqual({ x: 160, y: 140 }); // where he arrived
 
-  // Back down through the doorway in the south wall.
+  // Back down through the doorway in the south wall, letting go once the trip starts.
   await page.keyboard.down('ArrowDown');
-  await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
   await page.keyboard.up('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).map).toBe('overworld');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const outside = await snapshot(page);
   expect(outside.room).toEqual({ col: 3, row: 5 });

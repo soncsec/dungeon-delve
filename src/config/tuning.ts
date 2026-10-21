@@ -24,7 +24,7 @@ export const HERO = {
   frameHeight: 32,
   feetY: 30,
   /** First frame of each walk row: what he shows standing still. */
-  standFrame: { down: 0, left: 4, up: 8 },
+  standFrame: { down: 0, right: 4, up: 8 },
   /** Start position in the start room: feet on the line between columns 9 and 10, in row 5. */
   start: { col: 10, row: 5, lift: 2 },
 } as const;

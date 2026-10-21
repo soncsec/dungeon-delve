@@ -48,7 +48,7 @@
 
 - [x] M1.1 Art audit and copy: hero, Kira, overworld tiles, objects, gems, slash and hit effects, the robot enemy into `public/assets/` (dungeon tiles come with M3.1); CREDITS.md; an asset-preview scene (`?scene=preview`)
 - [x] M1.2 Room data format and loader (text rooms, tile legend, automatic edges); unit tests
-- [x] M1.3 Movement with 4-direction walk animations and wall collision
+- [x] M1.3 Movement with 4-direction walk animations and wall collision (fixed 2026-10-21: the art's side row faces right, so it is mirrored for walking left, not right)
 - [x] M1.4 Flip-screen room transitions over a 3×3 test area
 - [x] M1.5 Sword swing (Space or J) with the slash effect; the area each swing covers, and overlap tests (hitting and knocking back enemies moved to M1.6, when the first enemy exists)
 - [x] M1.6 Robot enemy that the sword hits and knocks back (pooled; the pack's slime is too big for a basic enemy, see M1.1), hearts, damage and brief invulnerability, gem and heart drops
