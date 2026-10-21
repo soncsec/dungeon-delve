@@ -252,3 +252,77 @@ describe('explore, with items', () => {
     expect(fire.chests).toEqual(['0,0/7,7']);
   });
 });
+
+describe('the overworld, stage by stage (M4.6)', () => {
+  // Shards are the keys to the dungeons; items only open secrets. So every room and every
+  // dungeon's doorway must be reachable with no items at all, and each item adds its caves.
+  const world = buildWorld(OVERWORLD);
+  const start = { ...START_ROOM, cx: 10, cy: 5 };
+  const hole = (c: (typeof SECRET_CAVES)[number]) =>
+    `${c.room.col},${c.room.row}/${c.hole.col},${c.hole.row}`;
+  const caves = (items: ('axe' | 'fireball')[]) =>
+    SECRET_CAVES.filter((c) => !c.opensWith || items.includes(c.opensWith))
+      .map(hole)
+      .sort();
+  const reachedCaves = (r: ReturnType<typeof explore>) =>
+    r.exits.filter((e) => SECRET_CAVES.some((c) => hole(c) === e)).sort();
+
+  /** Every archway (A) and cave (V) on the map, by room, with its doorway's cells. */
+  const sites = [...world.rooms].flatMap(([key, room]) =>
+    room.cells.flatMap((row, y) =>
+      row.flatMap((cell, x) =>
+        cell.prop === 'arch'
+          ? [{ key, prop: 'arch', door: [`${key}/${x + 1},${y + 1}`, `${key}/${x + 2},${y + 1}`] }]
+          : cell.prop === 'cave'
+            ? [{ key, prop: 'cave', door: [`${key}/${x + 1},${y + 1}`] }]
+            : [],
+      ),
+    ),
+  );
+
+  it('has the eight dungeon sites where the plan puts them', () => {
+    expect(sites.map((t) => `${t.key} ${t.prop}`).sort()).toEqual([
+      '0,2 arch', // 6 Witchwood Tower
+      '1,5 arch', // 2 Bog Grotto
+      '2,0 arch', // 5 Thunder Spire
+      '3,1 cave', // 4 Stonecrag Mine
+      '3,5 arch', // 1 Hollow Oak
+      '5,4 arch', // 3 Sunken Crypt
+      '6,3 arch', // 7 Crimson Manor
+      '7,0 cave', // 8 Dragon's Maw
+    ]);
+  });
+
+  it('with no items: every room, every dungeon doorway, and the 7 caves that need nothing', () => {
+    const r = explore(world, start);
+    expect(r.rooms).toHaveLength(64);
+    for (const site of sites) {
+      expect(
+        site.door.some((c) => r.cells.has(c)),
+        `the doorway of the site in room ${site.key}`,
+      ).toBe(true);
+    }
+    expect(reachedCaves(r)).toEqual(caves([]));
+    expect(reachedCaves(r)).toHaveLength(7);
+  });
+
+  it('with Fireball (dungeon 2, and the starting kit until then): the 2 thorn caves too', () => {
+    const r = explore(world, start, { fireball: true });
+    expect(reachedCaves(r)).toEqual(caves(['fireball']));
+    expect(reachedCaves(r)).toHaveLength(9);
+  });
+
+  it('with the Axe too (dungeon 4): all 12 caves', () => {
+    const r = explore(world, start, { fireball: true, axe: true });
+    expect(reachedCaves(r)).toEqual(caves(['fireball', 'axe']));
+    expect(reachedCaves(r)).toHaveLength(12);
+    // Every boulder on the map can be reached and smashed (none is out of reach).
+    const boulders = [...world.rooms].flatMap(([key, room]) =>
+      room.cells.flatMap((row, y) =>
+        row.flatMap((cell, x) => (cell.prop === 'boulder' ? [`${key}/${x},${y}`] : [])),
+      ),
+    );
+    expect(boulders.length).toBeGreaterThan(0);
+    for (const b of boulders) expect(r.broken, b).toContain(b);
+  });
+});
