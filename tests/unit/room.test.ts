@@ -248,3 +248,30 @@ describe('sealCells', () => {
     expect(sealCells(doors)).toEqual([]);
   });
 });
+
+describe('village rooms', () => {
+  it('reads paths, flowers and tall grass as open ground', () => {
+    const r = parseRoom(room({ 4: 'p,".................' }));
+    expect(r.cells[4]?.[0]).toMatchObject({ solid: false, ground: 'path' });
+    expect(r.cells[4]?.[1]).toMatchObject({ solid: false, ground: 'flowers' });
+    expect(r.cells[4]?.[2]).toMatchObject({ solid: false, ground: 'tall' });
+    expect(r.cells[4]?.[3]?.ground).toBeUndefined();
+  });
+
+  it('blocks a house\u2019s 5×3 walls, and the village props\u2019 trunks', () => {
+    const r = parseRoom(
+      room({
+        2: '.H....M.......S..nw.',
+      }),
+    );
+    for (let y = 2; y <= 4; y++) {
+      for (let x = 1; x <= 5; x++) expect(isSolid(r, x, y), `${x},${y}`).toBe(true);
+    }
+    expect(isSolid(r, 6, 2)).toBe(true); // the maple's two trunk cells: 6 and 7
+    expect(isSolid(r, 7, 2)).toBe(true);
+    expect(isSolid(r, 8, 2)).toBe(false); // nothing past the maple's trunk
+    expect(isSolid(r, 15, 2)).toBe(true); // the stump's two: 14 and 15
+    expect(isSolid(r, 17, 2) && isSolid(r, 18, 2)).toBe(true); // cone bush and shrub
+    expect(r.cells[2]?.[1]?.prop).toBe('house');
+  });
+});

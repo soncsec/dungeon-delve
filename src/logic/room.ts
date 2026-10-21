@@ -16,10 +16,35 @@
  *   R  boulder     (solid 2×2; the anchor is the top-left cell)
  *   r  small rock  (solid)
  *   b  bush        (solid)
+ *
+ * Village props (Top-Down Town set):
+ *   H  house       (solid 5×3 walls, anchored top-left; the roof rises 5 rows above, the steps sit below)
+ *   M  maple tree  (solid 2-cell trunk, anchored left; an autumn tree)
+ *   S  stump       (solid 2 cells, anchored left)
+ *   n  cone bush   (solid)
+ *   w  flower shrub (solid)
+ * Village ground (open, drawn from the Town set):
+ *   p  cobbled path
+ *   ,  flowers
+ *   "  tall grass
  */
 import { ROOM_COLS, ROOM_ROWS } from '../config/tuning';
 
-export type PropKind = 'pine' | 'oak' | 'boulder' | 'rock' | 'bush' | 'arch';
+export type PropKind =
+  | 'pine'
+  | 'oak'
+  | 'boulder'
+  | 'rock'
+  | 'bush'
+  | 'arch'
+  | 'house'
+  | 'maple'
+  | 'stump'
+  | 'cone'
+  | 'shrub';
+
+/** Open ground drawn with something on it (village). */
+export type Ground = 'path' | 'flowers' | 'tall';
 
 export interface Cell {
   solid: boolean;
@@ -33,6 +58,8 @@ export interface Cell {
   fixture: Fixture | null;
   /** A doorway to another map. */
   exit: boolean;
+  /** Something drawn on open ground (village paths, flowers, tall grass). */
+  ground?: Ground;
 }
 
 export type Fixture = 'door' | 'chest';
@@ -53,7 +80,18 @@ const PROP_CHARS: Readonly<Record<string, PropKind>> = {
   r: 'rock',
   b: 'bush',
   A: 'arch',
+  H: 'house',
+  M: 'maple',
+  S: 'stump',
+  n: 'cone',
+  w: 'shrub',
 };
+
+const GROUND_CHARS: Readonly<Record<string, Ground>> = { p: 'path', ',': 'flowers', '"': 'tall' };
+
+/** A row of `w` cells by `h`, from the anchor. */
+const block = (w: number, h: number): [number, number][] =>
+  Array.from({ length: w * h }, (_, i) => [i % w, Math.floor(i / w)]);
 
 /** Cells each prop blocks, relative to its anchor cell. */
 export const PROP_FOOTPRINT: Readonly<Record<PropKind, readonly (readonly [number, number])[]>> = {
@@ -82,6 +120,11 @@ export const PROP_FOOTPRINT: Readonly<Record<PropKind, readonly (readonly [numbe
     [0, 2],
     [3, 2],
   ],
+  house: block(5, 3),
+  maple: block(2, 1),
+  stump: block(2, 1),
+  cone: [[0, 0]],
+  shrub: [[0, 0]],
 };
 
 /** Parses a room's text. Throws with a clear message on any mistake in the data. */
@@ -98,6 +141,8 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
     return Array.from(line, (ch, x): Cell => {
       const plain = { forest: false, wall: false, prop: null, fixture: null, exit: false };
       if (ch === '.') return { ...plain, solid: false };
+      const ground = GROUND_CHARS[ch];
+      if (ground) return { ...plain, solid: false, ground };
       if (ch === 'F') return { ...plain, solid: true, forest: true };
       if (ch === '#') return { ...plain, solid: true, wall: true };
       if (ch === 'K') return { ...plain, solid: true, fixture: 'door' };

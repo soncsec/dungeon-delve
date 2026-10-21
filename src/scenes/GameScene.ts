@@ -149,9 +149,10 @@ export interface GameSnapshot {
   facing: Facing;
   moving: boolean;
   seed: number;
-  /** The map he is on, and the room in it. */
+  /** The map he is on, the room in it, and its region (outdoors; dungeons say 'forest'). */
   map: MapId;
   room: { col: number; row: number };
+  region: string;
   /** True while the view slides to the next room, and while travelling to another map. */
   sliding: boolean;
   travelling: boolean;
@@ -1658,6 +1659,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
       seed: this.seed,
       map: this.mapId,
       room: { ...this.room },
+      region: this.world.regions.get(roomKey(this.room.col, this.room.row)) ?? 'forest',
       sliding: this.sliding,
       travelling: this.travelling,
       enteredAt: this.enteredAt ? { ...this.enteredAt } : null,
@@ -1910,13 +1912,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost {
     const key = roomKey(col, row);
     const art = dungeon
       ? dungeonArt(room, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)))
-      : roomArt(room);
+      : roomArt(room, this.world.regions.get(key));
     const sheet = dungeon ? 'dungeon' : 'forest';
     const drawn: Phaser.GameObjects.GameObject[] = [];
     for (const t of art.ground) {
       drawn.push(
         this.add
-          .image(o.x + t.x, o.y + t.y, sheet, t.frame)
+          .image(o.x + t.x, o.y + t.y, t.sheet ?? sheet, t.frame)
           .setOrigin(0)
           .setDepth(DEPTH.ground),
       );

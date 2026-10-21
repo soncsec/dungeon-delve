@@ -1,42 +1,26 @@
 /**
- * The overworld, one room per 20×10 block of text (legend in src/logic/room.ts).
- * M1: a 3×3 patch of forest, with two enemies in every room but the start room. Rooms join through gaps in their walls; the
- * world test checks every gap lines up with the room next door.
+ * The overworld (PROJECT.md decisions, 2026-10-20): an 8×8 map of rooms, each
+ * a 20×10 block of text (legend in src/logic/room.ts). Village and meadows
+ * along the south, the forest north of them with Hollow Oak, the marsh west,
+ * the ruins east, the mountains across the north, the Shadow Vault in the
+ * centre. Regions arrive one PR at a time (ROADMAP M4.1); edges toward rooms
+ * not built yet stay closed. Rooms join through gaps in their walls; the world
+ * test checks every gap lines up with the room next door.
  */
 import type { RoomDef } from '../logic/world';
 
-/** The room the game starts in. */
-export const START_ROOM = { col: 1, row: 1 } as const;
+/** The room the game starts in: the village gate. */
+export const START_ROOM = { col: 4, row: 7 } as const;
 
 export const OVERWORLD: readonly RoomDef[] = [
+  // The archway into dungeon 1, Hollow Oak (the forest).
   {
-    col: 0,
-    row: 0,
-    enemies: [
-      { kind: 'robot', col: 6, row: 4 },
-      { kind: 'bird', col: 12, row: 5 },
-    ],
-    lines: [
-      'FFFFFFFFFFFFFFFFFFFF',
-      'FFFFFFFFFFFFFFFFFFFF',
-      'FFFFF....T.......FFF',
-      'FFF...............FF',
-      'FFF.....r...........',
-      'FFF.................',
-      'FFFF....R.........FF',
-      'FFFF..............FF',
-      'FFFFFFF.....FFFFFFFF',
-      'FFFFFFFFF..FFFFFFFFF',
-    ],
-  },
-  {
-    col: 1,
-    row: 0,
+    col: 3,
+    row: 5,
     enemies: [
       { kind: 'wolf', col: 9, row: 5 },
       { kind: 'eye', col: 15, row: 4 },
     ],
-    // The archway into dungeon 1, Hollow Oak.
     exits: [
       {
         cells: [
@@ -51,17 +35,18 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFFFFFFFA...FFFFFFFF',
       'FFF....T.DD..T...FFF',
       'FF................FF',
-      '....................',
-      '......b......b......',
+      'FF..................',
+      'FF....b......b......',
       'FF....O...........FF',
       'FFF..............FFF',
       'FFFFFFFF....FFFFFFFF',
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
+  // Forest east of the archway.
   {
-    col: 2,
-    row: 0,
+    col: 4,
+    row: 5,
     enemies: [
       { kind: 'ghost', col: 5, row: 5 },
       { kind: 'robot', col: 12, row: 4 },
@@ -79,9 +64,83 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
+  // The village's west street: a house; north to Hollow Oak.
   {
-    col: 0,
-    row: 1,
+    col: 3,
+    row: 6,
+    region: 'village',
+    lines: [
+      'FFFFFFFFF..FFFFFFFFF',
+      'FFF......pp......FFF',
+      'F........pp........F',
+      'F........pp...M....F',
+      'F........ppppppppppp',
+      'F..H.....pp......"..',
+      'F........pp.,,.."".F',
+      'F........pp..w,,...F',
+      'FFF..pppppp......FFF',
+      'FFFFFFFFF..FFFFFFFFF',
+    ],
+  },
+  // The green, north of the start: trees and flowers around the crossroads.
+  {
+    col: 4,
+    row: 6,
+    region: 'village',
+    lines: [
+      'FFFFFFFFF..FFFFFFFFF',
+      'FFF......pp..."".FFF',
+      'F....."".pp........F',
+      'F..M.....pp..M.....F',
+      'pppppppppppppppppppp',
+      '.........pp.........',
+      'F.,,...,.pp.,...,..F',
+      'F...S....pp..,.n...F',
+      'FFF......pp......FFF',
+      'FFFFFFFFF..FFFFFFFFF',
+    ],
+  },
+  // The east green: maples and a stump; the lane runs east.
+  {
+    col: 5,
+    row: 6,
+    region: 'village',
+    lines: [
+      'FFFFFFFFFFFFFFFFFFFF',
+      'FFF..............FFF',
+      'F....""............F',
+      'F..M..........M....F',
+      'pppppppppppppppppppp',
+      '.........pp.........',
+      'F.w....,.pp....."".F',
+      'F...S..,.pp.,,."...F',
+      'FFF......pp......FFF',
+      'FFFFFFFFF..FFFFFFFFF',
+    ],
+  },
+  // The east end: a house (the ruins lie east, closed for now).
+  {
+    col: 6,
+    row: 6,
+    region: 'village',
+    lines: [
+      'FFFFFFFFFFFFFFFFFFFF',
+      'FFF..............FFF',
+      'F....."".........w.F',
+      'F..M...............F',
+      'ppppppppppp........F',
+      '.........pp.H......F',
+      'F.,,..n..pp........F',
+      'F...,....pp........F',
+      'FFF......pppppp..FFF',
+      'FFFFFFFFF..FFFFFFFFF',
+    ],
+  },
+  // West meadow: two robots.
+  {
+    col: 3,
+    row: 7,
+    region: 'village',
     enemies: [
       { kind: 'robot', col: 10, row: 4 },
       { kind: 'robot', col: 13, row: 6 },
@@ -96,12 +155,14 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFF....T.......r..FF',
       'FFFF..............FF',
       'FFFFFF........FFFFFF',
-      'FFFFFFFFF..FFFFFFFFF',
+      'FFFFFFFFFFFFFFFFFFFF',
     ],
   },
+  // The start: the village gate, where Walker waits.
   {
-    col: 1,
-    row: 1,
+    col: 4,
+    row: 7,
+    region: 'village',
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
       'FFF..............FFF',
@@ -112,12 +173,14 @@ export const OVERWORLD: readonly RoomDef[] = [
       'F...R..........T...F',
       'F..................F',
       'FF................FF',
-      'FFFFFFFFF..FFFFFFFFF',
+      'FFFFFFFFFFFFFFFFFFFF',
     ],
   },
+  // East meadow.
   {
-    col: 2,
-    row: 1,
+    col: 5,
+    row: 7,
+    region: 'village',
     enemies: [
       { kind: 'bird', col: 6, row: 5 },
       { kind: 'wolf', col: 12, row: 3 },
@@ -127,37 +190,19 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFFFFF........FFFFFF',
       'FFFF.......T....FFFF',
       'FF...............FFF',
-      '...........O....FFFF',
-      '................FFFF',
+      '...........O........',
+      '....................',
       'FF.....b........FFFF',
       'FFF.............FFFF',
       'FFFFFF........FFFFFF',
-      'FFFFFFFFF..FFFFFFFFF',
-    ],
-  },
-  {
-    col: 0,
-    row: 2,
-    enemies: [
-      { kind: 'eye', col: 12, row: 4 },
-      { kind: 'robot', col: 6, row: 5 },
-    ],
-    lines: [
-      'FFFFFFFFF..FFFFFFFFF',
-      'FFFFFF........FFFFFF',
-      'FFFF..............FF',
-      'FFF.....R.........FF',
-      'FFF.................',
-      'FFF.......T.........',
-      'FFFF..............FF',
-      'FFFFF....b.....FFFFF',
-      'FFFFFFFFFFFFFFFFFFFF',
       'FFFFFFFFFFFFFFFFFFFF',
     ],
   },
+  // Far east meadow.
   {
-    col: 1,
-    row: 2,
+    col: 6,
+    row: 7,
+    region: 'village',
     enemies: [
       { kind: 'ghost', col: 5, row: 4 },
       { kind: 'bird', col: 15, row: 5 },
@@ -175,15 +220,17 @@ export const OVERWORLD: readonly RoomDef[] = [
       'FFFFFFFFFFFFFFFFFFFF',
     ],
   },
+  // The south-east corner (the ruins lie north, closed for now).
   {
-    col: 2,
-    row: 2,
+    col: 7,
+    row: 7,
+    region: 'village',
     enemies: [
       { kind: 'wolf', col: 4, row: 5 },
       { kind: 'eye', col: 11, row: 4 },
     ],
     lines: [
-      'FFFFFFFFF..FFFFFFFFF',
+      'FFFFFFFFFFFFFFFFFFFF',
       'FFFFF..........FFFFF',
       'FFF......T.....FFFFF',
       'FF..............FFFF',

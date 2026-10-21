@@ -139,12 +139,12 @@ test('Jarrett faces the way he walks, and walls stop him', async ({ page }) => {
 
 test('walking through a gap slides to the next room, and back', async ({ page }) => {
   await openGame(page);
-  expect((await snapshot(page)).room).toEqual({ col: 1, row: 1 });
+  expect((await snapshot(page)).room).toEqual({ col: 4, row: 7 });
   // The start room's west gap is at rows 4–5; Jarrett starts in row 5.
   await page.keyboard.down('ArrowLeft');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 0, row: 1 });
+    .toEqual({ col: 3, row: 7 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   const arrived = (await snapshot(page)).enteredAt;
@@ -156,7 +156,7 @@ test('walking through a gap slides to the next room, and back', async ({ page })
   await page.keyboard.down('ArrowRight');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 1, row: 1 });
+    .toEqual({ col: 4, row: 7 });
   await page.keyboard.up('ArrowRight');
 });
 
@@ -290,7 +290,7 @@ test('the M1 loop: walk to the next room and defeat one of its robots', async ({
   await page.keyboard.down('ArrowLeft');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 0, row: 1 });
+    .toEqual({ col: 3, row: 7 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   expect((await snapshot(page)).enemies).toHaveLength(2);
@@ -587,7 +587,7 @@ test('out of hearts, Jarrett falls and is back in the start room, losing 10% of 
   await page.keyboard.down('ArrowLeft');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 0, row: 1 });
+    .toEqual({ col: 3, row: 7 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   await page.evaluate(() => window.__game?.clearEnemies());
@@ -601,7 +601,7 @@ test('out of hearts, Jarrett falls and is back in the start room, losing 10% of 
   await expect.poll(async () => (await snapshot(page)).falls, { timeout: 10_000 }).toBe(1);
   const s = await snapshot(page);
   expect(s.falling).toBe(false);
-  expect(s.room).toEqual({ col: 1, row: 1 });
+  expect(s.room).toEqual({ col: 4, row: 7 });
   expect(s.health).toEqual({ points: 6, max: 6 });
   expect(s.gems).toBe(23); // 25 − 10% rounded down
   expect(s.potions).toEqual({ health: 1, mana: 1 });
@@ -725,15 +725,21 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   // would push him off line with the archway's opening.
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.clearEnemies());
-  // North from the start room. He stops as the view slides, so the archway room's
-  // enemies (which appear when the slide ends) are cleared before he walks on.
-  await page.keyboard.down('ArrowUp');
-  await expect
-    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 1, row: 0 });
-  await page.keyboard.up('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
-  await page.evaluate(() => window.__game?.clearEnemies());
+  // West out of the village gate, then north up the west street to Hollow Oak's
+  // archway. He stops for each slide, so each room's enemies (which appear when
+  // the slide ends) are cleared before he walks on.
+  const walkTo = async (key: string, room: { col: number; row: number }) => {
+    await page.keyboard.down(key);
+    await expect.poll(async () => (await snapshot(page)).room, { timeout: 15_000 }).toEqual(room);
+    await page.keyboard.up(key);
+    await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+    await page.evaluate(() => window.__game?.clearEnemies());
+  };
+  await walkTo('ArrowLeft', { col: 3, row: 7 });
+  // In line with the meadow's north gap (columns 9–10), then north.
+  await page.evaluate(() => window.__game?.placeHero(160, 94, 'up'));
+  await walkTo('ArrowUp', { col: 3, row: 6 });
+  await walkTo('ArrowUp', { col: 3, row: 5 });
   // On up through the archway's opening.
   await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).map, { timeout: 20_000 }).toBe('dungeon1');
@@ -750,7 +756,7 @@ test('through the archway into dungeon 1, and back out again', async ({ page }) 
   await page.keyboard.up('ArrowDown');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const outside = await snapshot(page);
-  expect(outside.room).toEqual({ col: 1, row: 0 });
+  expect(outside.room).toEqual({ col: 3, row: 5 });
   expect(outside.facing).toBe('down');
   expect(watched.errors).toEqual([]);
 });
@@ -1204,5 +1210,25 @@ test('Walker gives a hint at dungeon 1, and waits outside once its shard is foun
   s = await snapshot(page);
   expect(s.walker).toBeNull();
   expect(s.opened).toContain('walker/dungeon1-done');
+  expect(watched.errors).toEqual([]);
+});
+
+test('a new game starts at the village gate; a house’s walls stop Jarrett', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  let s = await snapshot(page);
+  expect(s.room).toEqual({ col: 4, row: 7 });
+  expect(s.region).toBe('village');
+  // The west street: a house whose walls fill columns 3–7, rows 5–7; its steps are below.
+  await page.evaluate(() => window.__game?.goToRoom(3, 6));
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  await page.evaluate(() => window.__game?.placeHero(88, 142, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(134); // row 8's top + his 6-px feet box
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  s = await snapshot(page);
+  expect(s.player.y).toBe(134);
+  expect(s.region).toBe('village');
   expect(watched.errors).toEqual([]);
 });

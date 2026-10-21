@@ -56,7 +56,7 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     // Outside Hollow Oak, once its shard is found: the daggers, and what's left to do.
     id: 'dungeon1-done',
     map: 'overworld',
-    room: { col: 1, row: 0 },
+    room: { col: 3, row: 5 },
     cell: { col: 13, row: 4 },
     after: 'dungeon1/shard',
     speech: [

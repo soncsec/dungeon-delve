@@ -13,6 +13,8 @@ import {
   forestFrame,
   propDraw,
   roomArt,
+  TOWN_COLUMNS,
+  TOWN_FRAMES,
 } from '../../src/logic/tiles';
 import { hasPixels, pngAlpha } from './png';
 
@@ -110,10 +112,10 @@ describe('roomArt', () => {
   });
 
   it.each(Object.entries(PROP_REGIONS))('prop %s art is on its sheet and visible', (k, reg) => {
-    const png =
-      PROP_SHEET[k as keyof typeof PROP_SHEET] === 'dungeon'
-        ? pngAlpha(`${process.cwd()}/public/assets/tiles/dungeon.png`)
-        : FOREST_PNG;
+    // Each prop's own sheet: forest, dungeon or town.
+    const png = pngAlpha(
+      `${process.cwd()}/public/assets/tiles/${PROP_SHEET[k as keyof typeof PROP_SHEET]}.png`,
+    );
     expect(reg.x + reg.w).toBeLessThanOrEqual(png.width);
     expect(reg.y + reg.h).toBeLessThanOrEqual(png.alpha.length / png.width);
     expect(hasPixels(png, reg.x, reg.y, reg.w, reg.h)).toBe(true);
@@ -192,5 +194,55 @@ describe('dungeon tiles', () => {
       const y = Math.floor(f / DUNGEON_COLUMNS) * 16;
       expect(hasPixels(DUNGEON_PNG, x, y, 16, 16), `frame ${f}`).toBe(true);
     }
+  });
+});
+
+describe('village art', () => {
+  const TOWN_PNG = pngAlpha(`${process.cwd()}/public/assets/tiles/town.png`);
+  const villageRoom = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 3 ? 'p,".................' : '....................',
+    ),
+  );
+
+  it('draws town grass, with paths, flowers and tall grass where the text says', () => {
+    const art = roomArt(villageRoom, 'village');
+    const at = (x: number, y: number) => art.ground.find((t) => t.x === x * 16 && t.y === y * 16);
+    expect(at(0, 3)).toEqual({ frame: TOWN_FRAMES.ground.path, x: 0, y: 48, sheet: 'town' });
+    expect(at(1, 3)?.frame).toBe(TOWN_FRAMES.ground.flowers);
+    expect(at(2, 3)?.frame).toBe(TOWN_FRAMES.ground.tall);
+    // Mostly plain grass, with a little textured grass scattered about.
+    const frames = art.ground.filter((t) => t.y !== 48).map((t) => t.frame);
+    expect(frames).toContain(TOWN_FRAMES.grass);
+    expect(frames).toContain(TOWN_FRAMES.grassLight);
+    expect(frames.filter((f) => f === TOWN_FRAMES.grassLight).length).toBeLessThan(
+      frames.length / 4,
+    );
+    expect(art.ground.every((t) => t.sheet === 'town')).toBe(true);
+  });
+
+  it('every town frame has art', () => {
+    const frames = [
+      TOWN_FRAMES.grass,
+      TOWN_FRAMES.grassLight,
+      ...Object.values(TOWN_FRAMES.ground),
+    ];
+    for (const f of frames) {
+      const x = (f % TOWN_COLUMNS) * 16;
+      const y = Math.floor(f / TOWN_COLUMNS) * 16;
+      expect(hasPixels(TOWN_PNG, x, y, 16, 16), `frame ${f}`).toBe(true);
+    }
+  });
+
+  it('places village props on their anchors', () => {
+    expect(propDraw('house', 3, 4)).toEqual({ prop: 'house', x: 88, y: 128 }); // steps below the walls
+    expect(propDraw('maple', 6, 2)).toEqual({ prop: 'maple', x: 112, y: 48 });
+    expect(propDraw('stump', 0, 0)).toEqual({ prop: 'stump', x: 16, y: 16 });
+    expect(propDraw('cone', 0, 0)).toEqual({ prop: 'cone', x: 8, y: 16 });
+    expect(propDraw('shrub', 1, 1)).toEqual({ prop: 'shrub', x: 24, y: 32 });
+  });
+
+  it('forest rooms keep the forest grass', () => {
+    expect(roomArt(villageRoom).ground[0]).toEqual({ frame: FOREST_FRAMES.grass, x: 0, y: 0 });
   });
 });
