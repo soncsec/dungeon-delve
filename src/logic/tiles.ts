@@ -94,8 +94,9 @@ export const TOWN_FRAMES = {
   grass: tframe(18, 1),
   /** Grass with a little texture, scattered for variety. */
   grassLight: tframe(19, 1),
-  ground: { path: tframe(22, 5), flowers: tframe(21, 1), tall: tframe(20, 1) } as Readonly<
-    Record<Ground, number>
+  ground: { path: tframe(22, 5), flowers: tframe(21, 1), tall: tframe(20, 1) } satisfies Record<
+    Exclude<Ground, 'paving'>,
+    number
   >,
 } as const;
 
@@ -103,7 +104,7 @@ export const TOWN_FRAMES = {
  * The overworld's regions (PROJECT.md decisions, 2026-10-20). More arrive with
  * M4.1c–e. The vault grounds are drawn like a dungeon (stone walls and floor).
  */
-export type Region = 'forest' | 'village' | 'vault' | 'marsh';
+export type Region = 'forest' | 'village' | 'vault' | 'marsh' | 'ruins';
 
 /** The marsh is the forest's art, darkened and greened by a tint over everything in the room. */
 export const MARSH_TINT = 0x9cae8c;
@@ -149,7 +150,7 @@ export interface TileDraw {
   frame: number;
   x: number;
   y: number;
-  sheet?: 'town' | 'forest-village' | 'marsh-water';
+  sheet?: 'town' | 'forest-village' | 'marsh-water' | 'dungeon';
 }
 
 /** A prop drawn with its bottom-centre at (x, y) in room pixels; sorted by y for depth. */
@@ -196,12 +197,19 @@ export function roomArt(room: Room, region: Region = 'forest'): RoomArt {
     rowCells.forEach((cell, x) => {
       const px = x * TILE;
       const py = y * TILE;
-      if (region === 'village') {
+      if (cell.ground === 'paving') {
+        // Stone paving, from the dungeon's floor (ruins).
+        const frame = crackAt(x, y) ?? DUNGEON_FRAMES.floor;
+        art.ground.push({ frame, x: px, y: py, sheet: 'dungeon' });
+      } else if (region === 'village') {
         const frame = cell.ground ? TOWN_FRAMES.ground[cell.ground] : villageGrass(x, y);
         art.ground.push({ frame, x: px, y: py, sheet: 'town' });
       } else {
         art.ground.push({ frame: FOREST_FRAMES.grass, x: px, y: py });
       }
+      // A ruined wall: the dungeon's wall top or face, on the grass.
+      if (cell.wall)
+        art.ground.push({ frame: dungeonFrame(room, x, y), x: px, y: py, sheet: 'dungeon' });
       if (cell.forest) {
         // Village rooms use the forest walls recoloured to suit their light grass.
         const walls = region === 'village' ? { sheet: 'forest-village' as const } : {};

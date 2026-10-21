@@ -26,6 +26,10 @@
  * Marsh:
  *   W  water       (solid; ponds must be rectangles at least 2×2, for their shorelines)
  *
+ * Ruins (dungeon stone outdoors):
+ *   #  a ruined wall (solid; drawn with the dungeon's wall tops and faces)
+ *   q  stone paving (open)
+ *
  * Village ground (open, drawn from the Town set):
  *   p  cobbled path
  *   ,  flowers
@@ -47,7 +51,7 @@ export type PropKind =
   | 'shrub';
 
 /** Open ground drawn with something on it (village). */
-export type Ground = 'path' | 'flowers' | 'tall';
+export type Ground = 'path' | 'flowers' | 'tall' | 'paving';
 
 export interface Cell {
   solid: boolean;
@@ -92,7 +96,12 @@ const PROP_CHARS: Readonly<Record<string, PropKind>> = {
   w: 'shrub',
 };
 
-const GROUND_CHARS: Readonly<Record<string, Ground>> = { p: 'path', ',': 'flowers', '"': 'tall' };
+const GROUND_CHARS: Readonly<Record<string, Ground>> = {
+  p: 'path',
+  ',': 'flowers',
+  '"': 'tall',
+  q: 'paving',
+};
 
 /** A row of `w` cells by `h`, from the anchor. */
 const block = (w: number, h: number): [number, number][] =>

@@ -251,11 +251,12 @@ describe('sealCells', () => {
 
 describe('village rooms', () => {
   it('reads paths, flowers and tall grass as open ground', () => {
-    const r = parseRoom(room({ 4: 'p,".................' }));
+    const r = parseRoom(room({ 4: 'p,"q................' }));
     expect(r.cells[4]?.[0]).toMatchObject({ solid: false, ground: 'path' });
     expect(r.cells[4]?.[1]).toMatchObject({ solid: false, ground: 'flowers' });
     expect(r.cells[4]?.[2]).toMatchObject({ solid: false, ground: 'tall' });
-    expect(r.cells[4]?.[3]?.ground).toBeUndefined();
+    expect(r.cells[4]?.[3]).toMatchObject({ solid: false, ground: 'paving' });
+    expect(r.cells[4]?.[4]?.ground).toBeUndefined();
   });
 
   it('blocks a house\u2019s 5×3 walls, and the village props\u2019 trunks', () => {

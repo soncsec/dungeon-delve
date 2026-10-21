@@ -103,7 +103,7 @@
   - [x] M4.1a The 8×8 map, regions per room, and the village and meadows (Top-Down Town set); the start moves to the village
   - [x] M4.1b The forest (around Hollow Oak, and Witchwood's corner), and the Shadow Vault's grounds in the centre (a hub; owner 2026-10-20)
   - [x] M4.1c The marsh (tinted forest tiles, ponds with shorelines; Bog Grotto's sealed archway)
-  - [ ] M4.1d The ruins (dungeon stone on grass)
+  - [x] M4.1d The ruins (dungeon stone on grass; Sunken Crypt's and Crimson Manor's sealed archways)
   - [ ] M4.1e The mountains and the volcano edge (Tiny RPG Mountain set)
 - [ ] M4.2 Village: shop (potions, shield), gem prices
 - [ ] M4.3 Hidden passages: cracked walls, thorn bushes, false walls; secret caves
