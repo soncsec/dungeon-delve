@@ -6,11 +6,13 @@ import {
   isAirborne,
   isBeaten,
   isFierce,
+  isWrapped,
   leapHeight,
   leapTarget,
   spawnBoss,
   spread,
   stepBoss,
+  stunBoss,
   type Boss,
   type BossStats,
 } from '../../src/logic/boss';
@@ -41,6 +43,7 @@ const boss = (over: Partial<Boss> = {}): Boss => ({
   flashMs: 0,
   phase: 'sit',
   leap: null,
+  stunMs: 0,
   ...over,
 });
 const hero = { x: 160, y: 140 };
@@ -110,14 +113,14 @@ describe('stepBoss', () => {
 
 describe('hits', () => {
   it('cost health and flash it; each hit lands once; beaten at zero', () => {
-    const b = hitBoss(boss(), 2, 7, 200);
+    const b = hitBoss(boss(), 2, 7, 200, s);
     expect(b).toMatchObject({ health: 8, lastHitBy: 7, flashMs: 200 });
-    expect(hitBoss(b, 2, 7, 200)).toBe(b);
-    const beaten = hitBoss(boss({ health: 1 }), 5, 8, 200);
+    expect(hitBoss(b, 2, 7, 200, s)).toBe(b);
+    const beaten = hitBoss(boss({ health: 1 }), 5, 8, 200, s);
     expect(beaten.health).toBe(0);
     expect(isBeaten(beaten)).toBe(true);
     expect(isBeaten(b)).toBe(false);
-    expect(hitBoss(beaten, 1, 9, 200)).toBe(beaten);
+    expect(hitBoss(beaten, 1, 9, 200, s)).toBe(beaten);
   });
 
   it('has a body box and fires from its middle', () => {
@@ -169,7 +172,7 @@ describe('the Giant Frog: a leaper', () => {
     r = stepBoss(r.boss, 500, near, f, firstRng);
     expect(r.boss.pos).toEqual({ x: 160, y: 95 }); // halfway
     expect(leapHeight(r.boss, f)).toBe(20); // at its peak
-    expect(hitBoss(r.boss, 1, 7, 100)).toBe(r.boss);
+    expect(hitBoss(r.boss, 1, 7, 100, f)).toBe(r.boss);
     expect(r.shots).toEqual([]);
   });
 
@@ -206,5 +209,58 @@ describe('the Giant Frog: a leaper', () => {
   it('a shuffler never leaps, and has no height', () => {
     expect(leapHeight(boss({ leap: { from: hero, to: hero, ms: 10 } }), s)).toBe(0);
     expect(leapHeight(frog(), f)).toBe(0);
+  });
+});
+
+describe('the Mummy: shambling, and wrapped tight', () => {
+  const shamble = {
+    style: 'shamble',
+    speed: 20,
+    arena: { x: 40, y: 60, w: 240, h: 60 },
+  } as const;
+  const m: BossStats = { ...s, moves: shamble, wrapped: { stunMs: 3000 } };
+  const mummy = (over: Partial<Boss> = {}): Boss =>
+    boss({ kind: 'mummy', pos: { x: 160, y: 80 }, home: { x: 160, y: 80 }, ...over });
+
+  it('shambles straight at Jarrett, no further than he is, and keeps inside the arena', () => {
+    let r = stepBoss(mummy(), 1000, { x: 160, y: 200 }, m, firstRng);
+    expect(r.boss.pos).toEqual({ x: 160, y: 100 });
+    r = stepBoss(mummy(), 1000, { x: 165, y: 80 }, m, firstRng);
+    expect(r.boss.pos).toEqual({ x: 165, y: 80 }); // there already
+    r = stepBoss(mummy({ pos: { x: 160, y: 115 } }), 1000, { x: 160, y: 300 }, m, firstRng);
+    expect(r.boss.pos.y).toBe(120); // the arena's bottom
+    r = stepBoss(mummy(), 1000, { x: 160, y: 80 }, m, firstRng);
+    expect(r.boss.pos).toEqual({ x: 160, y: 80 }); // right on him: stays
+  });
+
+  it('fires its spread from where it has shambled to', () => {
+    const r = stepBoss(mummy({ shootInMs: 10 }), 500, { x: 160, y: 200 }, m, firstRng);
+    expect(r.shots).toHaveLength(3);
+    expect(r.boss.pos).toEqual({ x: 160, y: 90 });
+  });
+
+  it('hits glance off until a Lightning bolt stuns it; then they land', () => {
+    expect(isWrapped(mummy(), m)).toBe(true);
+    expect(hitBoss(mummy(), 1, 7, 100, m)).toEqual(mummy());
+    const stunned = stunBoss(mummy(), 40, m);
+    expect(stunned).toMatchObject({ stunMs: 3000, lastHitBy: 40 });
+    expect(isWrapped(stunned, m)).toBe(false);
+    expect(hitBoss(stunned, 1, 41, 100, m).health).toBe(9);
+    expect(stunBoss(stunned, 40, m)).toBe(stunned); // the same bolt counts once
+  });
+
+  it('stunned, it stands still and fires nothing, then shambles on', () => {
+    let r = stepBoss(mummy({ stunMs: 500, shootInMs: 0 }), 300, { x: 160, y: 200 }, m, firstRng);
+    expect(r.boss).toMatchObject({ pos: { x: 160, y: 80 }, stunMs: 200 });
+    expect(r.shots).toEqual([]);
+    r = stepBoss(r.boss, 300, { x: 160, y: 200 }, m, firstRng);
+    expect(r.boss.stunMs).toBe(0);
+    r = stepBoss(r.boss, 500, { x: 160, y: 200 }, m, firstRng);
+    expect(r.boss.pos.y).toBe(90);
+  });
+
+  it('a boss not wrapped shrugs a bolt off', () => {
+    expect(stunBoss(boss(), 40, s)).toEqual(boss());
+    expect(isWrapped(boss(), s)).toBe(false);
   });
 });

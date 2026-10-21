@@ -97,10 +97,12 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('enemies', 'ghost', 64, 64, 6, 1, [anim('fly', range(0, 6), 8)]),
   sheet('enemies', 'wolf', 56, 32, 4, 1, [anim('run', range(0, 4), 10)]),
 
-  // Bosses (TinyRPG battle sprites), swaying where they stand: the Treant (dungeon 1)
-  // and the Giant Frog (dungeon 2).
+  // Bosses (TinyRPG battle sprites), swaying where they stand: the Treant (dungeon 1),
+  // the Giant Frog (dungeon 2) and the Mummy (dungeon 3).
   sheet('bosses', 'treant', 80, 84, 4, 1, [anim('sway', range(0, 4), 6)]),
   sheet('bosses', 'frog', 63, 68, 6, 1, [anim('sway', range(0, 6), 8)]),
+  // The Mummy (dungeon 3), its loose wrappings stirring.
+  sheet('bosses', 'mummy', 69, 83, 6, 1, [anim('sway', range(0, 6), 7)]),
 
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),

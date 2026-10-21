@@ -1,7 +1,7 @@
 /**
  * Dungeon 3, Sunken Crypt (PROJECT.md §3c): seven rooms under the ruins.
  *
- *               [boss room]               the Mummy (M5.2c)
+ *               [boss room]               the Mummy (only Lightning-stunned, it can be hurt)
  *               [tomb hall]               a Mana Brew; locked door north (needs key 2)
  *   [west crypt] [hub]      [east crypt]  west: key 2 in a cage; east: Lightning behind a stone
  *   [ossuary]    [entrance]               ossuary: key 1 behind thorns; locked door north (key 1)
@@ -18,10 +18,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_3_START = { col: 1, row: 3 } as const;
 
 export const DUNGEON_3: readonly RoomDef[] = [
-  // The boss room: empty until the Mummy rises (M5.2c).
+  // The boss room: the Mummy.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'mummy', col: 10, row: 5 },
     lines: [
       '####################',
       '####################',

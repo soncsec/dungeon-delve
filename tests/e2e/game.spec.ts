@@ -1375,6 +1375,102 @@ test('the beaten Giant Frog leaves a heart container and Bog Grotto’s shard', 
   expect(watched.errors).toEqual([]);
 });
 
+/**
+ * Into Sunken Crypt's boss room from the tomb hall (a key given), with Lightning in hand:
+ * given, then chosen in the bag, since the Fireball holds the spell slot.
+ */
+async function enterMummyRoom(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=3');
+  await page.evaluate(() => window.__game?.giveItem('lightning'));
+  const inv = () => page.evaluate(() => window.__game?.inventory());
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await inv())?.cursor).toBe(0);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await inv())?.cursor).toBe(2);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await inv())?.slots['spell']).toBe('Lightning');
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+  await page.evaluate(() => {
+    window.__game?.goToRoom(1, 1); // the tomb hall
+    window.__game?.clearEnemies();
+    window.__game?.giveKey();
+    window.__game?.placeHero(160, 60, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).sliding, { timeout: 15_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).room).toEqual({ col: 1, row: 0 });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('mummy');
+}
+
+test('the Mummy: blows glance off until a Lightning bolt stuns it; then it shambles after Jarrett', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterMummyRoom(page);
+  const boss = async () => (await snapshot(page)).boss;
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  const b = await boss();
+  expect(b).toMatchObject({ health: 10, stunned: false });
+  const at = { x: b?.x ?? 0, y: b?.y ?? 0 };
+  // Wrapped tight: a sword blow glances off.
+  await expect.poll(() => settled(page)).toBe(true);
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 25, 'up'), at);
+  await swingOnce(page);
+  expect((await boss())?.health).toBe(10);
+  expect((await snapshot(page)).sounds.block).toBeGreaterThanOrEqual(1);
+  // A bolt stuns it (held still, it stays stunned); now the blow lands.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 40, 'up'), at);
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await boss())?.stunned, { intervals: [50] }).toBe(true);
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 25, 'up'), at);
+  await swingOnce(page);
+  await expect.poll(async () => (await boss())?.health).toBe(9);
+  // Let go: once the stun wears off, it shambles down towards him.
+  await page.evaluate(() => window.__game?.placeHero(160, 140, 'up'));
+  await page.evaluate(() => window.__game?.holdEnemies(false));
+  await expect.poll(async () => (await boss())?.stunned, { timeout: 10_000 }).toBe(false);
+  await expect
+    .poll(async () => (await boss())?.y ?? 0, { timeout: 10_000 })
+    .toBeGreaterThan(at.y + 4);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Mummy leaves a heart container and Sunken Crypt’s shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterMummyRoom(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(1);
+  });
+  const b = (await snapshot(page)).boss;
+  const at = { x: b?.x ?? 0, y: b?.y ?? 0 };
+  await expect.poll(() => settled(page)).toBe(true);
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 40, 'up'), at);
+  await page.keyboard.press('c');
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.stunned, { intervals: [50] })
+    .toBe(true);
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 25, 'up'), at);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const kinds = async () => (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(await kinds()).toEqual(['heart-container', 'shard']);
+  const shard = (await snapshot(page)).pickups.find((p) => p.kind === 'shard');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard ?? { x: 0, y: 0 });
+  await expect.poll(kinds).toEqual(['heart-container']);
+  const s = await snapshot(page);
+  expect(s.shards).toBe(1);
+  expect(s.opened).toEqual(expect.arrayContaining(['dungeon3/1,0/boss', 'dungeon3/shard']));
+  expect(s.sealed).toBe(false);
+  expect(watched.errors).toEqual([]);
+});
+
 test('a reward left behind is still there when Jarrett comes back', async ({ page }) => {
   await beatTreant(page);
   // Out through the south gap without picking anything up, and back in.
