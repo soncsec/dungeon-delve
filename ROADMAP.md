@@ -81,7 +81,7 @@
 
 - [x] M3.1 Dungeon tiles, doors, small keys and locked doors, pushable stones, chests, in three PRs:
   - [x] M3.1a Dungeon walls and floors drawn automatically; maps (overworld, dungeon 1); `?dungeon=n` starts in a dungeon
-  - [x] M3.1b Small keys, locked doors and chests
+  - [x] M3.1b Small keys, locked doors and chests (fixed 2026-10-21: a key, item or heart container left in an opened chest waits there for Jarrett to come back)
   - [x] M3.1c Pushable stones
 - [x] M3.2 Dungeon 1 rooms and its item (Throwing Daggers)
   - [x] M3.2a Doorways between maps: the stone archway into dungeon 1, and the way back out

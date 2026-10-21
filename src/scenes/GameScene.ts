@@ -85,7 +85,10 @@ import {
   beatBoss,
   bossId,
   canEnter,
+  chestHeartId,
   dungeonNumber,
+  leftInChest,
+  takenId,
   enemyId,
   markDefeated,
   fixtureId,
@@ -828,22 +831,34 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (!contents) return;
     this.progress = openChest(this.progress, id);
     this.sfx.play('chest');
-    const at = { x: cx * TILE + TILE / 2, y: (cy + 1) * TILE - 1 };
+    const at = chestDrop(cx, cy);
     this.effect('puff', at.x, at.y - TILE / 2);
     this.redrawRoom();
-    this.dropContents(contents, at);
+    this.dropContents(contents, at, id);
   }
 
-  /** What falls out of a chest. */
-  private dropContents(c: ChestContents, at: Point): void {
-    if (c.kind === 'key') this.addPickup('key', at);
+  /** What falls out of a chest (`chestId` marks its key as picked up, once it is). */
+  private dropContents(c: ChestContents, at: Point, chestId: string): void {
+    if (c.kind === 'key') this.addPickup('key', at, 1, null, takenId(chestId));
     else if (c.kind === 'gems') this.addPickup('gem', at, c.amount);
     else if (c.kind === 'item') this.addPickup('item', at, 1, c.item);
     else if (c.kind === 'heart') {
       // Each cave's heart has its own id, so the save keeps every one.
       const key = roomKey(this.room.col, this.room.row);
-      this.addPickup('heart-container', at, 1, null, `${this.mapId}/${key}/heart`);
+      this.addPickup('heart-container', at, 1, null, chestHeartId(this.mapId, key));
     } else this.addPickup(c.potion === 'health' ? 'health-potion' : 'mana-brew', at);
+  }
+
+  /** A prize left in an opened chest (he left the room without it) waits there again. */
+  private placeChestLeftovers(): void {
+    const key = roomKey(this.room.col, this.room.row);
+    for (const c of this.world.chests.get(key) ?? []) {
+      const id = fixtureId(this.mapId, key, c.col, c.row);
+      const heart = chestHeartId(this.mapId, key);
+      if (leftInChest(c.contents, this.progress, id, heart, this.inv.owned)) {
+        this.dropContents(c.contents, chestDrop(c.col, c.row), id);
+      }
+    }
   }
 
   /** Draws the current room again (after a door or chest opens). */
@@ -900,6 +915,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.addBoss(boss.kind, { x: boss.col * TILE + TILE / 2, y: (boss.row + 1) * TILE - 1 });
     }
     this.placeRewards();
+    this.placeChestLeftovers();
     this.placeWalker();
     this.placeShopkeeper();
   }
@@ -1665,6 +1681,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         sound = 'gem';
       } else if (p.kind === 'key') {
         this.progress = addKey(this.progress, this.mapId);
+        if (p.reward) this.progress = openChest(this.progress, p.reward);
         sound = 'chest';
       } else if (p.kind === 'heart-container') {
         // One more heart, and every heart filled.
@@ -1988,6 +2005,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     });
   }
 
+  /** Test hook only: bump into a cell of this room, as walking into it does. */
+  testBump(x: number, y: number): void {
+    this.bumpInto(x, y);
+  }
+
   /** Test hook only: give Jarrett a small key for this map. */
   testGiveKey(): void {
     this.progress = addKey(this.progress, this.mapId);
@@ -2230,6 +2252,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       y: up === down ? 0 : up ? -1 : 1,
     };
   }
+}
+
+/** Where a chest's prize lands: its cell's bottom middle (room pixels). */
+function chestDrop(col: number, row: number): Point {
+  return { x: col * TILE + TILE / 2, y: (row + 1) * TILE - 1 };
 }
 
 /** Seed from the URL (?seed=123) for repeatable runs, otherwise the default. */

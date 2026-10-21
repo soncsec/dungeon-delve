@@ -44,6 +44,8 @@ export interface TestHook {
   setBossHealth(health: number): void;
   /** Give Jarrett a small key for the map he's on. */
   giveKey(): void;
+  /** Bump into a cell of the current room, as walking into it does (opens a chest, or a door with a key). */
+  bump(x: number, y: number): void;
   /** Jump to a room on the map he's on. */
   goToRoom(col: number, row: number): void;
   /** Set his hearts (in half hearts) and gems. */
@@ -125,6 +127,7 @@ export function installTestHook(game: Phaser.Game): void {
     setBossHealth: (health) => gameScene(game).testSetBossHealth(health),
     setCell: (x, y, ch) => gameScene(game).testSetCell(x, y, ch),
     giveKey: () => gameScene(game).testGiveKey(),
+    bump: (x, y) => gameScene(game).testBump(x, y),
     goToRoom: (col, row) => gameScene(game).testGoToRoom(col, row),
     setHealth: (points) => gameScene(game).testSetHealth(points),
     setGems: (gems) => gameScene(game).testSetGems(gems),
