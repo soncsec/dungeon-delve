@@ -7,7 +7,7 @@
  * just above its top edge.
  */
 import { TILE } from '../config/tuning';
-import { isForest, isWall, type Ground, type PropKind, type Room } from './room';
+import { gatesOpen, isForest, isWall, type Ground, type PropKind, type Room } from './room';
 
 /** Columns in the forest sheet (432 px / 16). */
 export const FOREST_COLUMNS = 27;
@@ -226,6 +226,8 @@ export interface TileDraw {
   x: number;
   y: number;
   sheet?: 'town' | 'forest-village' | 'marsh-water' | 'dungeon' | 'mountain';
+  /** Drawn dimmed (SWITCH_DIM): a crystal switch not yet powered. */
+  dim?: boolean;
 }
 
 /** A prop drawn with its bottom-centre at (x, y) in room pixels; sorted by y for depth. */
@@ -343,9 +345,14 @@ export const DUNGEON_FRAMES = {
   shadow: dframe(11, 3),
   /** Cracked floor stones, scattered for variety. */
   cracks: [dframe(1, 4), dframe(2, 4), dframe(3, 4)],
-  /** A locked door: the wall face with iron bars. */
+  /** A locked door: the wall face with iron bars. Also a gate a crystal switch opens. */
   gate: dframe(8, 7),
+  /** A crystal switch: the orb at a pillar's foot, in the wall face. */
+  orb: dframe(12, 7),
 } as const;
+
+/** A crystal switch not yet powered is drawn dim (runtime tint, ADR-D05); powered, it shines. */
+export const SWITCH_DIM = 0x707090;
 
 /** A fixed scatter: about one floor cell in nine gets cracks, the same every visit. */
 export function crackAt(x: number, y: number): number | null {
@@ -358,7 +365,9 @@ export function crackAt(x: number, y: number): number | null {
  * cracked floor; a locked door shows the barred gate until `opened`.
  */
 export function dungeonFrame(room: Room, x: number, y: number, opened = false): number {
-  if (room.cells[y]?.[x]?.fixture === 'door' && !opened) return DUNGEON_FRAMES.gate;
+  const fixture = room.cells[y]?.[x]?.fixture;
+  if ((fixture === 'door' || fixture === 'gate') && !opened) return DUNGEON_FRAMES.gate;
+  if (fixture === 'switch') return DUNGEON_FRAMES.orb;
   if (isWall(room, x, y)) return isWall(room, x, y + 1) ? DUNGEON_FRAMES.top : DUNGEON_FRAMES.face;
   if (isWall(room, x - 1, y)) return DUNGEON_FRAMES.shadow;
   return crackAt(x, y) ?? DUNGEON_FRAMES.floor;
@@ -367,17 +376,20 @@ export function dungeonFrame(room: Room, x: number, y: number, opened = false): 
 /**
  * Everything to draw for a dungeon room: one tile per cell, plus the chests
  * not yet opened and the props (thorn bushes) not yet burned. `opened` says
- * which doors, chests and thorns have been opened.
+ * which doors, chests and thorns have been opened, and which crystal switches
+ * powered (a powered switch opens its room's gates; one not yet powered is dim).
  */
 export function dungeonArt(
   room: Room,
   opened: (x: number, y: number) => boolean = () => false,
 ): RoomArt {
   const art: RoomArt = { ground: [], over: [], props: [], chests: [] };
+  const gates = gatesOpen(room, opened);
   room.cells.forEach((rowCells, y) => {
     rowCells.forEach((cell, x) => {
-      const isOpen = cell.fixture !== null && opened(x, y);
-      art.ground.push({ frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE });
+      const isOpen = cell.fixture === 'gate' ? gates : cell.fixture !== null && opened(x, y);
+      const tile = { frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE };
+      art.ground.push(cell.fixture === 'switch' && !isOpen ? { ...tile, dim: true } : tile);
       if (cell.fixture === 'chest' && !isOpen) art.chests.push({ x: x * TILE, y: y * TILE });
       if (cell.prop && !isOpen) art.props.push(propDraw(cell.prop, x, y));
     });

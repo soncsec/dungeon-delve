@@ -4,7 +4,9 @@ import {
   facingOf,
   hitEnemy,
   isDefeated,
+  isStunned,
   spawnEnemy,
+  stunEnemy,
   stepEnemy,
   towards,
   type Enemy,
@@ -52,6 +54,7 @@ const enemy = (over: Partial<Enemy> = {}): Enemy => ({
   restMs: 0,
   circle: 1,
   shootInMs: 0,
+  stunMs: 0,
   ...over,
 });
 
@@ -310,5 +313,34 @@ describe('hits', () => {
 
   it('its body is its collision box', () => {
     expect(enemyBody(enemy(), base)).toEqual({ x: 93, y: 90, w: 14, h: 10 });
+  });
+});
+
+describe('stunned by Lightning', () => {
+  it('a bolt stuns it for a while, once per bolt, and stops a charge', () => {
+    const e = stunEnemy(enemy({ chargeMs: 400 }), 3000, 9);
+    expect(e).toMatchObject({ stunMs: 3000, lastHitBy: 9, chargeMs: 0, health: 2 });
+    expect(isStunned(e)).toBe(true);
+    expect(stunEnemy(e, 3000, 9)).toBe(e);
+    expect(isStunned(enemy())).toBe(false);
+  });
+
+  it('stands still and shoots nothing while stunned, then goes its way again', () => {
+    const e = enemy({ stunMs: 500, shootInMs: 0 });
+    let r = stepEnemy(e, 300, base, ctx());
+    expect(r.enemy.pos).toEqual(e.pos);
+    expect(r.enemy.stunMs).toBe(200);
+    expect(r.shot).toBeNull();
+    r = stepEnemy(r.enemy, 300, base, ctx());
+    expect(r.enemy.stunMs).toBe(0);
+    expect(r.enemy.pos).toEqual(e.pos); // the last of the stun used this step up
+    r = stepEnemy(r.enemy, 100, base, ctx());
+    expect(r.enemy.pos).not.toEqual(e.pos);
+  });
+
+  it('knockback still moves a stunned enemy', () => {
+    const r = stepEnemy(enemy({ stunMs: 500, knockMs: 100, knockDir: 'left' }), 50, base, ctx());
+    expect(r.enemy.pos.x).toBeLessThan(100);
+    expect(r.enemy.stunMs).toBe(500);
   });
 });

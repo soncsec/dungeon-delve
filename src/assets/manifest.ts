@@ -122,6 +122,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('effects', 'puff', 64, 64, 7, 1, [anim('play', range(0, 7), 14, false)]),
   // The Fireball spell in flight (points right; rotated to its direction).
   sheet('effects', 'fire-ball', 52, 29, 3, 1, [anim('fly', range(0, 3), 12)]),
+  // The Lightning bolt: a crackling ball with sparks trailing behind (it points left).
+  sheet('effects', 'bolt', 48, 32, 4, 1, [anim('fly', range(0, 4), 14)]),
   // The flying eye's shot.
   sheet('effects', 'enemy-shot', 16, 16, 2, 1, [anim('fly', range(0, 2), 8)]),
 

@@ -336,3 +336,18 @@ describe('regions', () => {
     expect(w.regions.get('1,0')).toBe('forest');
   });
 });
+
+describe('gates in the world', () => {
+  const lines = Array.from({ length: 10 }, (_, y) =>
+    y === 0 ? '###z################' : y === 9 ? '#########gg#########' : '#..................#',
+  );
+  const w = buildWorld([{ col: 0, row: 0, lines }]);
+
+  it('a gate blocks until its room’s switch is powered; then it is open ground', () => {
+    expect(solidInWorld(w, 0, 0, 9, 9)).toBe(true);
+    const powered = (key: string, x: number, y: number) => key === '0,0' && x === 3 && y === 0;
+    expect(solidInWorld(w, 0, 0, 9, 9, powered)).toBe(false);
+    expect(solidInWorld(w, 0, 0, 3, 0, powered)).toBe(false); // the switch itself: opened
+    expect(solidInWorld(w, 0, 0, 4, 0, powered)).toBe(true); // the wall beside it
+  });
+});

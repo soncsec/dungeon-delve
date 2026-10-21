@@ -94,6 +94,26 @@ export const FIREBALL = {
   castPauseMs: 200,
 } as const;
 
+/**
+ * The Lightning spell (Sunken Crypt's prize, owner 2026-10-21): a fast bolt that
+ * stuns the enemy it hits instead of hurting it, and powers crystal switches.
+ */
+export const LIGHTNING = {
+  cost: 30,
+  speed: 240,
+  range: 240,
+  length: 16,
+  thickness: 10,
+  damage: 0,
+  maxInFlight: 1,
+  cooldownMs: 0,
+  castPauseMs: 200,
+  /** How long a struck enemy stands stunned (ms): it can't move, shoot or hurt by touch. */
+  stunMs: 3000,
+  /** A stunned enemy flickers pale blue, on and off this often (ms). */
+  flickerMs: 120,
+} as const;
+
 /** Jarrett's health, in half hearts (2 per heart). */
 export const HEALTH = {
   startHearts: 3,
@@ -309,7 +329,9 @@ export type SfxName =
   | 'shard'
   | 'hollow'
   | 'crumble'
-  | 'burn';
+  | 'burn'
+  | 'zap'
+  | 'switch';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -393,6 +415,17 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
     crumble: { wave: 'noise', seconds: 0.45, from: 1200, to: 120, attack: 0.005, volume: 0.45 },
     // Thorns burning: a crackling rush of noise rising.
     burn: { wave: 'noise', seconds: 0.5, from: 500, to: 3000, attack: 0.05, volume: 0.4 },
+    // Lightning: a crackling buzz as the bolt flies, and a rising chime when a crystal switch lights.
+    zap: { wave: 'sawtooth', seconds: 0.3, from: 1800, to: 300, attack: 0.005, volume: 0.25 },
+    switch: {
+      wave: 'triangle',
+      seconds: 0.45,
+      from: 660,
+      to: 660,
+      attack: 0.01,
+      volume: 0.35,
+      steps: [1, 1.5, 2],
+    },
   },
 };
 

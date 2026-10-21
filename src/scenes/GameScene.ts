@@ -7,6 +7,7 @@ import {
   GAME_HEIGHT,
   GAME_WIDTH,
   FIREBALL,
+  LIGHTNING,
   DROPS,
   HEALTH,
   HERO,
@@ -127,6 +128,8 @@ import {
   enemyBody,
   hitEnemy,
   isDefeated,
+  isStunned,
+  stunEnemy,
   spawnEnemy,
   stepEnemy,
   type Enemy,
@@ -149,6 +152,7 @@ import {
   MARSH_TINT,
   VOLCANO_TINT,
   THORN_TINT,
+  SWITCH_DIM,
   mixTint,
   dungeonArt,
   propSheet,
@@ -222,6 +226,8 @@ export interface GameSnapshot {
     health: number;
     charging: boolean;
     knocked: boolean;
+    /** Stunned by Lightning: still, and harmless to touch. */
+    stunned: boolean;
   }[];
   /** True while he is down after running out of hearts; and how often that has happened. */
   falling: boolean;
@@ -245,6 +251,8 @@ export interface GameSnapshot {
   mode: WeaponMode;
   daggers: { x: number; y: number; dir: Facing }[];
   fireballs: { x: number; y: number; dir: Facing }[];
+  /** Lightning bolts in the air. */
+  bolts: { x: number; y: number; dir: Facing }[];
   mana: { current: number; max: number };
   /** Fireballs cast so far. */
   casts: number;
@@ -281,19 +289,23 @@ export interface GameSnapshot {
   talking: { page: number; pages: number; lines: string[] } | null;
 }
 
-type ShotKind = 'dagger' | 'fireball';
+type ShotKind = 'dagger' | 'fireball' | 'bolt';
 
-/** Something flying: a thrown dagger or a fireball. */
+/** Something flying: a thrown dagger, a fireball or a Lightning bolt. */
 interface Shot {
   kind: ShotKind;
   d: Projectile;
   sprite: Phaser.GameObjects.Sprite;
 }
 
-const SHOT_TUNING: Readonly<Record<ShotKind, typeof DAGGER | typeof FIREBALL>> = {
-  dagger: DAGGER,
-  fireball: FIREBALL,
-};
+const SHOT_TUNING: Readonly<Record<ShotKind, typeof DAGGER | typeof FIREBALL | typeof LIGHTNING>> =
+  {
+    dagger: DAGGER,
+    fireball: FIREBALL,
+    bolt: LIGHTNING,
+  };
+/** A stunned enemy is drawn pale blue (runtime tint, ADR-D05). */
+const STUN_TINT = 0x9fd8ff;
 
 /** Sprite angle for a dagger flying each way (the art points right). */
 const DAGGER_ANGLE: Readonly<Record<Facing, number>> = { right: 0, down: 90, left: 180, up: -90 };
@@ -676,8 +688,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       } else if (this.inv.equipped.far === 'daggers') {
         this.tryThrow(time);
       }
-    } else if (cast && this.heroKnockMs <= 0 && this.inv.equipped.spell === 'fireball') {
-      this.tryCast(time);
+    } else if (cast && this.heroKnockMs <= 0) {
+      const spell = this.inv.equipped.spell;
+      if (spell === 'fireball' || spell === 'lightning') this.tryCast(spell, time);
     }
     const swinging = isSwinging(this.swing, time, SWORD.durationMs);
     if (swinging) this.swordHits();
@@ -1346,7 +1359,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       if (e.facing === 'right') sprite.setFlipX(false);
     }
     if (e.knockMs > 0) sprite.setTint(0xff7070);
-    else sprite.clearTint();
+    else if (isStunned(e) && Math.floor(e.stunMs / LIGHTNING.flickerMs) % 2 === 0) {
+      sprite.setTint(STUN_TINT);
+    } else sprite.clearTint();
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(DEPTH.sorted + o.y + e.pos.y);
   }
@@ -1623,6 +1638,23 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   }
 
   /** A thorn bush in a fireball's path burns away. */
+  /** A Lightning bolt in a crystal switch powers it, for good: the room's gates open. */
+  private powerSwitches(box: Rect): boolean {
+    const key = roomKey(this.room.col, this.room.row);
+    const room = this.world.rooms.get(key);
+    for (const { x, y } of cellsUnder(box)) {
+      if (room?.cells[y]?.[x]?.fixture !== 'switch') continue;
+      const id = fixtureId(this.mapId, key, x, y);
+      if (!isOpened(this.progress, id)) {
+        this.progress = openChest(this.progress, id);
+        this.sfx.play('switch');
+        this.redrawRoom();
+      }
+      return true;
+    }
+    return false;
+  }
+
   private burnThorns(box: Rect): boolean {
     const key = roomKey(this.room.col, this.room.row);
     const room = this.world.rooms.get(key);
@@ -1669,6 +1701,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   }
 
   /** One hit (by id, so each lands once) on an enemy, pushing it the way given. */
+  /** A Lightning bolt: the enemy stands stunned for a while. */
+  private stun(live: LiveEnemy, hitId: number): void {
+    const stats = ENEMIES[live.e.kind];
+    const before = live.e;
+    live.e = stunEnemy(live.e, LIGHTNING.stunMs, hitId);
+    if (live.e === before) return;
+    this.effect('hit', live.e.pos.x, live.e.pos.y - stats.box.height / 2);
+    this.sfx.play('zap');
+  }
+
   private strike(live: LiveEnemy, damage: number, hitId: number, from: Facing): void {
     const stats = ENEMIES[live.e.kind];
     const before = live.e;
@@ -1795,8 +1837,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private touchEnemies(now: number): void {
     if (isInvulnerable(this.health, now)) return;
     const body = this.heroBody();
-    const toucher = this.enemies.find((live) =>
-      overlaps(body, enemyBody(live.e, ENEMIES[live.e.kind])),
+    // A stunned enemy can't hurt by touch.
+    const toucher = this.enemies.find(
+      (live) => !isStunned(live.e) && overlaps(body, enemyBody(live.e, ENEMIES[live.e.kind])),
     );
     if (toucher) this.hurtHero(ENEMIES[toucher.e.kind].contactDamage, toucher.e.pos, now);
     else if (this.boss && this.bossAt(body)) {
@@ -1842,38 +1885,36 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.shoot('dagger');
   }
 
-  /** Casts a Fireball, if there's enough mana and none is already flying. */
-  private tryCast(now: number): void {
-    if (!canCast(this.mana, FIREBALL.cost)) {
+  /** Casts the equipped spell, if there's enough mana and none of it is already flying. */
+  private tryCast(spell: 'fireball' | 'lightning', now: number): void {
+    const t = spell === 'lightning' ? LIGHTNING : FIREBALL;
+    const kind: ShotKind = spell === 'lightning' ? 'bolt' : 'fireball';
+    if (!canCast(this.mana, t.cost)) {
       this.sfx.play('noMana');
       return;
     }
-    if (
-      !canThrow(
-        this.countShots('fireball'),
-        FIREBALL.maxInFlight,
-        this.lastCastAt,
-        now,
-        FIREBALL.cooldownMs,
-      )
-    ) {
+    if (!canThrow(this.countShots(kind), t.maxInFlight, this.lastCastAt, now, t.cooldownMs)) {
       return;
     }
-    this.mana = spend(this.mana, FIREBALL.cost, now);
+    this.mana = spend(this.mana, t.cost, now);
     this.casts += 1;
-    this.sfx.play('cast');
+    this.sfx.play(spell === 'lightning' ? 'zap' : 'cast');
     this.lastCastAt = now;
-    this.throwUntil = now + FIREBALL.castPauseMs;
-    this.shoot('fireball');
+    this.throwUntil = now + t.castPauseMs;
+    this.shoot(kind);
   }
 
   private shoot(kind: ShotKind): void {
     this.animate(false);
     this.shotIds += 1;
     const d = launch(SHOT_HIT_IDS + this.shotIds, this.pos, this.facing, SWORD.bodyHeight);
-    const sprite = this.shotPool.take(kind === 'dagger' ? 'dagger' : 'fire-ball');
-    sprite.setAngle(DAGGER_ANGLE[d.dir]);
+    const sprite = this.shotPool.take(
+      kind === 'dagger' ? 'dagger' : kind === 'bolt' ? 'bolt' : 'fire-ball',
+    );
+    // The bolt's art points left; the others point right.
+    sprite.setAngle(DAGGER_ANGLE[d.dir] + (kind === 'bolt' ? 180 : 0));
     if (kind === 'fireball') sprite.play(animKey('fire-ball', 'fly'));
+    if (kind === 'bolt') sprite.play(animKey('bolt', 'fly'));
     const shot = { kind, d, sprite };
     this.shots.push(shot);
     this.drawShot(shot);
@@ -1898,20 +1939,26 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.outsideRoom(cx, cy) || this.solidAt(col, row, cx, cy);
     for (const shot of [...this.shots]) {
       const t = SHOT_TUNING[shot.kind];
-      // A fireball flies on into a thorn bush, which then burns.
+      // A fireball flies on into a thorn bush, which then burns; a bolt into a crystal switch.
+      const fixtureAt = (cx: number, cy: number) => room?.cells[cy]?.[cx]?.fixture;
       const into = (cx: number, cy: number): boolean =>
-        solid(cx, cy) && !(shot.kind === 'fireball' && room?.cells[cy]?.[cx]?.fixture === 'thorns');
+        solid(cx, cy) &&
+        !(shot.kind === 'fireball' && fixtureAt(cx, cy) === 'thorns') &&
+        !(shot.kind === 'bolt' && fixtureAt(cx, cy) === 'switch');
       const step = stepProjectile(shot.d, deltaMs, t, into);
       shot.d = step.projectile;
       const box = projectileBox(shot.d, t);
       const target = this.enemies.find((live) =>
         overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind])),
       );
-      if (target) this.strike(target, t.damage, shot.d.id, shot.d.dir);
+      if (target && shot.kind === 'bolt') this.stun(target, shot.d.id);
+      else if (target) this.strike(target, t.damage, shot.d.id, shot.d.dir);
       const boss = !target && this.bossAt(box);
-      if (boss) this.strikeBoss(t.damage, shot.d.id);
+      // A bolt does nothing to a boss.
+      if (boss && shot.kind !== 'bolt') this.strikeBoss(t.damage, shot.d.id);
       const burned = shot.kind === 'fireball' && this.burnThorns(box);
-      if (target || boss || burned || step.stopped) this.dropShot(shot);
+      const powered = shot.kind === 'bolt' && this.powerSwitches(box);
+      if (target || boss || burned || powered || step.stopped) this.dropShot(shot);
       else this.drawShot(shot);
     }
   }
@@ -1990,6 +2037,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         health: e.health,
         charging: e.chargeMs > 0,
         knocked: e.knockMs > 0,
+        stunned: isStunned(e),
       })),
       enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
       blocked: this.blocked,
@@ -2006,6 +2054,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       mode: this.mode,
       daggers: this.shotsOf('dagger'),
       fireballs: this.shotsOf('fireball'),
+      bolts: this.shotsOf('bolt'),
       mana: { current: this.mana.current, max: this.mana.max },
       casts: this.casts,
       potions: { ...this.potions },
@@ -2262,13 +2311,18 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       : roomArt(room, region, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)));
     const sheet = dungeon ? 'dungeon' : 'forest';
     const drawn: Phaser.GameObjects.GameObject[] = [];
+    // Each object's own tint, kept under a map or region tint (a thorn bush, a dim switch).
+    const ownTint = new Map<Phaser.GameObjects.GameObject, number>();
     for (const t of art.ground) {
-      drawn.push(
-        this.add
-          .image(o.x + t.x, o.y + t.y, t.sheet ?? sheet, t.frame)
-          .setOrigin(0)
-          .setDepth(DEPTH.ground),
-      );
+      const image = this.add
+        .image(o.x + t.x, o.y + t.y, t.sheet ?? sheet, t.frame)
+        .setOrigin(0)
+        .setDepth(DEPTH.ground);
+      if (t.dim) {
+        image.setTint(SWITCH_DIM);
+        ownTint.set(image, SWITCH_DIM);
+      }
+      drawn.push(image);
     }
     if (col === this.room.col && row === this.room.row) {
       this.stoneSprites = this.stones.map((st) =>
@@ -2287,14 +2341,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
           .setDepth(DEPTH.sorted + o.y + c.y + TILE),
       );
     }
-    const thorns = new Set<Phaser.GameObjects.GameObject>();
     for (const p of art.props) {
       const image = this.add
         .image(o.x + p.x, o.y + p.y, propSheet(p.prop, region), `prop:${p.prop}`)
         .setOrigin(0.5, 1)
         .setDepth(DEPTH.sorted + o.y + p.y)
         .setTint(p.prop === 'thorns' ? THORN_TINT : 0xffffff);
-      if (p.prop === 'thorns') thorns.add(image);
+      if (p.prop === 'thorns') ownTint.set(image, THORN_TINT);
       drawn.push(image);
     }
     for (const t of art.over) {
@@ -2306,13 +2359,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       );
     }
     // The marsh (the forest's art, darkened and greened), the volcano edge (the mountains,
-    // reddened), and a map with a tint of its own (Bog Grotto). Thorn bushes keep theirs under it.
+    // reddened), and a map with a tint of its own (Bog Grotto). Thorns and dim switches keep theirs under it.
     const tint =
       MAPS[this.mapId].tint ??
       (region === 'marsh' ? MARSH_TINT : region === 'volcano' ? VOLCANO_TINT : null);
     if (tint !== null) {
       for (const o of drawn) {
-        (o as Phaser.GameObjects.Image).setTint(thorns.has(o) ? mixTint(THORN_TINT, tint) : tint);
+        const own = ownTint.get(o);
+        (o as Phaser.GameObjects.Image).setTint(own === undefined ? tint : mixTint(own, tint));
       }
     }
     return drawn;

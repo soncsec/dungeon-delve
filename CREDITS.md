@@ -41,6 +41,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/effects/puff.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/enemy-death.png`
 - `assets/effects/hit.png` — `Explosions and Magic/Hit/hit.png`
 - `assets/effects/fire-ball.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/fire-ball.png`
+- `assets/effects/bolt.png` — `Explosions and Magic/Warped shooting fx/Bolt/spritesheet.png`
 - `assets/effects/enemy-shot.png` — `Gothicvania/Misc/EnemyProjectile/spritesheet.png`
 
 ### Items
