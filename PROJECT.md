@@ -157,6 +157,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-20 | The overworld map (M4.1): 8×8 rooms. Village and meadows along the south (the start), the forest north of it (Hollow Oak close by, Witchwood deep in the west), the marsh west, the ruins east, mountains across the north with the volcano edge in the far north-east, and the Shadow Vault in the centre. Each region has its own art set: Top-Down Town (village), the forest set, Tiny RPG Mountain (mountains), forest tiles tinted murky with water from the Overworld sheet (marsh), and the dungeon's stone walls on grass (ruins) |
 | 2026-10-20 | The Shadow Vault's four rooms are walkable stone grounds around the sealed vault building: a hub joining the forest, ruins and mountains (the door opens in M7.1) |
 | 2026-10-20 | Village rooms draw their forest walls and props with the teal ground shadows recoloured to the village's grass and shade |
+| 2026-10-20 | The marsh's ponds have shorelines: the Overworld sheet's island shores used inside out, their grass recoloured to the forest's; ponds are rectangles |
 | 2026-10-20 | A small title screen arrives with the save game (M3.5): CONTINUE when there is a save, and NEW GAME, which asks before wiping it. `?dungeon=n` skips the title and starts a new run marked as a cheat |
 | 2026-10-20 | Each beaten boss leaves a heart container and a shard of the Star of Power; a shard is the pack's crystal recoloured gold |
 

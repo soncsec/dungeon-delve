@@ -28,6 +28,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 
 - `assets/tiles/forest.png` — `TinyRPG/Environments/Top-Down-Forest/PNG/top-down-forest-tileset.png`
 - `assets/tiles/forest-village.png` — a copy of `forest.png` with the teal ground shadows (and bits of forest grass in the props) recoloured to the village's grass and shade by `tools/art/village_edges.py`, for walls and props in village rooms (owner decision 2026-10-20)
+- `assets/tiles/marsh-water.png` — pond pieces from `TinyRPG/Environments/Overworld/Overworld 16x16/Tileset/overworld.png`: the islands' shore pieces used inside out (the lower corners flipped), their grass recoloured to the forest's, and a plain water tile in the sheet's own deep-water colours; made by `tools/art/marsh_water.py` (owner decision 2026-10-20)
 - `assets/tiles/town.png` — `TinyRPG/Environments/Top-Down-Town/PNG/top-down-town-tileset.png`
 - `assets/tiles/dungeon.png` — `TinyRPG/Environments/single-dungeon-crawler/PNG/preview-simple-dungeon-crawler-set1.png` (the pack's example dungeon, used unchanged as a tile sheet)
 

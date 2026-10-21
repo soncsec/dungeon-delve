@@ -275,3 +275,30 @@ describe('village rooms', () => {
     expect(r.cells[2]?.[1]?.prop).toBe('house');
   });
 });
+
+describe('ponds', () => {
+  it('reads water as solid', () => {
+    const r = parseRoom(room({ 3: '....WW..............', 4: '....WW..............' }));
+    expect(r.cells[3]?.[4]).toMatchObject({ solid: true, water: true });
+    expect(r.cells[3]?.[3]?.water).toBeUndefined();
+  });
+
+  it('allows rectangles at least 2×2, also against the room edge', () => {
+    expect(() =>
+      parseRoom(room({ 2: 'WWW.................', 3: 'WWW.................' })),
+    ).not.toThrow();
+  });
+
+  it.each([
+    ['one cell', { 3: '....W...............' }],
+    ['one row', { 3: '....WWW.............' }],
+    ['one column', { 3: '....W...............', 4: '....W...............' }],
+    ['an L', { 3: '....WW..............', 4: '....WW..............', 5: '....WWW.............' }],
+    [
+      'a notch',
+      { 3: '....WWW.............', 4: '....WW.W............', 5: '....WWWW............' },
+    ],
+  ])('rejects %s', (_, rows) => {
+    expect(() => parseRoom(room(rows), 'pond')).toThrow("isn't a rectangle at least 2×2");
+  });
+});

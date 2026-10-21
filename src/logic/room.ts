@@ -23,6 +23,9 @@
  *   S  stump       (solid 2 cells, anchored left)
  *   n  cone bush   (solid)
  *   w  flower shrub (solid)
+ * Marsh:
+ *   W  water       (solid; ponds must be rectangles at least 2×2, for their shorelines)
+ *
  * Village ground (open, drawn from the Town set):
  *   p  cobbled path
  *   ,  flowers
@@ -60,6 +63,8 @@ export interface Cell {
   exit: boolean;
   /** Something drawn on open ground (village paths, flowers, tall grass). */
   ground?: Ground;
+  /** Pond water (marsh). */
+  water?: boolean;
 }
 
 export type Fixture = 'door' | 'chest';
@@ -141,6 +146,7 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
     return Array.from(line, (ch, x): Cell => {
       const plain = { forest: false, wall: false, prop: null, fixture: null, exit: false };
       if (ch === '.') return { ...plain, solid: false };
+      if (ch === 'W') return { ...plain, solid: true, water: true };
       const ground = GROUND_CHARS[ch];
       if (ground) return { ...plain, solid: false, ground };
       if (ch === 'F') return { ...plain, solid: true, forest: true };
@@ -179,7 +185,37 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       target.solid = true;
     }
   }
+  checkPonds(cells, name);
   return { cells, stones };
+}
+
+/**
+ * Ponds must be rectangles at least 2×2: the shoreline art has edges and outer
+ * corners, but no inner corners, and no pieces for a pond one cell across.
+ */
+function checkPonds(cells: Cell[][], name: string): void {
+  const water = (x: number, y: number): boolean => cells[y]?.[x]?.water === true;
+  cells.forEach((row, y) =>
+    row.forEach((cell, x) => {
+      if (!cell.water) return;
+      const n = water(x, y - 1);
+      const s = water(x, y + 1);
+      const w = water(x - 1, y);
+      const e = water(x + 1, y);
+      const thin = (!n && !s) || (!w && !e);
+      const notch = [
+        [n, w, water(x - 1, y - 1)],
+        [n, e, water(x + 1, y - 1)],
+        [s, w, water(x - 1, y + 1)],
+        [s, e, water(x + 1, y + 1)],
+      ].some(([a, b, diagonal]) => a && b && !diagonal);
+      if (thin || notch) {
+        throw new Error(
+          `${name}: the pond at column ${x}, row ${y} isn't a rectangle at least 2×2`,
+        );
+      }
+    }),
+  );
 }
 
 /** The cell at (x, y), or null outside the room. */

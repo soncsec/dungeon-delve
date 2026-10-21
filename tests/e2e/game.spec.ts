@@ -1263,3 +1263,34 @@ test('north of Hollow Oak lie the vault grounds, and the vault door stays shut',
   expect(s.opened.filter((id) => id.startsWith('overworld/'))).toEqual([]);
   expect(watched.errors).toEqual([]);
 });
+
+test('west of the meadows lies the marsh, whose ponds stop Jarrett', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // From the west meadow, out through its west gap (rows 4–5).
+  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  // goToRoom puts him at the room's start cell, which can be next to a robot: let any knockback end.
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(60, 94, 'left'));
+  await page.keyboard.down('ArrowLeft');
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 2, row: 7 });
+  await page.keyboard.up('ArrowLeft');
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  expect((await snapshot(page)).region).toBe('marsh');
+
+  // A pond in the north-west of the marsh fills columns 7–10, rows 4–6: walk up into it.
+  await page.evaluate(() => window.__game?.goToRoom(0, 4));
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(136, 126, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(118); // row 7's top + his 6-px feet box
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).player.y).toBe(118);
+  expect(watched.errors).toEqual([]);
+});
