@@ -17,6 +17,8 @@ import {
   markDefeated,
   shardsToEnter,
   heartContainers,
+  manaCrystals,
+  CRYSTAL_MESSAGE,
   markSeen,
   seenId,
   rewardId,
@@ -150,32 +152,51 @@ describe('defeated dungeon enemies', () => {
 describe('a prize left in an opened chest', () => {
   const id = fixtureId('dungeon1', '0,2', 3, 3);
   const heart = chestHeartId('caves', '4,0');
+  const crystal = rewardId('dungeon2', 'crystal');
+  const rewards = { heart, crystal };
   const opened = openChest(NEW_PROGRESS, id);
 
   it('nothing waits in a chest not yet opened', () => {
-    expect(leftInChest({ kind: 'key' }, NEW_PROGRESS, id, heart, [])).toBe(false);
+    expect(leftInChest({ kind: 'key' }, NEW_PROGRESS, id, rewards, [])).toBe(false);
   });
 
   it('an item waits until he owns it', () => {
     const daggers = { kind: 'item', item: 'daggers' } as const;
-    expect(leftInChest(daggers, opened, id, heart, [])).toBe(true);
-    expect(leftInChest(daggers, opened, id, heart, ['daggers'])).toBe(false);
+    expect(leftInChest(daggers, opened, id, rewards, [])).toBe(true);
+    expect(leftInChest(daggers, opened, id, rewards, ['daggers'])).toBe(false);
   });
 
   it('a key waits until it has been picked up', () => {
     expect(takenId(id)).toBe('dungeon1/0,2/3,3/taken');
-    expect(leftInChest({ kind: 'key' }, opened, id, heart, [])).toBe(true);
-    expect(leftInChest({ kind: 'key' }, openChest(opened, takenId(id)), id, heart, [])).toBe(false);
+    expect(leftInChest({ kind: 'key' }, opened, id, rewards, [])).toBe(true);
+    expect(leftInChest({ kind: 'key' }, openChest(opened, takenId(id)), id, rewards, [])).toBe(
+      false,
+    );
   });
 
   it('a heart container waits until taken', () => {
     expect(heart).toBe('caves/4,0/heart');
-    expect(leftInChest({ kind: 'heart' }, opened, id, heart, [])).toBe(true);
-    expect(leftInChest({ kind: 'heart' }, takeReward(opened, heart), id, heart, [])).toBe(false);
+    expect(leftInChest({ kind: 'heart' }, opened, id, rewards, [])).toBe(true);
+    expect(leftInChest({ kind: 'heart' }, takeReward(opened, heart), id, rewards, [])).toBe(false);
+  });
+
+  it('a Mana Crystal waits until taken', () => {
+    expect(leftInChest({ kind: 'crystal' }, opened, id, rewards, [])).toBe(true);
+    expect(leftInChest({ kind: 'crystal' }, takeReward(opened, crystal), id, rewards, [])).toBe(
+      false,
+    );
   });
 
   it('gems and potions do not come back', () => {
-    expect(leftInChest({ kind: 'gems', amount: 5 }, opened, id, heart, [])).toBe(false);
-    expect(leftInChest({ kind: 'potion', potion: 'mana' }, opened, id, heart, [])).toBe(false);
+    expect(leftInChest({ kind: 'gems', amount: 5 }, opened, id, rewards, [])).toBe(false);
+    expect(leftInChest({ kind: 'potion', potion: 'mana' }, opened, id, rewards, [])).toBe(false);
+  });
+});
+
+describe('Mana Crystals', () => {
+  it('are counted from the rewards taken, and announced', () => {
+    expect(manaCrystals(NEW_PROGRESS)).toBe(0);
+    expect(manaCrystals(takeReward(NEW_PROGRESS, rewardId('dungeon2', 'crystal')))).toBe(1);
+    expect(CRYSTAL_MESSAGE[0]).toBe('A MANA CRYSTAL!');
   });
 });

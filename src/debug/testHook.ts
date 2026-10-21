@@ -76,6 +76,8 @@ export interface TestHook {
     hearts: ('full' | 'half' | 'empty')[];
     gems: string;
     weapon: string;
+    /** The mana bar's full width (0 until he knows a spell), and its blue fill's. */
+    manaBar: number;
     manaWidth: number;
     potions: { health: string; mana: string };
     keys: string | null;

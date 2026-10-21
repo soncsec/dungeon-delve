@@ -71,17 +71,28 @@ import {
 } from '../logic/weapons';
 import { fullHealth, heal, isInvulnerable, isOut, takeDamage, type Health } from '../logic/health';
 import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
-import { boost, canCast, fullMana, isBoosted, refill, spend, type Mana } from '../logic/mana';
+import {
+  boost,
+  canCast,
+  fullMana,
+  isBoosted,
+  maxMana,
+  refill,
+  spend,
+  type Mana,
+} from '../logic/mana';
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
 import type { Axis, Point } from '../logic/movement';
 import {
   EMPTY_INVENTORY,
   give,
+  knowsMagic,
   startingKit,
   type Inventory,
   type ItemId,
 } from '../logic/inventory';
 import {
+  CRYSTAL_MESSAGE,
   NEW_PROGRESS,
   addKey,
   beatBoss,
@@ -95,6 +106,7 @@ import {
   markDefeated,
   fixtureId,
   heartContainers,
+  manaCrystals,
   markSeen,
   seenId,
   rewardId,
@@ -297,7 +309,14 @@ interface LiveEnemy {
 
 /** Things on the ground: drops, and potions. */
 export type PickupKind =
-  Drop | 'health-potion' | 'mana-brew' | 'key' | 'item' | 'heart-container' | 'shard';
+  | Drop
+  | 'health-potion'
+  | 'mana-brew'
+  | 'key'
+  | 'item'
+  | 'heart-container'
+  | 'shard'
+  | 'mana-crystal';
 
 interface LiveBoss {
   b: Boss;
@@ -536,7 +555,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.shotIds = 0;
     this.thrown = 0;
     this.casts = 0;
-    this.mana = fullMana(MANA.max);
+    this.mana = fullMana(maxMana(MANA.max, MANA.crystalBonus, manaCrystals(this.progress)));
     this.lastCastAt = null;
     this.potions = save ? { ...save.potions } : { ...POTIONS.start };
     this.travelling = false;
@@ -796,7 +815,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   /** Brings the status bar up to date (it redraws only what changed). */
   private refreshHud(): void {
     const weapon = this.inv.equipped[this.mode];
-    this.hud.update(this.health, this.gems, weapon, this.mana, this.potions, this.hudKeys());
+    this.hud.update(
+      this.health,
+      this.gems,
+      weapon,
+      knowsMagic(this.inv) ? this.mana : null,
+      this.potions,
+      this.hudKeys(),
+    );
   }
 
   /** The small-key count for the status bar: in a dungeon only. */
@@ -859,6 +885,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       // Each cave's heart has its own id, so the save keeps every one.
       const key = roomKey(this.room.col, this.room.row);
       this.addPickup('heart-container', at, 1, null, chestHeartId(this.mapId, key));
+    } else if (c.kind === 'crystal') {
+      this.addPickup('mana-crystal', at, 1, null, rewardId(this.mapId, 'crystal'));
     } else this.addPickup(c.potion === 'health' ? 'health-potion' : 'mana-brew', at);
   }
 
@@ -867,8 +895,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const key = roomKey(this.room.col, this.room.row);
     for (const c of this.world.chests.get(key) ?? []) {
       const id = fixtureId(this.mapId, key, c.col, c.row);
-      const heart = chestHeartId(this.mapId, key);
-      if (leftInChest(c.contents, this.progress, id, heart, this.inv.owned)) {
+      const rewards = {
+        heart: chestHeartId(this.mapId, key),
+        crystal: rewardId(this.mapId, 'crystal'),
+      };
+      if (leftInChest(c.contents, this.progress, id, rewards, this.inv.owned)) {
         this.dropContents(c.contents, chestDrop(c.col, c.row), id);
       }
     }
@@ -1686,14 +1717,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
               ? this.pickupPool.take(icon?.texture ?? 'sword-icon', icon?.frame ?? 0)
               : kind === 'shard'
                 ? this.pickupPool.take('shard')
-                : this.pickupPool.take(
-                    'objects',
-                    kind === 'heart'
-                      ? OBJECT_FRAMES.smallHeart
-                      : kind === 'heart-container'
-                        ? OBJECT_FRAMES.heart
-                        : OBJECT_FRAMES.potion,
-                  );
+                : kind === 'mana-crystal'
+                  ? this.pickupPool.take('mana-crystal')
+                  : this.pickupPool.take(
+                      'objects',
+                      kind === 'heart'
+                        ? OBJECT_FRAMES.smallHeart
+                        : kind === 'heart-container'
+                          ? OBJECT_FRAMES.heart
+                          : OBJECT_FRAMES.potion,
+                    );
     sprite.setOrigin(0.5, 1);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);
@@ -1725,6 +1758,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         const max = (HEALTH.startHearts + heartContainers(this.progress)) * 2;
         this.health = { ...this.health, max, points: max };
         sound = 'heart';
+      } else if (p.kind === 'mana-crystal') {
+        // A bigger mana bar, and full.
+        this.progress = takeReward(this.progress, p.reward ?? rewardId(this.mapId, 'crystal'));
+        const max = maxMana(MANA.max, MANA.crystalBonus, manaCrystals(this.progress));
+        this.mana = { ...this.mana, max, current: max };
+        this.announce(CRYSTAL_MESSAGE);
+        sound = 'shard';
       } else if (p.kind === 'shard') {
         this.progress = takeReward(this.progress, rewardId(this.mapId, 'shard'));
         this.announce(shardMessage(shardsHeld(this.progress), STAR.shards));
@@ -2114,6 +2154,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     hearts: ('full' | 'half' | 'empty')[];
     gems: string;
     weapon: string;
+    /** The mana bar's full width (0 until he knows a spell), and its blue fill's. */
+    manaBar: number;
     manaWidth: number;
     potions: { health: string; mana: string };
     keys: string | null;

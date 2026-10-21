@@ -55,7 +55,9 @@ export type ChestContents =
   | { kind: 'item'; item: ItemId }
   | { kind: 'potion'; potion: PotionKind }
   /** A heart container (secret caves). */
-  | { kind: 'heart' };
+  | { kind: 'heart' }
+  /** A Mana Crystal: a bigger mana bar (Bog Grotto's prize). */
+  | { kind: 'crystal' };
 
 export interface ChestPlacement {
   col: number;

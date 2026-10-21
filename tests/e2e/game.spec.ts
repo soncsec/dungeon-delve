@@ -303,10 +303,14 @@ test('the status bar shows hearts and gems', async ({ page }) => {
     hearts: ['full', 'full', 'full'],
     gems: '000',
     weapon: 'sword-icon',
-    manaWidth: 42,
+    manaBar: 0, // no mana bar until he knows a spell
+    manaWidth: 0,
     potions: { health: '1', mana: '1' },
     keys: null, // shown in dungeons only
   });
+  await page.evaluate(() => window.__game?.giveItem('fireball'));
+  await expect.poll(async () => (await hud())?.manaBar).toBe(44);
+  expect((await hud())?.manaWidth).toBe(42); // full
 
   const start = await snapshot(page);
   await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('robot', x + 6, y), {
@@ -839,16 +843,15 @@ test('Bog Grotto’s archway in the marsh opens once Jarrett holds a shard', asy
   expect(watched.errors).toEqual([]);
 });
 
-test('Bog Grotto’s prize: the Fireball in the east closet, which burns the hub’s thorns', async ({
+test('Bog Grotto’s prize: a Mana Crystal in the east closet; Walker’s Fireball burns the hub’s thorns', async ({
   page,
 }) => {
   const watched = watchPage(page);
-  await openGame(page, '?dungeon=2');
+  await openGame(page, '?dungeon=2'); // with what dungeon 1 earns: the daggers and the Fireball
   await page.evaluate(() => window.__game?.holdEnemies(true));
-  // No spell yet: C casts nothing.
-  await page.keyboard.press('c');
-  await page.waitForTimeout(300);
-  expect((await snapshot(page)).casts).toBe(0);
+  const hud = () => page.evaluate(() => window.__game?.hud());
+  expect((await snapshot(page)).mana).toEqual({ current: 100, max: 100 });
+  expect((await hud())?.manaBar).toBe(44);
 
   // The east room: push the stone in the closet's doorway (column 14, row 6) up twice.
   await page.evaluate(() => window.__game?.goToRoom(2, 2));
@@ -859,18 +862,24 @@ test('Bog Grotto’s prize: the Fireball in the east closet, which burns the hub
     const st = (await snapshot(page)).stones;
     return st.length === 1 && st[0]?.cy === 4;
   });
-  // Round the stone, and right into the chest at column 14, row 3.
+  // Round the stone, beside the chest at column 14, row 3, and it opens: the crystal drops.
+  // (Opened with the bump hook, so he doesn't walk on into the crystal at once.)
   await page.evaluate(() => window.__game?.placeHero(216, 62, 'right'));
-  await holdUntil(page, 'ArrowRight', async () =>
-    (await snapshot(page)).opened.includes('dungeon2/2,2/14,3'),
-  );
-  await page.keyboard.press('c');
-  await expect.poll(async () => (await snapshot(page)).casts).toBe(1);
+  await page.evaluate(() => window.__game?.bump(14, 3));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon2/2,2/14,3');
+  const crystal = (await snapshot(page)).pickups.find((p) => p.kind === 'mana-crystal');
+  expect(crystal).toBeDefined();
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), crystal ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).mana).toEqual({ current: 150, max: 150 });
+  let s = await snapshot(page);
+  expect(s.opened).toContain('dungeon2/crystal');
+  expect(s.announced).toBe(1);
+  await expect.poll(async () => (await hud())?.manaBar).toBe(65); // half as long again
+  expect((await hud())?.manaWidth).toBe(63);
 
   // The hub: a Fireball burns the thorns across the way north, and he walks on through.
   await page.evaluate(() => window.__game?.goToRoom(1, 2));
   await page.evaluate(() => window.__game?.clearEnemies());
-  await page.evaluate(() => window.__game?.setMana(100));
   await page.evaluate(() => window.__game?.placeHero(152, 46, 'up'));
   await page.keyboard.press('c');
   await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon2/1,2/9,1');
@@ -878,6 +887,8 @@ test('Bog Grotto’s prize: the Fireball in the east closet, which burns the hub
     const room = (await snapshot(page)).room;
     return room.col === 1 && room.row === 1;
   });
+  s = await snapshot(page);
+  expect(s.mana.max).toBe(150);
   expect(watched.errors).toEqual([]);
 });
 
@@ -1472,23 +1483,38 @@ test('Walker gives a hint at dungeon 1, and waits outside once its shard is foun
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard ?? { x: 0, y: 0 });
   await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
 
-  // Out through the entrance's doorway: Walker is waiting by the archway.
+  // No magic yet: no spell, and no mana bar.
+  const hud = () => page.evaluate(() => window.__game?.hud());
+  expect((await hud())?.manaBar).toBe(0);
+
+  // Out through the entrance's doorway (letting go once the trip starts): Walker is
+  // waiting by the archway.
   await page.evaluate(() => window.__game?.goToRoom(1, 3));
   await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
   await page.keyboard.down('ArrowDown');
-  await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
   await page.keyboard.up('ArrowDown');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  expect((await snapshot(page)).map).toBe('overworld');
   // The archway room's enemies appear where he comes out; this test is about Walker.
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.clearEnemies());
   expect((await snapshot(page)).walker).toEqual({ x: 216, y: 79 });
   const after = await talkToWalker(page);
   expect(after[0]?.join(' ')).toContain('SEVEN MORE TO FIND.');
-  expect(after.flat().join(' ')).toContain('PRESS X TO SWITCH');
+  const said = after.flat().join(' ');
+  expect(said).toContain('THANK YOU, JARRETT');
+  expect(said).toContain('THIS IS FIREBALL');
+  expect(said).toContain('PRESS X TO SWITCH');
   s = await snapshot(page);
   expect(s.walker).toBeNull();
   expect(s.opened).toContain('walker/dungeon1-done');
+  // He taught Jarrett the Fireball: the mana bar shows, and C casts.
+  await expect.poll(async () => (await hud())?.manaBar).toBe(44);
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).casts).toBe(1);
   expect(watched.errors).toEqual([]);
 });
 

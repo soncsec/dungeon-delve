@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fullHealth } from '../../src/logic/health';
-import { gemLabel, heartIcons } from '../../src/logic/hud';
+import { gemLabel, heartIcons, manaBarInner } from '../../src/logic/hud';
 
 describe('heartIcons', () => {
   it('lays out one icon per heart with its state', () => {
@@ -28,5 +28,13 @@ describe('gemLabel', () => {
     expect(gemLabel(1500, 999)).toBe('999');
     expect(gemLabel(-3, 999)).toBe('000');
     expect(gemLabel(2.7, 999)).toBe('002');
+  });
+});
+
+describe('manaBarInner', () => {
+  it('holds the base mana in the base width, and grows in step with more', () => {
+    expect(manaBarInner(100, 100, 42)).toBe(42);
+    expect(manaBarInner(150, 100, 42)).toBe(63);
+    expect(manaBarInner(125, 100, 42)).toBe(53); // 52.5, rounded
   });
 });

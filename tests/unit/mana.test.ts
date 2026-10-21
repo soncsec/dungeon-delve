@@ -3,6 +3,7 @@ import {
   boost,
   canCast,
   fullMana,
+  maxMana,
   isBoosted,
   refill,
   spend,
@@ -53,5 +54,13 @@ describe('mana', () => {
     expect(boost(once, 5000, 30_000).boostUntil).toBe(61_000);
     // After the first has worn off, a new one starts from now.
     expect(boost(once, 40_000, 30_000).boostUntil).toBe(70_000);
+  });
+});
+
+describe('maxMana', () => {
+  it('is the base, and more for each Mana Crystal', () => {
+    expect(maxMana(100, 50, 0)).toBe(100);
+    expect(maxMana(100, 50, 1)).toBe(150);
+    expect(maxMana(100, 50, 2)).toBe(200);
   });
 });

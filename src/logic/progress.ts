@@ -60,7 +60,7 @@ export function unlockDoor(
 }
 
 /** What a beaten boss leaves: a heart container and a shard of the Star of Power. */
-export type Reward = 'heart' | 'shard';
+export type Reward = 'heart' | 'shard' | 'crystal';
 
 /** A reward's id: one of each per map. */
 export const rewardId = (map: string, reward: Reward): string => `${map}/${reward}`;
@@ -68,6 +68,11 @@ export const rewardId = (map: string, reward: Reward): string => `${map}/${rewar
 /** Records a reward as taken (once). */
 export function takeReward(p: Progress, id: string): Progress {
   return openChest(p, id);
+}
+
+/** Mana Crystals found: each makes the mana bar bigger. */
+export function manaCrystals(p: Progress): number {
+  return countOf(p, 'crystal');
 }
 
 /** A heart container from a chest (a secret cave's): each room's has its own id. */
@@ -79,20 +84,22 @@ export const takenId = (chestId: string): string => `${chestId}/taken`;
 /**
  * Whether an opened chest's prize still waits on the floor: Jarrett left the
  * room without it, and pickups don't outlast a room. Items he doesn't own,
- * keys never picked up and heart containers not taken come back; gems and
- * potions don't (nothing depends on them).
+ * keys never picked up, and heart containers and Mana Crystals not taken
+ * (`rewards` gives their ids) come back; gems and potions don't (nothing
+ * depends on them).
  */
 export function leftInChest(
   contents: ChestContents,
   p: Progress,
   chestId: string,
-  heartId: string,
+  rewards: { heart: string; crystal: string },
   owned: readonly ItemId[],
 ): boolean {
   if (!isOpened(p, chestId)) return false;
   if (contents.kind === 'item') return !owned.includes(contents.item);
   if (contents.kind === 'key') return !isOpened(p, takenId(chestId));
-  if (contents.kind === 'heart') return !isOpened(p, heartId);
+  if (contents.kind === 'heart') return !isOpened(p, rewards.heart);
+  if (contents.kind === 'crystal') return !isOpened(p, rewards.crystal);
   return false;
 }
 
@@ -111,6 +118,9 @@ export function heartContainers(p: Progress): number {
 }
 
 /** What the screen says when Jarrett finds a shard (`held` includes the new one). */
+/** The message on finding a Mana Crystal. */
+export const CRYSTAL_MESSAGE: readonly string[] = ['A MANA CRYSTAL!', '', 'YOUR MANA BAR GROWS.'];
+
 export function shardMessage(held: number, total: number): string[] {
   const left = total - held;
   if (left <= 0) return ['THE STAR OF POWER', 'IS WHOLE!'];

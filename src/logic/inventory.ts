@@ -32,20 +32,31 @@ export const ITEMS: Readonly<Record<ItemId, { slot: Slot; name: string }>> = {
   'iron-shield': { slot: 'shield', name: 'Iron Shield' },
 };
 
-/** The dungeons' prizes that are items so far (PROJECT.md §3c), by dungeon number. */
-export const DUNGEON_PRIZES: Readonly<Record<number, ItemId>> = { 1: 'daggers', 2: 'fireball' };
+/**
+ * The items Jarrett has earned once each dungeon is done (PROJECT.md §3c, §3f):
+ * its prize, if an item, and what Walker gives him after it. Dungeon 1: the
+ * daggers, and the Fireball, which Walker teaches him (owner 2026-10-21).
+ */
+export const EARNED_BY_DUNGEON: Readonly<Record<number, readonly ItemId[]>> = {
+  1: ['daggers', 'fireball'],
+};
 
 /**
  * What Jarrett holds at the start. A new game: nothing, since Walker hands
  * over the sword and shield in the village. A `?dungeon=n` play-test run
- * skips him: the sword and shield, and the prizes of the dungeons before n.
+ * skips him: the sword and shield, and what the dungeons before n earn.
  */
 export function startingKit(dungeon: number | null): ItemId[] {
   if (dungeon === null) return [];
-  const before = Object.entries(DUNGEON_PRIZES)
+  const before = Object.entries(EARNED_BY_DUNGEON)
     .filter(([n]) => Number(n) < dungeon)
-    .map(([, item]) => item);
+    .flatMap(([, items]) => items);
   return ['wooden-sword', 'wooden-shield', ...before];
+}
+
+/** Whether he has learned a spell (until then the status bar shows no mana). */
+export function knowsMagic(inv: Inventory): boolean {
+  return inv.owned.some((item) => ITEMS[item].slot === 'spell');
 }
 
 export const SLOT_NAMES: Readonly<Record<Slot, string>> = {
