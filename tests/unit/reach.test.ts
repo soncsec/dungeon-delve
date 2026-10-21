@@ -3,6 +3,7 @@ import { explore } from '../../src/logic/reach';
 import { buildWorld, type RoomDef } from '../../src/logic/world';
 import { DUNGEON_1, DUNGEON_1_START } from '../../src/world/dungeon1';
 import { DUNGEON_2, DUNGEON_2_START } from '../../src/world/dungeon2';
+import { DUNGEON_3, DUNGEON_3_START } from '../../src/world/dungeon3';
 import { SECRET_CAVES } from '../../src/world/caves';
 import { OVERWORLD, START_ROOM } from '../../src/world/overworld';
 
@@ -195,15 +196,51 @@ describe('the real maps', () => {
     expect(r.chests).toContain('2,2/14,3'); // the Mana Crystal's closet needs no fire
   });
 
+  it('dungeon 3 can be finished with the Fireball, and the Lightning found in it', () => {
+    const world = buildWorld(DUNGEON_3);
+    const r = explore(world, { ...DUNGEON_3_START, cx: 10, cy: 8 }, { fireball: true });
+    expect(r.rooms).toEqual([...world.rooms.keys()].sort());
+    const chests = [...world.chests].flatMap(([key, list]) =>
+      list.map((c) => `${key}/${c.col},${c.row}`),
+    );
+    expect(r.chests).toEqual(chests.sort());
+    expect(r.doors).toEqual(['1,1/10,1', '1,1/9,1', '1,3/10,1', '1,3/9,1']);
+    // Burned: the ossuary's thorns. Powered: the west crypt's and the hub's switches.
+    expect(r.broken).toEqual(['0,2/4,1', '0,3/9,4', '1,2/4,1']);
+    expect(r.exits).toEqual(['1,3/10,9', '1,3/9,9']);
+    expect(r.keys).toBe(0);
+  });
+
+  it('dungeon 3 needs its Lightning: without it, the tomb hall and the boss room stay shut', () => {
+    const noBolt = DUNGEON_3.map((d) => ({
+      ...d,
+      chests: (d.chests ?? []).map((c) =>
+        c.contents.kind === 'item' ? { ...c, contents: { kind: 'gems' as const, amount: 1 } } : c,
+      ),
+    }));
+    const r = explore(
+      buildWorld(noBolt),
+      { ...DUNGEON_3_START, cx: 10, cy: 8 },
+      { fireball: true },
+    );
+    expect(r.rooms).toEqual(['0,2', '0,3', '1,2', '1,3', '2,2']);
+    expect(r.chests).not.toContain('0,2/5,7'); // key 2 stays caged
+  });
+
+  it('dungeon 3 needs the Fireball too: without it, key 1 stays behind its thorns', () => {
+    const r = explore(buildWorld(DUNGEON_3), { ...DUNGEON_3_START, cx: 10, cy: 8 });
+    expect(r.rooms).toEqual(['0,3', '1,3']);
+  });
+
   it('every overworld room, door and secret cave can be reached (some caves need the Axe or Fireball)', () => {
     const world = buildWorld(OVERWORLD);
     const r = explore(world, { ...START_ROOM, cx: 10, cy: 5 });
     expect(r.rooms).toEqual([...world.rooms.keys()].sort());
-    // Hollow Oak's and Bog Grotto's archways, the shop's door, and the holes down to the
-    // secret caves that need no item; the false walls in front of some of them open on the way.
+    // Hollow Oak's, Bog Grotto's and Sunken Crypt's archways, the shop's door, and the holes
+    // down to the secret caves that need no item; the false walls in front of some open on the way.
     const hole = (c: (typeof SECRET_CAVES)[number]) =>
       `${c.room.col},${c.room.row}/${c.hole.col},${c.hole.row}`;
-    const doors = ['1,5/10,2', '1,5/9,2', '3,5/10,2', '3,5/9,2', '3,6/5,8'];
+    const doors = ['1,5/10,2', '1,5/9,2', '3,5/10,2', '3,5/9,2', '3,6/5,8', '5,4/10,2', '5,4/9,2'];
     const free = SECRET_CAVES.filter((c) => !c.opensWith).map(hole);
     expect(free).toHaveLength(7);
     expect(r.exits).toEqual([...doors, ...free].sort());

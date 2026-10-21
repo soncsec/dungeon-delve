@@ -139,6 +139,8 @@ export const THORN_TINT = 0xe0704c;
 
 /** The volcano edge is the mountains under a hot red tint. */
 export const VOLCANO_TINT = 0xffa486;
+/** Sunken Crypt: the dungeon stone under a dry, sandy tint. */
+export const CRYPT_TINT = 0xe8d0a0;
 
 /** Two tints at once, each channel multiplied: a thorn bush in a tinted room keeps its colour. */
 export function mixTint(a: number, b: number): number {

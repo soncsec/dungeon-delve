@@ -957,11 +957,20 @@ const ROOMS: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
-  // Sunken Crypt: the sealed archway of dungeon 3 (it opens in M5).
+  // Sunken Crypt: the archway of dungeon 3 (it opens with two shards).
   {
     col: 5,
     row: 4,
     region: 'ruins',
+    exits: [
+      {
+        cells: [
+          { col: 9, row: 2 },
+          { col: 10, row: 2 },
+        ],
+        to: { map: 'dungeon3', room: { col: 1, row: 3 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     enemies: [
       { kind: 'ghost', col: 6, row: 6 },
       { kind: 'robot', col: 16, row: 2 },
@@ -970,7 +979,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
       'FFFFFR..A.....FFFFFF',
-      'FF................FF',
+      'FF.......DD.......FF',
       'FFFF............FFFF',
       '..............r.....',
       '..T.#...r...........',

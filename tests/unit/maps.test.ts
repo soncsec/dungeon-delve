@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildWorld, joinProblems, roomKey } from '../../src/logic/world';
 import { TILE } from '../../src/config/tuning';
-import { MARSH_TINT } from '../../src/logic/tiles';
+import { CRYPT_TINT, MARSH_TINT } from '../../src/logic/tiles';
 import { DUNGEON_MAPS, MAPS, type MapId } from '../../src/world/maps';
 
 describe('maps', () => {
@@ -52,11 +52,23 @@ describe('maps', () => {
     expect(DUNGEON_MAPS[2]).toBe('dungeon2');
   });
 
-  it('Bog Grotto is a dungeon in the marsh’s colours; the other maps have no tint', () => {
+  it('Bog Grotto is a dungeon in the marsh’s colours, Sunken Crypt in sandy stone; the others have no tint', () => {
     expect(MAPS.dungeon2.name).toBe('Bog Grotto');
     expect(MAPS.dungeon2.tint).toBe(MARSH_TINT);
+    expect(MAPS.dungeon3.name).toBe('Sunken Crypt');
+    expect(MAPS.dungeon3.tint).toBe(CRYPT_TINT);
     for (const id of ['overworld', 'dungeon1', 'shop', 'caves'] as const) {
       expect(MAPS[id].tint).toBeUndefined();
     }
+  });
+
+  it('the overworld and Sunken Crypt lead into each other, through the ruins archway', () => {
+    const into = MAPS.overworld.rooms
+      .filter((r) => (r.exits ?? []).some((e) => e.to.map === 'dungeon3'))
+      .map((r) => `${r.col},${r.row}`);
+    expect(into).toEqual(['5,4']);
+    const out = MAPS.dungeon3.rooms.flatMap((r) => r.exits ?? []).map((e) => e.to);
+    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 5, row: 4 } })]);
+    expect(DUNGEON_MAPS[3]).toBe('dungeon3');
   });
 });
