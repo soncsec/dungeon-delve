@@ -96,6 +96,10 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('enemies', 'eye', 48, 48, 8, 1, [anim('fly', range(0, 8), 10)]),
   sheet('enemies', 'ghost', 64, 64, 6, 1, [anim('fly', range(0, 6), 8)]),
   sheet('enemies', 'wolf', 56, 32, 4, 1, [anim('run', range(0, 4), 10)]),
+  // M5.4: the marsh's snake, the ruins' mushroom, and the toad of the marsh and mountains.
+  sheet('enemies', 'snake', 27, 20, 4, 1, [anim('crawl', range(0, 4), 8)]),
+  sheet('enemies', 'mushroom', 41, 30, 10, 1, [anim('walk', range(0, 10), 10)]),
+  sheet('enemies', 'toad', 42, 38, 10, 1, [anim('hop', range(0, 10), 12)]),
 
   // Bosses (TinyRPG battle sprites), swaying where they stand: the Treant (dungeon 1),
   // the Giant Frog (dungeon 2) and the Mummy (dungeon 3).
@@ -126,6 +130,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('effects', 'puff', 64, 64, 7, 1, [anim('play', range(0, 7), 14, false)]),
   // The Fireball spell in flight (points right; rotated to its direction).
   sheet('effects', 'fire-ball', 52, 29, 3, 1, [anim('fly', range(0, 3), 12)]),
+  // The snake's venom.
+  sheet('effects', 'snake-spit', 14, 5, 1, 1),
   // The Lightning bolt: a crackling ball with sparks trailing behind (it points left).
   sheet('effects', 'bolt', 48, 32, 4, 1, [anim('fly', range(0, 4), 14)]),
   // The flying eye's shot.

@@ -183,6 +183,47 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyStats>> = {
     knockback: { speed: 140, ms: 150 },
     charge: { speed: 130, ms: 900, sight: 140, inLine: 8, restMs: 900 },
   },
+  // The marsh: slithers about, and when Jarrett is in line, spits venom along it, then coils
+  // a moment. Two hits.
+  snake: {
+    behaviour: 'spit',
+    health: 2,
+    contactDamage: 1,
+    speed: 24,
+    box: { halfWidth: 7, height: 10 },
+    flies: false,
+    turnMs: { min: 600, max: 1600 },
+    knockback: { speed: 160, ms: 150 },
+    spit: { sight: 128, inLine: 8, restMs: 1400 },
+    shotKind: 'venom',
+  },
+  // The ruins: plods about, and every few seconds puffs a ring of spores that drift a little
+  // way. Three hits.
+  mushroom: {
+    behaviour: 'puff',
+    health: 3,
+    contactDamage: 1,
+    speed: 14,
+    box: { halfWidth: 9, height: 14 },
+    flies: false,
+    turnMs: { min: 900, max: 2000 },
+    knockback: { speed: 120, ms: 150 },
+    shootMs: { min: 2600, max: 3600 },
+    puff: { shots: 6 },
+    shotKind: 'spore',
+  },
+  // The marsh and the mountains: sits, then hops at Jarrett. Two hits.
+  toad: {
+    behaviour: 'leap',
+    health: 2,
+    contactDamage: 1,
+    speed: 0,
+    box: { halfWidth: 9, height: 14 },
+    flies: false,
+    turnMs: { min: 1000, max: 1000 },
+    knockback: { speed: 140, ms: 150 },
+    leap: { speed: 120, ms: 350, restMs: { min: 700, max: 1300 } },
+  },
 };
 
 /** Falling (out of hearts): the screen fades out and back in, and he drops a share of his gems. */
@@ -309,6 +350,13 @@ export const ENEMY_SHOT = {
   size: 6,
   /** Half hearts. */
   damage: 1,
+} as const;
+
+/** Each kind of enemy shot: the eye's orb, the snake's venom (fast), the mushroom's spores (slow, short). */
+export const ENEMY_SHOTS = {
+  orb: ENEMY_SHOT,
+  venom: { speed: 150, range: 160, size: 6, damage: 1 },
+  spore: { speed: 40, range: 44, size: 8, damage: 1 },
 } as const;
 
 /** What a defeated enemy drops, in whole percent (the rest drops nothing). */

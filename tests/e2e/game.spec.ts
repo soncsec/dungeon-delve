@@ -579,9 +579,18 @@ test('Jarrett picks up potions up to three of each; a fourth stays on the ground
 });
 
 /** Each enemy kind's body height (ENEMIES in tuning.ts), to stand just above it. */
-const BODY_HEIGHT = { robot: 10, bird: 14, eye: 18, ghost: 22, wolf: 12 } as const;
+const BODY_HEIGHT = {
+  robot: 10,
+  bird: 14,
+  eye: 18,
+  ghost: 22,
+  wolf: 12,
+  snake: 10,
+  mushroom: 14,
+  toad: 14,
+} as const;
 
-for (const kind of ['bird', 'eye', 'ghost', 'wolf'] as const) {
+for (const kind of ['bird', 'eye', 'ghost', 'wolf', 'snake', 'mushroom', 'toad'] as const) {
   test(`the sword defeats a ${kind}`, async ({ page }) => {
     const watched = watchPage(page);
     await openGame(page);
@@ -607,6 +616,63 @@ for (const kind of ['bird', 'eye', 'ghost', 'wolf'] as const) {
     expect(watched.errors).toEqual([]);
   });
 }
+
+/** A dungeon 1 room (the hub) emptied, with Jarrett in the middle and full of hearts. */
+async function emptyHub(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.goToRoom(1, 2);
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(160, 94, 'left');
+  });
+}
+
+test('the snake spits venom along a line at Jarrett, then coils', async ({ page }) => {
+  const watched = watchPage(page);
+  await emptyHub(page);
+  // Level with him, to his left: it spits right, along the row.
+  await page.evaluate(() => window.__game?.spawnEnemy('snake', 60, 94));
+  await expect.poll(async () => (await snapshot(page)).shotsFired, { timeout: 5_000 }).toBe(1);
+  const shot = (await snapshot(page)).enemyShots[0];
+  expect(shot?.y).toBeCloseTo(89, 0); // from the middle of its body
+  await expect
+    .poll(async () => (await snapshot(page)).enemyShots[0]?.x ?? 999)
+    .toBeGreaterThan((shot?.x ?? 0) + 8);
+  // It coils: no second spit straight away.
+  await page.waitForTimeout(400);
+  expect((await snapshot(page)).shotsFired).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the mushroom puffs a ring of spores that drift a little way', async ({ page }) => {
+  const watched = watchPage(page);
+  await emptyHub(page);
+  await page.evaluate(() => window.__game?.spawnEnemy('mushroom', 240, 60));
+  // Its first puff comes 2.6 to 3.6 s (game time) after it appears, like the eye's first shot.
+  await expect
+    .poll(async () => (await snapshot(page)).shotsFired, { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  // One puff is six spores, all at once.
+  expect((await snapshot(page)).shotsFired).toBe(6);
+  // Spores go only a short way, then are gone.
+  await expect
+    .poll(async () => (await snapshot(page)).enemyShots.length, { timeout: 5_000 })
+    .toBe(0);
+  expect((await snapshot(page)).shotsFired).toBe(6);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the toad sits, then hops at Jarrett', async ({ page }) => {
+  const watched = watchPage(page);
+  await emptyHub(page);
+  await page.evaluate(() => window.__game?.spawnEnemy('toad', 260, 94));
+  const toad = async () => (await snapshot(page)).enemies[0];
+  await expect
+    .poll(async () => (await toad())?.charging, { timeout: 5_000, intervals: [50] })
+    .toBe(true);
+  await expect.poll(async () => (await toad())?.x ?? 999).toBeLessThan(245);
+  expect(watched.errors).toEqual([]);
+});
 
 test('the flying eye shoots at Jarrett, and a shot costs half a heart', async ({ page }) => {
   await openGame(page);

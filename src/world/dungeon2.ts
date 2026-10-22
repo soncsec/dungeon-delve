@@ -65,7 +65,7 @@ export const DUNGEON_2: readonly RoomDef[] = [
     chests: [{ col: 6, row: 4, contents: { kind: 'key' } }],
     enemies: [
       { kind: 'ghost', col: 12, row: 7 },
-      { kind: 'bird', col: 14, row: 3 },
+      { kind: 'snake', col: 14, row: 3 },
     ],
     lines: [
       '####################',
@@ -85,7 +85,7 @@ export const DUNGEON_2: readonly RoomDef[] = [
     col: 1,
     row: 2,
     enemies: [
-      { kind: 'bird', col: 5, row: 3 },
+      { kind: 'toad', col: 5, row: 3 },
       { kind: 'ghost', col: 14, row: 6 },
     ],
     lines: [
@@ -130,7 +130,7 @@ export const DUNGEON_2: readonly RoomDef[] = [
     chests: [{ col: 4, row: 3, contents: { kind: 'key' } }],
     enemies: [
       { kind: 'eye', col: 14, row: 3 },
-      { kind: 'robot', col: 10, row: 6 },
+      { kind: 'snake', col: 10, row: 6 },
     ],
     lines: [
       '####################',

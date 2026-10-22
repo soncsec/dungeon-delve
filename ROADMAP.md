@@ -129,16 +129,16 @@
 - [x] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre, in two PRs:
   - [x] M5.3a Seven tunnels under the mountains (in earthy stone; the cave needs three shards): the Axe behind thorns, rubble across the hub's way north and a boulder before key 2 (the Axe), key 1 caged behind a crystal switch (Lightning)
   - [x] M5.3b The Ogre: it lumbers side to side, raises its club and slams down a ring of shockwaves (eight, then twelve); only the Axe gets through its hide; beaten, it leaves the fourth shard and a heart container
-- [ ] M5.4 New enemy types for these regions
+- [x] M5.4 New enemy types for these regions: the snake (spits venom), the mushroom (puffs spores) and the toad (hops)
 - [x] M5.5 Walker's lines at dungeons 2–4 and on the overworld: a hint at each entrance (the boss, and what the dungeon's item does), and outside each once its shard is found (the way on; choosing spells; secrets the Axe opens). On a phone he names the touch buttons, not the keys
 
 **Acceptance criteria (each dungeon):** owner play-test; reachability test passes; the boss has its own attack pattern.
 
 ## M6 — Dungeons 5–8
 
-- [ ] M6.1 Dungeon 5, Thunder Spire: Lightning, Centaur
+- [ ] M6.1 Dungeon 5, Thunder Spire: Ward (moved from Crimson Manor: owner 2026-10-21), Centaur
 - [ ] M6.2 Dungeon 6, Witchwood Tower: Steel Sword, Witch (the mana upgrade moved to dungeon 3: owner 2026-10-21)
-- [ ] M6.3 Dungeon 7, Crimson Manor: Ward, Vampire
+- [ ] M6.3 Dungeon 7, Crimson Manor: Triple Daggers (owner 2026-10-21), Vampire
 - [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon
 - [ ] M6.5 Walker's lines at dungeons 5–8
 

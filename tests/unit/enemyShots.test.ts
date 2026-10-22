@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireShot, shotBox, stepShot, type ShotTuning } from '../../src/logic/enemyShots';
 
-const t: ShotTuning = { speed: 100, range: 50, size: 6 };
+const t: ShotTuning = { speed: 100, range: 50, size: 6, damage: 1 };
 const open = (): boolean => false;
 
 describe('enemy shots', () => {
@@ -66,6 +66,20 @@ describe('enemy shots', () => {
     const s = fireShot(from, dir);
     from.x = 99;
     dir.y = -1;
-    expect(s).toEqual({ pos: { x: 1, y: 2 }, dir: { x: 0, y: 1 }, travelled: 0, clear: false });
+    expect(s).toEqual({
+      kind: 'orb',
+      pos: { x: 1, y: 2 },
+      dir: { x: 0, y: 1 },
+      travelled: 0,
+      clear: false,
+    });
+  });
+});
+
+describe('kinds of enemy shot', () => {
+  it('an orb unless said otherwise; venom and spores keep their kind', () => {
+    expect(fireShot({ x: 0, y: 0 }, { x: 1, y: 0 }).kind).toBe('orb');
+    expect(fireShot({ x: 0, y: 0 }, { x: 1, y: 0 }, 'venom').kind).toBe('venom');
+    expect(fireShot({ x: 0, y: 0 }, { x: 1, y: 0 }, 'spore').kind).toBe('spore');
   });
 });
