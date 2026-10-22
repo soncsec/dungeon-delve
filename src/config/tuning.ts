@@ -153,10 +153,21 @@ export const TRIPLE_DAGGERS = {
  * shots back the way Jarrett faces (the Steel Sword: owner 2026-10-22).
  */
 export const BLADES = {
-  'wooden-sword': { damage: 1, bats: false },
-  'steel-sword': { damage: 2, bats: true },
-  'star-blade': { damage: 3, bats: true },
-  axe: { damage: 1, bats: false },
+  'wooden-sword': { damage: 1, bats: false, beam: false },
+  'steel-sword': { damage: 2, bats: true, beam: false },
+  'star-blade': { damage: 3, bats: true, beam: true },
+  axe: { damage: 1, bats: false, beam: false },
+} as const;
+
+/** The Star Blade's beam (owner 2026-10-22): with every heart full, a swing also sends one flying ahead. */
+export const BEAM = {
+  speed: 240,
+  range: 200,
+  length: 14,
+  thickness: 8,
+  damage: 2,
+  maxInFlight: 1,
+  cooldownMs: 0,
 } as const;
 
 /** A shot batted back: it flies the way Jarrett faces, and hurts what it hits (or shuts an eye statue). */

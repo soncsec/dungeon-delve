@@ -9,6 +9,7 @@ import {
   FIREBALL,
   LIGHTNING,
   BATTED,
+  BEAM,
   BLADES,
   TRIPLE_DAGGERS,
   EYE_STATUE,
@@ -336,8 +337,9 @@ export interface GameSnapshot {
   } | null;
   /** The Witch's decoys popped so far. */
   decoysPopped: number;
-  /** Shots batted back with the Steel Sword, and those in the air. */
+  /** Shots batted back with the Steel Sword, and those in the air; Star Blade beams sent. */
   batted: number;
+  beams: number;
   orbs: { x: number; y: number; dir: Facing }[];
   /** The Centaur's storm: bolts on their way (their patches' top-left cells), storms called, bolts landed. */
   strikes: { x: number; y: number }[];
@@ -359,7 +361,7 @@ export interface GameSnapshot {
   talking: { page: number; pages: number; lines: string[] } | null;
 }
 
-type ShotKind = 'dagger' | 'fireball' | 'bolt' | 'orb';
+type ShotKind = 'dagger' | 'fireball' | 'bolt' | 'orb' | 'beam';
 
 /** Something flying: a thrown dagger, a fireball or a Lightning bolt. */
 interface Shot {
@@ -369,13 +371,15 @@ interface Shot {
 }
 
 const SHOT_TUNING: Readonly<
-  Record<ShotKind, typeof DAGGER | typeof FIREBALL | typeof LIGHTNING | typeof BATTED>
+  Record<ShotKind, typeof DAGGER | typeof FIREBALL | typeof LIGHTNING | typeof BATTED | typeof BEAM>
 > = {
   dagger: DAGGER,
   fireball: FIREBALL,
   bolt: LIGHTNING,
   // A shot batted back with the Steel Sword.
   orb: BATTED,
+  // The Star Blade's beam.
+  beam: BEAM,
 };
 /** A stunned enemy is drawn pale blue (runtime tint, ADR-D05). */
 const STUN_TINT = 0x9fd8ff;
@@ -448,6 +452,8 @@ const BOSS_FACES_LEFT: ReadonlySet<BossKind> = new Set(['centaur', 'vampire']);
 
 /** The mushroom's spores: the enemy orb under a sickly green (runtime tint, ADR-D05). */
 const SPORE_TINT = 0x9fe070;
+/** The Star Blade's beam: the blade in starlit gold (runtime tint, as its icon). */
+const STAR_GOLD = 0xfff0a0;
 /** The Vampire's dark shots: the enemy orb under a deep purple (runtime tint). */
 const DARK_TINT = 0x9050d0;
 
@@ -584,6 +590,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private eyes: { x: number; y: number; dir: Facing; inMs: number }[] = [];
   /** Shots batted back with the Steel Sword so far, and the Witch's decoys popped. */
   private batted = 0;
+  /** Beams sent flying with the Star Blade so far. */
+  private beams = 0;
   private decoysPopped = 0;
   /** The Centaur's bolts on their way, each with its mark on the floor; storms called and bolts landed. */
   private strikes: { s: Strike; mark: Phaser.GameObjects.Sprite }[] = [];
@@ -676,6 +684,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.boltsLanded = 0;
     this.eyes = [];
     this.batted = 0;
+    this.beams = 0;
     this.decoysPopped = 0;
     this.enemiesHold = false;
     this.mode = 'near';
@@ -1920,12 +1929,17 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.enemyPool.give(live.sprite.clearTint().setFlipX(false).setAngle(0));
   }
 
+  /** The near weapon in hand, as a blade (the Wooden Sword when none is). */
+  private heldBlade(): (typeof BLADES)[keyof typeof BLADES] {
+    const near = this.inv.equipped.near;
+    return near && near in BLADES ? BLADES[near as keyof typeof BLADES] : BLADES['wooden-sword'];
+  }
+
   /** Every enemy under the blade takes one hit per swing; defeated ones vanish in a puff. */
   private swordHits(): void {
     const box = swordBox(this.pos, this.facing, SWORD);
     const near = this.inv.equipped.near;
-    const blade =
-      near && near in BLADES ? BLADES[near as keyof typeof BLADES] : BLADES['wooden-sword'];
+    const blade = this.heldBlade();
     for (const live of [...this.enemies]) {
       if (!overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind]))) continue;
       this.strike(live, blade.damage, this.swings, this.facing);
@@ -2423,11 +2437,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
           ? 'bolt'
           : kind === 'orb'
             ? 'enemy-shot'
-            : 'fire-ball',
+            : kind === 'beam'
+              ? 'sword-icon'
+              : 'fire-ball',
     );
+    // The beam is the blade itself, in gold, flying point first (its art points up and right).
+    if (kind === 'beam') sprite.setTint(STAR_GOLD);
     // The bolt's art points left; the others point right (an orb is round).
     const turn = ((d.turn ?? 0) * 180) / Math.PI;
-    sprite.setAngle(kind === 'orb' ? 0 : DAGGER_ANGLE[d.dir] + turn + (kind === 'bolt' ? 180 : 0));
+    const art = kind === 'bolt' ? 180 : kind === 'beam' ? 45 : 0;
+    sprite.setAngle(kind === 'orb' ? 0 : DAGGER_ANGLE[d.dir] + turn + art);
     if (kind === 'fireball') sprite.play(animKey('fire-ball', 'fly'));
     if (kind === 'bolt') sprite.play(animKey('bolt', 'fly'));
     if (kind === 'orb') sprite.play(animKey('enemy-shot', 'fly'));
@@ -2491,7 +2510,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   private dropShot(shot: Shot): void {
     this.shots = this.shots.filter((x) => x !== shot);
-    this.shotPool.give(shot.sprite.setAngle(0));
+    this.shotPool.give(shot.sprite.setAngle(0).clearTint());
   }
 
   /**
@@ -2610,6 +2629,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         : null,
       decoysPopped: this.decoysPopped,
       batted: this.batted,
+      beams: this.beams,
       orbs: this.shotsOf('orb'),
       strikes: this.strikes.map(({ s: st }) => ({ ...st.patch })),
       storms: this.storms,
@@ -2829,6 +2849,12 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const at = centre(box);
     const sideways = this.facing === 'left' || this.facing === 'right';
     const key = sideways ? 'slash-horizontal' : 'slash-upward';
+    // The Star Blade, with every heart full, sends a beam flying ahead.
+    const beams = this.heldBlade().beam && this.health.points >= this.health.max;
+    if (beams && this.countShots('beam') < BEAM.maxInFlight) {
+      this.beams += 1;
+      this.shoot('beam');
+    }
     this.slash
       .setTexture(key, 0)
       .setPosition(o.x + at.x, o.y + at.y)
