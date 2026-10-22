@@ -157,7 +157,12 @@ export const DUNGEON_3: readonly RoomDef[] = [
           { col: 9, row: 9 },
           { col: 10, row: 9 },
         ],
-        to: { map: 'overworld', room: { col: 10, row: 6 }, feet: { x: 160, y: 78 }, facing: 'down' },
+        to: {
+          map: 'overworld',
+          room: { col: 10, row: 6 },
+          feet: { x: 160, y: 78 },
+          facing: 'down',
+        },
       },
     ],
     lines: [
