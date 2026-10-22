@@ -151,7 +151,10 @@
   - [x] M6.3a The Triple Daggers (owner 2026-10-22: just a better throw): a fan of three, thrown faster, up to six in the air
   - [x] M6.3b Seven rooms of the manor (in old-blood red; the archway needs six shards): a foyer and two wings, a gallery with a library and a chapel above; key 1 behind sparks (the Ward), the Triple Daggers behind rubble (the Axe), key 2 caged by an eye statue (the Steel Sword), a Mana Brew behind a crystal switch (Lightning)
   - [x] M6.3c The Vampire (owner 2026-10-22): it glides after Jarrett; a touch drains half a heart and heals it a little; every so often it bursts into a whirl of dark shots and re-forms elsewhere, sooner below half health. Any weapon hurts it
-- [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon
+- [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon, in three PRs:
+  - [x] M6.4a The Star Blade (owner 2026-10-22: a beam at full hearts): three times the Wooden Sword's strength, it bats shots back like the Steel Sword, and with every heart full a swing also sends a golden beam flying ahead
+  - [ ] M6.4b Seven caverns of the Maw (in ember red; the cave needs seven shards): key 1 behind a boulder (the Axe), the Star Blade caged by an eye statue (the Steel Sword), key 2 behind sparks (the Ward), a Health Potion behind a crystal switch (Lightning)
+  - [ ] M6.4c The Dragon (owner 2026-10-22: fire breath and tail)
 - [ ] M6.5 Walker's lines at dungeons 5–8
 
 ## M7 — Shadow Vault and ending

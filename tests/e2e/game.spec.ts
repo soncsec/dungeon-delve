@@ -2042,6 +2042,37 @@ test('the beaten Vampire leaves a heart container and Crimson Manor’s shard', 
   expect(watched.errors).toEqual([]);
 });
 
+test('the Star Blade sends a beam at full hearts, and none with a heart missing', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.giveItem('star-blade'));
+  await chooseItem(page, 'near', 'Star Blade');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the hub
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(60, 94, 'right');
+    window.__game?.spawnEnemy('robot', 220, 94); // far across the room
+  });
+  // Every heart full: the swing sends a beam, which beats the robot (2 of its 2).
+  await swingOnce(page);
+  expect((await snapshot(page)).beams).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).defeated).toBe(1);
+  // A heart down: a swing is only a swing.
+  await page.evaluate(() => {
+    window.__game?.setHealth(5);
+    window.__game?.spawnEnemy('robot', 220, 94);
+  });
+  await swingOnce(page);
+  await page.waitForTimeout(500);
+  const s = await snapshot(page);
+  expect(s.beams).toBe(1);
+  expect(s.defeated).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {
