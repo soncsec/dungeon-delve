@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { awayFrom, boxHitsSolid, facingFor, moveHero, type Box } from '../../src/logic/hero';
+import {
+  awayFrom,
+  boxCells,
+  boxHitsSolid,
+  facingFor,
+  moveHero,
+  type Box,
+} from '../../src/logic/hero';
 
 const box: Box = { halfWidth: 5, height: 6 };
 /** Solid cells given as "x,y" strings. */
@@ -90,5 +97,24 @@ describe('awayFrom', () => {
   it('pushes sideways when exactly diagonal or on top', () => {
     expect(awayFrom({ x: 0, y: 0 }, { x: 5, y: 5 })).toBe('right');
     expect(awayFrom({ x: 0, y: 0 }, { x: 0, y: 0 })).toBe('right');
+  });
+});
+
+describe('boxCells', () => {
+  it('lists the cells a box covers, as boxHitsSolid counts them', () => {
+    // 10 wide, 6 tall, feet at (40, 48): x 35-45, y 42-48: cells 2,2 only.
+    expect([...boxCells({ x: 40, y: 48 }, { halfWidth: 5, height: 6 })]).toEqual(['2,2']);
+    // Across a cell line both ways: x 169-183, y 78-88.
+    expect([...boxCells({ x: 176, y: 88 }, { halfWidth: 7, height: 10 })].sort()).toEqual([
+      '10,4',
+      '10,5',
+      '11,4',
+      '11,5',
+    ]);
+  });
+
+  it('flush against a cell line, not the next cell', () => {
+    // x 22-32, y 26-32: right and bottom edges on the lines at 32.
+    expect([...boxCells({ x: 27, y: 32 }, { halfWidth: 5, height: 6 })]).toEqual(['1,1']);
   });
 });
