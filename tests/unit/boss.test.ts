@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   bossBody,
   bossShotOrigin,
+  gallopWay,
   hitBoss,
+  isGalloping,
   isAirborne,
   isBeaten,
   isFierce,
@@ -44,6 +46,8 @@ const boss = (over: Partial<Boss> = {}): Boss => ({
   phase: 'sit',
   leap: null,
   stunMs: 0,
+  dash: null,
+  restMs: 0,
   ...over,
 });
 const hero = { x: 160, y: 140 };
@@ -311,5 +315,142 @@ describe('the Ogre: a wind-up, a ring of shockwaves, and a hide only the Axe get
     const r = stepBoss(boss({ shootInMs: 10 }), 20, hero, s, firstRng);
     expect(r.shots).toHaveLength(3);
     expect(r.boss.phase).toBe('sit');
+  });
+});
+
+describe('the Centaur: pacing, galloping when level with Jarrett, and a storm for an attack', () => {
+  const m = {
+    style: 'gallop' as const,
+    speed: 20,
+    dashSpeed: 100,
+    dashMs: 1000,
+    sight: 200,
+    inLine: 12,
+    restMs: 900,
+    arena: { x: 50, y: 70, w: 220, h: 50 },
+  };
+  const c: BossStats = {
+    health: 12,
+    contactDamage: 2,
+    box: { halfWidth: 22, height: 64 },
+    moves: m,
+    windUpMs: 900,
+    storm: true,
+    calm: { shots: 0, spreadDeg: 0, everyMs: { min: 2600, max: 2600 } },
+    fierce: { shots: 0, spreadDeg: 0, everyMs: { min: 1800, max: 1800 } },
+  };
+  const centaur = (over: Partial<Boss> = {}): Boss =>
+    boss({
+      kind: 'centaur',
+      pos: { x: 160, y: 100 },
+      home: { x: 160, y: 100 },
+      health: 12,
+      ...over,
+    });
+
+  it('sees him level with it along a row or a column, within sight', () => {
+    const at = { x: 160, y: 100 };
+    expect(gallopWay(at, { x: 260, y: 108 }, m)).toEqual({ x: 1, y: 0 });
+    expect(gallopWay(at, { x: 60, y: 92 }, m)).toEqual({ x: -1, y: 0 });
+    expect(gallopWay(at, { x: 150, y: 20 }, m)).toEqual({ x: 0, y: -1 });
+    expect(gallopWay(at, { x: 170, y: 180 }, m)).toEqual({ x: 0, y: 1 });
+    expect(gallopWay(at, { x: 400, y: 100 }, m)).toBeNull(); // too far
+    expect(gallopWay(at, { x: 160, y: 400 }, m)).toBeNull();
+    expect(gallopWay(at, { x: 200, y: 140 }, m)).toBeNull(); // not level
+    expect(gallopWay(at, at, m)).toBeNull(); // on top of it
+  });
+
+  it('paces towards him, inside its arena, when he is not level with it', () => {
+    const r = stepBoss(centaur(), 1000, { x: 100, y: 160 }, c, firstRng);
+    expect(r.boss.pos.x).toBeLessThan(160);
+    expect(r.boss.pos.y).toBeGreaterThan(100);
+    expect(r.boss.pos.y).toBeLessThanOrEqual(120);
+    expect(r.boss.heading).toBe(-1);
+    expect(r.storm).toBe(false);
+    expect(
+      stepBoss(centaur({ heading: -1 }), 1000, { x: 260, y: 20 }, c, firstRng).boss.heading,
+    ).toBe(1);
+    // Straight below, beyond sight: it paces down, still facing the same way.
+    expect(stepBoss(centaur(), 100, { x: 160, y: 400 }, c, firstRng).boss.heading).toBe(1);
+    // On top of it: nowhere to go.
+    expect(stepBoss(centaur(), 100, { x: 160, y: 100 }, c, firstRng).boss.pos).toEqual({
+      x: 160,
+      y: 100,
+    });
+  });
+
+  it('level with him, it gallops along the line, fast, then rests at the edge of its arena', () => {
+    let b = stepBoss(centaur(), 16, { x: 260, y: 100 }, c, firstRng).boss;
+    expect(isGalloping(b)).toBe(true);
+    expect(b.dash).toEqual({ dir: { x: 1, y: 0 }, ms: 1000 });
+    b = stepBoss(b, 500, { x: 260, y: 100 }, c, firstRng).boss;
+    expect(b.pos.x).toBe(210); // 100 px a second
+    expect(b.heading).toBe(1);
+    b = stepBoss(b, 500, { x: 260, y: 100 }, c, firstRng).boss;
+    expect(b.pos.x).toBe(260);
+    // Its time is up: it rests, standing still.
+    expect(isGalloping(b)).toBe(false);
+    expect(b.restMs).toBe(900);
+    const resting = stepBoss(b, 400, { x: 60, y: 100 }, c, firstRng).boss;
+    expect(resting.pos).toEqual(b.pos);
+    expect(resting.restMs).toBe(500);
+    // At the arena's edge a dash ends early.
+    const left = stepBoss(
+      centaur({ pos: { x: 100, y: 100 }, dash: { dir: { x: -1, y: 0 }, ms: 1000 } }),
+      1500,
+      { x: 0, y: 0 },
+      c,
+      firstRng,
+    );
+    expect(left.boss.pos.x).toBe(50);
+    expect(left.boss.heading).toBe(-1);
+    expect(left.boss.dash).toBeNull();
+    // Up and down, it keeps facing the way it did.
+    const up = stepBoss(
+      centaur({ dash: { dir: { x: 0, y: -1 }, ms: 1000 } }),
+      100,
+      { x: 0, y: 0 },
+      c,
+      firstRng,
+    );
+    expect(up.boss.heading).toBe(1);
+    expect(up.boss.pos.y).toBe(90);
+  });
+
+  it('when its timer runs out, it rears (standing still), then calls the storm', () => {
+    const rears = stepBoss(centaur({ shootInMs: 10 }), 20, { x: 100, y: 160 }, c, firstRng);
+    expect(rears.boss).toMatchObject({ phase: 'crouch', shootInMs: 900 });
+    expect(rears.storm).toBe(false);
+    const still = stepBoss(rears.boss, 400, { x: 260, y: 100 }, c, firstRng);
+    expect(still.boss.pos).toEqual(rears.boss.pos);
+    expect(still.boss.dash).toBeNull(); // rearing, it won't gallop
+    expect(still.boss.shootInMs).toBe(500);
+    const storm = stepBoss(still.boss, 500, { x: 100, y: 160 }, c, firstRng);
+    expect(storm.storm).toBe(true);
+    expect(storm.shots).toEqual([]);
+    expect(storm.boss).toMatchObject({ phase: 'sit', shootInMs: 2600 });
+    // Fiercer below half health: storms come sooner.
+    const fierce = stepBoss(
+      centaur({ health: 6, phase: 'crouch', shootInMs: 0 }),
+      10,
+      hero,
+      c,
+      firstRng,
+    );
+    expect(fierce.boss.shootInMs).toBe(1800);
+  });
+
+  it('with no wind-up, it calls the storm on the next step', () => {
+    const quick: BossStats = { ...c, moves: m };
+    delete (quick as { windUpMs?: number }).windUpMs;
+    const r = stepBoss(centaur({ shootInMs: 10 }), 20, { x: 100, y: 160 }, quick, firstRng);
+    expect(r.boss).toMatchObject({ phase: 'crouch', shootInMs: 0 });
+    expect(stepBoss(r.boss, 16, { x: 100, y: 160 }, quick, firstRng).storm).toBe(true);
+  });
+
+  it('any weapon hurts it', () => {
+    expect(glancesOff(centaur(), c, 'wooden-sword')).toBe(false);
+    expect(glancesOff(centaur(), c, null)).toBe(false);
+    expect(hitBoss(centaur(), 1, 7, 100, c, 'wooden-sword').health).toBe(11);
   });
 });
