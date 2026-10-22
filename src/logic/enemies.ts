@@ -20,7 +20,7 @@ export type Behaviour =
   'wander' | 'flutter' | 'drift' | 'hover' | 'charge' | 'spit' | 'puff' | 'leap';
 
 /** What an enemy shoots: the eye's orb, the snake's venom, the mushroom's spores. */
-export type ShotKind = 'orb' | 'venom' | 'spore';
+export type ShotKind = 'orb' | 'venom' | 'spore' | 'fire';
 
 export interface EnemyStats {
   behaviour: Behaviour;

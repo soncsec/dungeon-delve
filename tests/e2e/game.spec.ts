@@ -1803,6 +1803,87 @@ test('in Witchwood Tower, an orb batted back into the great stair’s eye opens 
   expect(watched.errors).toEqual([]);
 });
 
+/** Into Witchwood Tower's boss room (by the test hook), Jarrett placed at once at `at`. */
+async function enterWitchRoom(page: Page, at: { x: number; y: number }): Promise<void> {
+  await openGame(page, '?dungeon=6');
+  await page.evaluate(({ x, y }) => {
+    window.__game?.goToRoom(1, 0);
+    window.__game?.placeHero(x, y, 'up');
+  }, at);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('witch');
+}
+
+test('the Witch throws fire, vanishes, and appears somewhere else', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterWitchRoom(page, { x: 160, y: 126 });
+  const start = (await snapshot(page)).boss;
+  await page.evaluate(() => window.__game?.enemiesShootNow());
+  await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(3);
+  // Gone for a moment...
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.gone, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  // ...then back, at another spot.
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.gone, { timeout: 10_000, intervals: [50] })
+    .toBe(false);
+  const moved = (await snapshot(page)).boss;
+  expect({ x: moved?.x, y: moved?.y }).not.toEqual({ x: start?.x, y: start?.y });
+  expect(watched.errors).toEqual([]);
+});
+
+test('below half health the Witch brings decoys; a blow pops one and never hurts her', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterWitchRoom(page, { x: 160, y: 126 });
+  await page.evaluate(() => window.__game?.setBossHealth(5));
+  // Her next appearance brings two decoys.
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.decoys.length, {
+      timeout: 15_000,
+      intervals: [50],
+    })
+    .toBe(2);
+  // Held still, her fire cleared away.
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+  });
+  const s = await snapshot(page);
+  const decoy = s.boss?.decoys[0] ?? { x: 0, y: 0 };
+  // Beside the first decoy, facing it: one blow, and it is gone; she keeps her health.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 22, y, 'right'), decoy);
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).decoysPopped).toBe(1);
+  const after = await snapshot(page);
+  expect(after.boss?.decoys).toHaveLength(1);
+  expect(after.boss?.health).toBe(5);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Witch leaves a heart container and Witchwood Tower’s shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterWitchRoom(page, { x: 160, y: 126 });
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+    window.__game?.setBossHealth(1);
+  });
+  const boss = (await snapshot(page)).boss;
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 22, y, 'right'), {
+    x: boss?.x ?? 0,
+    y: boss?.y ?? 0,
+  });
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(kinds).toEqual(['heart-container', 'shard']);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {

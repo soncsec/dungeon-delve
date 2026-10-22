@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   bossBody,
+  blinkSpots,
   bossShotOrigin,
   gallopWay,
   hitBoss,
   isGalloping,
+  isGone,
+  popDecoy,
   isAirborne,
   isBeaten,
   isFierce,
@@ -48,6 +51,9 @@ const boss = (over: Partial<Boss> = {}): Boss => ({
   stunMs: 0,
   dash: null,
   restMs: 0,
+  stayMs: 0,
+  goneMs: 0,
+  decoys: [],
   ...over,
 });
 const hero = { x: 160, y: 140 };
@@ -452,5 +458,98 @@ describe('the Centaur: pacing, galloping when level with Jarrett, and a storm fo
     expect(glancesOff(centaur(), c, 'wooden-sword')).toBe(false);
     expect(glancesOff(centaur(), c, null)).toBe(false);
     expect(hitBoss(centaur(), 1, 7, 100, c, 'wooden-sword').health).toBe(11);
+  });
+});
+
+describe('the Witch: blinking from spot to spot, with decoys when fierce', () => {
+  const spots = [
+    { x: 60, y: 80 },
+    { x: 160, y: 80 },
+    { x: 260, y: 80 },
+    { x: 60, y: 120 },
+  ];
+  const m = {
+    style: 'blink' as const,
+    stayMs: { min: 2000, max: 2000 },
+    goneMs: 500,
+    spots,
+    decoys: 2,
+  };
+  const w: BossStats = {
+    health: 10,
+    contactDamage: 2,
+    box: { halfWidth: 14, height: 60 },
+    moves: m,
+    shotKind: 'fire',
+    calm: { shots: 3, spreadDeg: 20, everyMs: { min: 1500, max: 1500 } },
+    fierce: { shots: 3, spreadDeg: 25, everyMs: { min: 1000, max: 1000 } },
+  };
+  const witch = (over: Partial<Boss> = {}): Boss =>
+    boss({ kind: 'witch', pos: { x: 60, y: 80 }, home: { x: 60, y: 80 }, stayMs: 2000, ...over });
+
+  it('starts with a stay at its spot', () => {
+    expect(spawnBoss('witch', { x: 60, y: 80 }, w, firstRng).stayMs).toBe(2000);
+    expect(spawnBoss('treant', { x: 60, y: 80 }, s, firstRng).stayMs).toBe(0);
+  });
+
+  it('picks spots to appear at: all different, never where it was, no more than there are', () => {
+    expect(blinkSpots({ x: 60, y: 80 }, m, 3, firstRng)).toEqual([
+      { x: 160, y: 80 },
+      { x: 260, y: 80 },
+      { x: 60, y: 120 },
+    ]);
+    expect(blinkSpots({ x: 60, y: 80 }, m, 9, firstRng)).toHaveLength(3);
+  });
+
+  it('throws its spread when its timer runs out, standing at its spot', () => {
+    const r = stepBoss(witch({ shootInMs: 10 }), 20, hero, w, firstRng);
+    expect(r.shots).toHaveLength(3);
+    expect(r.boss.pos).toEqual({ x: 60, y: 80 });
+    expect(r.boss.shootInMs).toBe(1500);
+    expect(stepBoss(witch(), 20, hero, w, firstRng).shots).toEqual([]);
+  });
+
+  it('vanishes when its stay is up (nothing lands on it then), and appears elsewhere', () => {
+    const gone = stepBoss(witch({ stayMs: 10 }), 20, hero, w, firstRng).boss;
+    expect(isGone(gone)).toBe(true);
+    expect(hitBoss(gone, 1, 9, 100, w, 'wooden-sword')).toEqual(gone);
+    const still = stepBoss(gone, 200, hero, w, firstRng).boss;
+    expect(isGone(still)).toBe(true);
+    const back = stepBoss(still, 300, hero, w, firstRng).boss;
+    expect(isGone(back)).toBe(false);
+    expect(back.pos).toEqual({ x: 160, y: 80 });
+    expect(back.stayMs).toBe(2000);
+    expect(back.decoys).toEqual([]); // calm: no decoys
+  });
+
+  it('fierce, it appears with two look-alike decoys at other spots', () => {
+    const back = stepBoss(witch({ health: 5, goneMs: 10 }), 20, hero, w, firstRng).boss;
+    expect(back.pos).toEqual({ x: 160, y: 80 });
+    expect(back.decoys).toEqual([
+      { x: 260, y: 80 },
+      { x: 60, y: 120 },
+    ]);
+    // When it vanishes again, so do they.
+    expect(stepBoss({ ...back, stayMs: 5 }, 10, hero, w, firstRng).boss.decoys).toEqual([]);
+  });
+
+  it('with nowhere else to go, it comes back where it was', () => {
+    const lone = { ...m, spots: [{ x: 60, y: 80 }] };
+    const back = stepBoss(witch({ goneMs: 10 }), 20, hero, { ...w, moves: lone }, firstRng).boss;
+    expect(back.pos).toEqual({ x: 60, y: 80 });
+  });
+
+  it('a blow pops a decoy, and the Witch is none the worse; any weapon hurts the real one', () => {
+    const b = witch({
+      decoys: [
+        { x: 160, y: 80 },
+        { x: 260, y: 80 },
+      ],
+    });
+    const popped = popDecoy(b, 0);
+    expect(popped.decoys).toEqual([{ x: 260, y: 80 }]);
+    expect(popped.health).toBe(10);
+    expect(hitBoss(b, 2, 4, 100, w, 'steel-sword').health).toBe(8);
+    expect(hitBoss(b, 1, 5, 100, w, null).health).toBe(9);
   });
 });
