@@ -1,7 +1,7 @@
 /**
  * Dungeon 5, Thunder Spire (PROJECT.md §3c): seven rooms up a stormy tower in the mountains.
  *
- *                  [boss room]                  the Centaur (M6.1c)
+ *                  [boss room]                  the Centaur
  *                  [upper hall]                 a Mana Brew; locked door north (needs key 2)
  *   [west gallery] [stair hall] [east gallery]  west: the Ward, caged; stair hall: sparks north;
  *                                               east: key 2 behind sparks
@@ -19,10 +19,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_5_START = { col: 1, row: 3 } as const;
 
 export const DUNGEON_5: readonly RoomDef[] = [
-  // The boss room: the Centaur (M6.1c).
+  // The boss room: the Centaur.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'centaur', col: 10, row: 6 },
     lines: [
       '####################',
       '####################',

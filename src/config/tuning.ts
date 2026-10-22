@@ -337,7 +337,43 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     fierce: { shots: 12, spreadDeg: 30, everyMs: { min: 1600, max: 2000 } },
     hide: 'axe',
   },
+  // Dungeon 5: paces, gallops at Jarrett when he is level with it, and rears to call down a
+  // storm of lightning (STORM; owner 2026-10-22). Any weapon hurts it.
+  centaur: {
+    health: 12,
+    contactDamage: 2,
+    box: { halfWidth: 22, height: 64 },
+    moves: {
+      style: 'gallop',
+      speed: 18,
+      dashSpeed: 140,
+      dashMs: 1000,
+      sight: 220,
+      inLine: 12,
+      restMs: 900,
+      arena: { x: 52, y: 72, w: 216, h: 52 },
+    },
+    windUpMs: 900,
+    storm: true,
+    calm: { shots: 0, spreadDeg: 0, everyMs: { min: 2600, max: 3400 } },
+    fierce: { shots: 0, spreadDeg: 0, everyMs: { min: 1800, max: 2400 } },
+  },
 };
+
+/**
+ * The Centaur's storm (logic/storm.ts): bolts strike 2×2-cell patches of its
+ * room's floor (cells 2-17 across, 2-7 down) this long after their marks
+ * appear, each costing this many half hearts. Calm, the patch under Jarrett
+ * and `others` more; fierce, all but one.
+ */
+export const STORM = {
+  delayMs: 800,
+  damage: 2,
+  others: 3,
+  arena: { x: 2, y: 2, across: 8, down: 3 },
+  /** The marks are shadows on the floor, not holes in it. */
+  markAlpha: 0.55,
+} as const;
 
 /** Overworld enemies come back once Jarrett has been through this many other rooms (owner 2026-10-21). */
 export const RESPAWN = { roomsAway: 4 } as const;
@@ -364,6 +400,8 @@ export const BOSS_FX = {
   /** A leaper squats this much while it crouches, and casts this shadow while in the air. */
   crouch: { x: 1.08, y: 0.9 },
   shadow: { height: 8, alpha: 0.35 },
+  /** A storm-caller rears up this much while it winds up (the warning). */
+  rear: { x: 0.95, y: 1.08 },
 } as const;
 
 /** The flying eye's shot. */
@@ -451,7 +489,9 @@ export type SfxName =
   | 'switch'
   | 'ward'
   | 'spark'
-  | 'found';
+  | 'found'
+  | 'rumble'
+  | 'thunder';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -567,6 +607,9 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
       volume: 0.3,
       steps: [1, 1.26, 1.5, 1.68, 2, 2],
     },
+    // The Centaur's storm: a low rumble as the marks go down, a sharp crack as the bolts strike.
+    rumble: { wave: 'noise', seconds: 0.7, from: 180, to: 90, attack: 0.15, volume: 0.4 },
+    thunder: { wave: 'noise', seconds: 0.45, from: 3500, to: 200, attack: 0.002, volume: 0.45 },
   },
 };
 

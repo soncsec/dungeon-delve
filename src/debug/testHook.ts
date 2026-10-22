@@ -36,7 +36,7 @@ export interface TestHook {
   fireEnemyShot(x: number, y: number, dx: number, dy: number): void;
   /** Stop enemies moving and shooting (true), or let them go again; knockback still moves them. */
   holdEnemies(hold: boolean): void;
-  /** Every enemy's shooting timer runs out now: each one that shoots (or puffs) does so at its next step. */
+  /** Every enemy's (and the boss's) attack timer runs out now: each attacks at its next step. */
   enemiesShootNow(): void;
   /** The next defeated enemy drops this, instead of the random roll. */
   nextDrop(drop: 'gem' | 'heart'): void;

@@ -30,6 +30,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/bosses/frog.png` — `TinyRPG/Characters/Battle Sprites/Living Pack 1/Frog/Frog-sheet.png`
 - `assets/bosses/mummy.png` — `TinyRPG/Characters/Battle Sprites/Living Pack 1/Mummy/Mummy-sheet.png`
 - `assets/bosses/ogre.png` — `TinyRPG/Characters/Battle Sprites/Living Pack 1/Ogre/Ogre-sheet.png`
+- `assets/bosses/centaur.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/centaur.png`
 
 ### Tiles
 
@@ -49,6 +50,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/effects/bolt.png` — `Explosions and Magic/Warped shooting fx/Bolt/spritesheet.png`
 - `assets/effects/enemy-shot.png` — `Gothicvania/Misc/EnemyProjectile/spritesheet.png`
 - `assets/effects/snake-spit.png` — `Warped/Characters/Grotto-escape-2-snake/spritesheets/spit.png`
+- `assets/effects/electro-shock.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/electro-shock.png`, the Centaur's lightning
 - `assets/effects/ward.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/energy-shield.png`, the Ward spell's bubble
 - `assets/effects/spark.png` — a spark barrier: 16×16 tiles cut, unchanged, from the middle of `Explosions and Magic/Warped shooting fx/waveform/spritesheet.png` by `tools/art/spark_barrier.py` (owner decision 2026-10-21)
 

@@ -6,6 +6,8 @@
  * wrapped tight, it takes hits only while a Lightning bolt has it stunned.
  * The Ogre lumbers side to side, raises its club and slams it down in a ring
  * of shockwaves; its hide is too thick for anything but the Axe.
+ * The Centaur paces, and gallops at Jarrett when he is level with it; it rears,
+ * and calls down a storm of lightning (logic/storm.ts) instead of shooting.
  * Below half health a boss turns fiercer: more shots, more often. A hit (by
  * id, so each lands once) costs it health; at zero it is beaten.
  */
@@ -14,7 +16,7 @@ import type { Point } from './movement';
 import type { Rng } from './rng';
 import type { Vec } from './enemies';
 
-export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre';
+export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur';
 
 /** How a boss moves. */
 export type BossMoves =
@@ -37,6 +39,22 @@ export type BossMoves =
       leapMs: number;
       reach: number;
       peak: number;
+      arena: { x: number; y: number; w: number; h: number };
+    }
+  /**
+   * Pacing towards Jarrett at `speed`; when he is level with it (within
+   * `inLine` px of its row or column, and `sight` px away) it gallops along
+   * that line at `dashSpeed` for up to `dashMs`, stopping at the arena's edge,
+   * then rests `restMs`. Its feet stay inside `arena` (room pixels).
+   */
+  | {
+      style: 'gallop';
+      speed: number;
+      dashSpeed: number;
+      dashMs: number;
+      sight: number;
+      inLine: number;
+      restMs: number;
       arena: { x: number; y: number; w: number; h: number };
     };
 
@@ -65,6 +83,8 @@ export interface BossStats {
   ring?: boolean;
   /** A hide only the Axe gets through (the Ogre): other blows, and every shot, glance off. */
   hide?: 'axe';
+  /** Its attack is a storm of lightning (the Centaur), not shots: logic/storm.ts says where. */
+  storm?: boolean;
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -91,6 +111,9 @@ export interface Boss {
   leap: Leap | null;
   /** Time left stunned by Lightning (ms): it stands still and fires nothing. */
   stunMs: number;
+  /** A galloper's dash: its way, and the time left (ms); then the time left resting. */
+  dash: { dir: Vec; ms: number } | null;
+  restMs: number;
 }
 
 export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): Boss {
@@ -106,6 +129,8 @@ export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): B
     phase: 'sit',
     leap: null,
     stunMs: 0,
+    dash: null,
+    restMs: 0,
   };
 }
 
@@ -148,13 +173,18 @@ export function stepBoss(
   hero: Point,
   s: BossStats,
   rng: Rng,
-): { boss: Boss; shots: Vec[] } {
+): { boss: Boss; shots: Vec[]; storm: boolean } {
   if (b.stunMs > 0) {
     const stunMs = Math.max(0, b.stunMs - dtMs);
-    return { boss: { ...b, stunMs, flashMs: Math.max(0, b.flashMs - dtMs) }, shots: [] };
+    return {
+      boss: { ...b, stunMs, flashMs: Math.max(0, b.flashMs - dtMs) },
+      shots: [],
+      storm: false,
+    };
   }
   const m = s.moves;
-  if (m.style === 'hop') return stepLeaper(b, dtMs, hero, s, m, rng);
+  if (m.style === 'hop') return { ...stepLeaper(b, dtMs, hero, s, m, rng), storm: false };
+  if (m.style === 'gallop') return stepGalloper(b, dtMs, hero, s, m, rng);
   const mood = isFierce(b, s) ? s.fierce : s.calm;
   let x = b.pos.x;
   let y = b.pos.y;
@@ -208,7 +238,99 @@ export function stepBoss(
       flashMs: Math.max(0, b.flashMs - dtMs),
     },
     shots,
+    storm: false,
   };
+}
+
+type GallopMoves = Extract<BossMoves, { style: 'gallop' }>;
+
+/** Keeps feet inside an arena. */
+function within(p: Point, arena: { x: number; y: number; w: number; h: number }): Point {
+  return {
+    x: Math.min(arena.x + arena.w, Math.max(arena.x, p.x)),
+    y: Math.min(arena.y + arena.h, Math.max(arena.y, p.y)),
+  };
+}
+
+/** Which way to gallop: along the row or column Jarrett shares with it, if he is in sight. */
+export function gallopWay(from: Point, hero: Point, m: GallopMoves): Vec | null {
+  const dx = hero.x - from.x;
+  const dy = hero.y - from.y;
+  if (Math.abs(dy) <= m.inLine && dx !== 0 && Math.abs(dx) <= m.sight) {
+    return { x: Math.sign(dx), y: 0 };
+  }
+  if (Math.abs(dx) <= m.inLine && dy !== 0 && Math.abs(dy) <= m.sight) {
+    return { x: 0, y: Math.sign(dy) };
+  }
+  return null;
+}
+
+/**
+ * A galloper: it rests after a dash; dashes along its line; otherwise rears
+ * when its timer runs out (standing still, `windUpMs`), then calls the storm;
+ * otherwise gallops if Jarrett is level with it, or paces towards him.
+ */
+function stepGalloper(
+  b: Boss,
+  dtMs: number,
+  hero: Point,
+  s: BossStats,
+  m: GallopMoves,
+  rng: Rng,
+): { boss: Boss; shots: Vec[]; storm: boolean } {
+  const flashMs = Math.max(0, b.flashMs - dtMs);
+  const still = { boss: { ...b, flashMs }, shots: [] as Vec[], storm: false };
+  if (b.dash) {
+    const step = (m.dashSpeed * Math.min(dtMs, b.dash.ms)) / 1000;
+    const want = { x: b.pos.x + b.dash.dir.x * step, y: b.pos.y + b.dash.dir.y * step };
+    const pos = within(want, m.arena);
+    const ms = b.dash.ms - dtMs;
+    // A dash ends when its time is up, or at the arena's edge; then it rests.
+    const over = ms <= 0 || pos.x !== want.x || pos.y !== want.y;
+    return {
+      ...still,
+      boss: {
+        ...still.boss,
+        pos,
+        heading: b.dash.dir.x < 0 ? -1 : b.dash.dir.x > 0 ? 1 : b.heading,
+        dash: over ? null : { ...b.dash, ms },
+        restMs: over ? m.restMs : 0,
+      },
+    };
+  }
+  if (b.restMs > 0)
+    return { ...still, boss: { ...still.boss, restMs: Math.max(0, b.restMs - dtMs) } };
+  const mood = isFierce(b, s) ? s.fierce : s.calm;
+  const shootInMs = b.shootInMs - dtMs;
+  if (b.phase === 'crouch') {
+    // Rearing: when it is done, the storm.
+    if (shootInMs > 0) return { ...still, boss: { ...still.boss, shootInMs } };
+    const next = rng.int(mood.everyMs.min, mood.everyMs.max);
+    return { ...still, boss: { ...still.boss, phase: 'sit', shootInMs: next }, storm: true };
+  }
+  if (shootInMs <= 0) {
+    return { ...still, boss: { ...still.boss, phase: 'crouch', shootInMs: s.windUpMs ?? 0 } };
+  }
+  const way = gallopWay(b.pos, hero, m);
+  if (way) {
+    return { ...still, boss: { ...still.boss, shootInMs, dash: { dir: way, ms: m.dashMs } } };
+  }
+  // Pacing towards him.
+  const dx = hero.x - b.pos.x;
+  const dy = hero.y - b.pos.y;
+  const len = Math.hypot(dx, dy);
+  const step = Math.min(len, (m.speed * dtMs) / 1000);
+  const pos =
+    len > 0
+      ? within({ x: b.pos.x + (dx / len) * step, y: b.pos.y + (dy / len) * step }, m.arena)
+      : b.pos;
+  const heading = dx < 0 ? -1 : dx > 0 ? 1 : b.heading;
+  return { ...still, boss: { ...still.boss, pos, heading, shootInMs } };
+}
+
+/** Whether it is galloping (a dash under way). */
+export function isGalloping(b: Boss): boolean {
+  return b.dash !== null;
 }
 
 type HopMoves = Extract<BossMoves, { style: 'hop' }>;

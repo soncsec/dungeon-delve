@@ -1508,6 +1508,101 @@ test('in Thunder Spire, the Ward takes Jarrett through the sparks up the stair h
   expect(watched.errors).toEqual([]);
 });
 
+/** Into Thunder Spire's boss room (by the test hook), Jarrett placed at once at `at`. */
+async function enterCentaurRoom(page: Page, at: { x: number; y: number }): Promise<void> {
+  await openGame(page, '?dungeon=5');
+  await page.evaluate(({ x, y }) => {
+    window.__game?.goToRoom(1, 0);
+    window.__game?.placeHero(x, y, 'right');
+  }, at);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('centaur');
+}
+
+test('the Centaur gallops at Jarrett when he is level with it', async ({ page }) => {
+  const watched = watchPage(page);
+  // In its row (it stands at 168, 111), well to its left.
+  await enterCentaurRoom(page, { x: 60, y: 111 });
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.galloping, { intervals: [50] })
+    .toBe(true);
+  // It rushes along the row at him: a full heart on touch.
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(4);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the Centaur rears and calls down lightning: marks, then bolts; one on Jarrett costs a heart', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  // Not level with it (up and to its left), so it only paces.
+  await enterCentaurRoom(page, { x: 56, y: 47 });
+  await page.evaluate(() => window.__game?.enemiesShootNow());
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.crouching, { intervals: [50] })
+    .toBe(true);
+  // Then the storm: four marks, one under him (his patch is cells 2-3 × 2-3). They last
+  // 0.8 s, so look often.
+  await expect
+    .poll(async () => (await snapshot(page)).strikes.length, { timeout: 10_000, intervals: [50] })
+    .toBe(4);
+  const marked = await snapshot(page);
+  expect(marked.storms).toBe(1);
+  expect(marked.strikes).toHaveLength(4);
+  expect(marked.strikes).toContainEqual({ x: 2, y: 2 });
+  expect(marked.sounds.rumble).toBe(1);
+  // A moment later the bolts strike, and the one on him hurts.
+  await expect.poll(async () => (await snapshot(page)).boltsLanded, { timeout: 10_000 }).toBe(4);
+  const struck = await snapshot(page);
+  expect(struck.strikes).toEqual([]);
+  expect(struck.health.points).toBe(4);
+  expect(struck.sounds.thunder).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('below half health the storm covers all but one patch; inside the Ward, Jarrett is safe', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterCentaurRoom(page, { x: 56, y: 47 });
+  await page.evaluate(() => window.__game?.giveItem('ward'));
+  await chooseSpell(page, 'Ward');
+  await page.evaluate(() => {
+    window.__game?.setBossHealth(6);
+    window.__game?.enemiesShootNow();
+  });
+  // 8 × 3 patches of floor, all but one (the marks last 0.8 s, so look often).
+  await expect
+    .poll(async () => (await snapshot(page)).strikes.length, { timeout: 10_000, intervals: [50] })
+    .toBe(23);
+  // He wards before they fall.
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  await expect.poll(async () => (await snapshot(page)).boltsLanded, { timeout: 10_000 }).toBe(23);
+  expect((await snapshot(page)).health.points).toBe(6);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Centaur leaves a heart container and Thunder Spire’s shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterCentaurRoom(page, { x: 56, y: 47 });
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(1);
+  });
+  // Beside it, facing it: one blow.
+  const boss = (await snapshot(page)).boss;
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 34, y, 'right'), {
+    x: boss?.x ?? 0,
+    y: boss?.y ?? 0,
+  });
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(kinds).toEqual(['heart-container', 'shard']);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {

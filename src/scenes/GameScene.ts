@@ -29,6 +29,7 @@ import {
   STAR,
   ENEMIES,
   ENEMY_SHOTS,
+  STORM,
   ROOM_SLIDE_MS,
   STONE,
   TRAVEL,
@@ -49,6 +50,7 @@ import {
   hitBoss,
   isAirborne,
   isBeaten,
+  isGalloping,
   glancesOff,
   isFierce,
   leapHeight,
@@ -59,6 +61,7 @@ import {
   type BossKind,
 } from '../logic/boss';
 import { forDevice, paginate, type Page } from '../logic/dialogue';
+import { markStrikes, stepStrikes, stormPatches, strikeHits, type Strike } from '../logic/storm';
 import { isTouchDevice } from '../platform/touch';
 import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
 import { markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
@@ -307,7 +310,13 @@ export interface GameSnapshot {
     airborne: boolean;
     /** Stunned by Lightning (the Mummy): only then do hits land on it. */
     stunned: boolean;
+    /** Galloping along a line at Jarrett (the Centaur). */
+    galloping: boolean;
   } | null;
+  /** The Centaur's storm: bolts on their way (their patches' top-left cells), storms called, bolts landed. */
+  strikes: { x: number; y: number }[];
+  storms: number;
+  boltsLanded: number;
   /** True while a boss fight has the room's ways out shut. */
   sealed: boolean;
   /** Shards of the Star of Power found, and messages shown (finding a shard). */
@@ -403,6 +412,9 @@ const ENEMY_ART: Readonly<
   mushroom: { sheet: 'mushroom', anim: 'walk', feetY: 30 / 30, facesLeft: true },
   toad: { sheet: 'toad', anim: 'hop', feetY: 38 / 38 },
 };
+/** Bosses whose art faces left (the rest face right or straight on): mirrored to face right. */
+const BOSS_FACES_LEFT: ReadonlySet<BossKind> = new Set(['centaur']);
+
 /** The mushroom's spores: the enemy orb under a sickly green (runtime tint, ADR-D05). */
 const SPORE_TINT = 0x9fe070;
 
@@ -535,6 +547,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private blocked = 0;
   private shotsFired = 0;
   private pickups: Pickup[] = [];
+  /** The Centaur's bolts on their way, each with its mark on the floor; storms called and bolts landed. */
+  private strikes: { s: Strike; mark: Phaser.GameObjects.Sprite }[] = [];
+  private storms = 0;
+  private boltsLanded = 0;
   /** Holding up a find: until when, and its sprite over his head. */
   private hold: Hold = NO_HOLD;
   private heldUp: Phaser.GameObjects.Sprite | null = null;
@@ -617,6 +633,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.pickups = [];
     this.hold = NO_HOLD;
     this.heldUp = null;
+    this.strikes = [];
+    this.storms = 0;
+    this.boltsLanded = 0;
     this.enemiesHold = false;
     this.mode = 'near';
     this.shots = [];
@@ -710,7 +729,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   override update(time: number, deltaMs: number): void {
     this.now = time;
     this.playMs += deltaMs;
-    this.showWard(time);
+    this.showWard();
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
     if (this.sliding || this.falling || this.travelling) return;
@@ -905,7 +924,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Whether spark barriers let him through now: inside the Ward, or already in one. */
   private sparksOpen(): boolean {
-    return sparksLetThrough(isWarded(this.ward, this.now), this.inSparks());
+    return sparksLetThrough(isWarded(this.ward, this.playMs), this.inSparks());
   }
 
   /** The fixture in a cell of the current room, if any. */
@@ -1272,6 +1291,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       live.b = step.boss;
       const from = bossShotOrigin(live.b, stats);
       for (const dir of step.shots) this.addEnemyShot(from, dir);
+      if (step.storm) this.callStorm(isFierce(live.b, stats));
+      this.stepStorm(deltaMs);
     }
     this.drawBoss(live);
     if (this.sealed.length === 0) {
@@ -1291,10 +1312,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     // A leaper rises off the ground mid-leap, and squats while it crouches (the warning).
     const lift = leapHeight(b, BOSSES[b.kind]);
     const crouching = b.phase === 'crouch' && !isAirborne(b);
+    // A storm-caller rears up instead (the Centaur); its art faces left, so it turns to its heading.
+    const pose = BOSSES[b.kind].storm ? BOSS_FX.rear : BOSS_FX.crouch;
     sprite
       .setPosition(o.x + b.pos.x, o.y + b.pos.y - lift)
       .setDepth(DEPTH.sorted + o.y + b.pos.y)
-      .setScale(crouching ? BOSS_FX.crouch.x : 1, crouching ? BOSS_FX.crouch.y : 1);
+      .setScale(crouching ? pose.x : 1, crouching ? pose.y : 1)
+      .setFlipX(BOSS_FACES_LEFT.has(b.kind) && b.heading > 0);
     shadow
       ?.setPosition(o.x + b.pos.x, o.y + b.pos.y)
       .setDepth(DEPTH.sorted + o.y + b.pos.y - 1)
@@ -1304,6 +1328,57 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       sprite.setTint(STUN_TINT);
     } else sprite.clearTint();
     fill.setSize((BOSS_FX.barWidth * b.health) / BOSSES[b.kind].health, BOSS_FX.barHeight);
+  }
+
+  /** The Centaur calls down lightning: a dark mark where each bolt will fall. */
+  private callStorm(fierce: boolean): void {
+    const patches = stormPatches(STORM.arena, this.pos, fierce, STORM.others, this.rng);
+    const o = this.origin(this.room.col, this.room.row);
+    this.storms += 1;
+    this.sfx.play('rumble');
+    for (const st of markStrikes(patches, STORM.delayMs)) {
+      const mark = this.fxPool
+        .take('electro-shock', 0)
+        .setPosition(o.x + (st.patch.x + 1) * TILE, o.y + (st.patch.y + 1) * TILE)
+        .setAlpha(STORM.markAlpha)
+        .setDepth(DEPTH.ground + 2);
+      this.strikes.push({ s: st, mark });
+    }
+  }
+
+  /** Bolts whose time is up strike their patch: one on Jarrett costs him (unless he is warded). */
+  private stepStorm(deltaMs: number): void {
+    if (this.strikes.length === 0) return;
+    const { pending, landed } = stepStrikes(
+      this.strikes.map((x) => x.s),
+      deltaMs,
+    );
+    const o = this.origin(this.room.col, this.room.row);
+    for (const patch of landed) {
+      const live = this.strikes.find((x) => x.s.patch === patch);
+      if (live) this.fxPool.give(live.mark);
+      this.boltsLanded += 1;
+      const centre = { x: (patch.x + 1) * TILE, y: (patch.y + 1) * TILE };
+      const bolt = this.fxPool
+        .take('electro-shock', 2)
+        .setOrigin(0.5, 0.75)
+        .setPosition(o.x + centre.x, o.y + centre.y)
+        .setDepth(DEPTH.sorted + o.y + centre.y + TILE);
+      bolt.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.fxPool.give(bolt));
+      bolt.play(animKey('electro-shock', 'strike'));
+      if (strikeHits(patch, this.heroBody())) this.hurtHero(STORM.damage, centre, this.now);
+    }
+    if (landed.length > 0) this.sfx.play('thunder');
+    const still = new Set(pending.map((st) => st.patch));
+    this.strikes = this.strikes
+      .filter((x) => still.has(x.s.patch))
+      .map((x) => ({ ...x, s: pending.find((st) => st.patch === x.s.patch) ?? x.s }));
+  }
+
+  /** The storm is over (the room left, or the Centaur beaten): its marks go. */
+  private clearStorm(): void {
+    for (const x of this.strikes) this.fxPool.give(x.mark);
+    this.strikes = [];
   }
 
   /** Shuts the room's ways out (barred gates). */
@@ -1424,7 +1499,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   private dropBoss(): void {
     if (!this.boss) return;
-    this.enemyPool.give(this.boss.sprite.clearTint().setScale(1));
+    this.enemyPool.give(this.boss.sprite.clearTint().setScale(1).setFlipX(false));
+    this.clearStorm();
     this.boss.back.destroy();
     this.boss.fill.destroy();
     this.boss.shadow?.destroy();
@@ -1707,7 +1783,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         const shieldUp = this.inv.equipped.shield !== null && !this.handsBusy(now);
         // The Ward stops shots from every side; the shield, from the front.
         if (
-          isWarded(this.ward, now) ||
+          isWarded(this.ward, this.playMs) ||
           (shieldUp && shieldBlocks(this.facing, live.s.dir, false, SHIELD.coverCos))
         ) {
           this.blocked += 1;
@@ -2033,7 +2109,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   /** Damage, a push away from `source`, and a moment of invulnerability (ignored while invulnerable). */
   private hurtHero(halfHearts: number, source: Point, now: number): void {
     // Inside the Ward, nothing hurts him.
-    if (isWarded(this.ward, now) || isInvulnerable(this.health, now)) return;
+    if (isWarded(this.ward, this.playMs) || isInvulnerable(this.health, now)) return;
     this.health = takeDamage(this.health, halfHearts, now, HEALTH.invulnerableMs);
     this.sfx.play('hurt');
     this.heroKnockMs = HEALTH.knockback.ms;
@@ -2090,7 +2166,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Raises the Ward, if there's enough mana and it isn't already up. */
   private tryWard(now: number): void {
-    if (isWarded(this.ward, now)) return;
+    if (isWarded(this.ward, this.playMs)) return;
     if (!canCast(this.mana, WARD.cost)) {
       this.sfx.play('noMana');
       return;
@@ -2100,19 +2176,20 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.sfx.play('ward');
     this.throwUntil = now + WARD.castPauseMs;
     this.animate(false);
-    this.ward = raiseWard(now, WARD.ms);
+    // Game time, like everything it guards against (it waits while the bag is open).
+    this.ward = raiseWard(this.playMs, WARD.ms);
     this.wardBubble.setVisible(true).play(animKey('ward', 'up'));
   }
 
   /** The bubble shimmers while the Ward is up, breaks up near its end, and is gone after. */
-  private showWard(now: number): void {
-    if (!isWarded(this.ward, now)) {
+  private showWard(): void {
+    if (!isWarded(this.ward, this.playMs)) {
       this.wardBubble.setVisible(false).stop();
       return;
     }
     const breakKey = animKey('ward', 'break');
     if (
-      isBreaking(this.ward, now, WARD.breakMs) &&
+      isBreaking(this.ward, this.playMs, WARD.breakMs) &&
       this.wardBubble.anims.currentAnim?.key !== breakKey
     ) {
       this.wardBubble.play(breakKey);
@@ -2121,7 +2198,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Standing in a spark barrier without the Ward (it dropped while he was in one): it zaps him. */
   private zapInSparks(now: number): void {
-    if (isWarded(this.ward, now) || !this.inSparks()) return;
+    if (isWarded(this.ward, this.playMs) || !this.inSparks()) return;
     // It throws him back the way he came.
     const ahead = facingVector(this.facing);
     this.zap({ x: this.pos.x + ahead.x, y: this.pos.y + ahead.y }, now);
@@ -2129,7 +2206,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** A spark barrier zaps him: half a heart, and it throws him back from `from`. */
   private zap(from: Point, now: number): void {
-    if (isWarded(this.ward, now) || isInvulnerable(this.health, now)) return;
+    if (isWarded(this.ward, this.playMs) || isInvulnerable(this.health, now)) return;
     this.zaps += 1;
     this.sfx.play('spark');
     this.hurtHero(SPARK.damage, from, now);
@@ -2297,7 +2374,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       bolts: this.shotsOf('bolt'),
       mana: { current: this.mana.current, max: this.mana.max },
       casts: this.casts,
-      warded: isWarded(this.ward, this.now),
+      warded: isWarded(this.ward, this.playMs),
       zaps: this.zaps,
       potions: { ...this.potions },
       manaBoosted: isBoosted(this.mana, this.now),
@@ -2319,8 +2396,12 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             crouching: this.boss.b.phase === 'crouch' && !isAirborne(this.boss.b),
             airborne: isAirborne(this.boss.b),
             stunned: this.boss.b.stunMs > 0,
+            galloping: isGalloping(this.boss.b),
           }
         : null,
+      strikes: this.strikes.map(({ s: st }) => ({ ...st.patch })),
+      storms: this.storms,
+      boltsLanded: this.boltsLanded,
       sealed: this.sealed.length > 0,
       shards: shardsHeld(this.progress),
       announced: this.announced,
@@ -2410,6 +2491,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
    */
   testEnemiesShootNow(): void {
     for (const live of this.enemies) live.e = { ...live.e, shootInMs: 0 };
+    if (this.boss) this.boss.b = { ...this.boss.b, shootInMs: 0 };
   }
 
   /** Test hook only: give Jarrett an item. */

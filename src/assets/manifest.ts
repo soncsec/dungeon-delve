@@ -109,6 +109,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('bosses', 'mummy', 69, 83, 6, 1, [anim('sway', range(0, 6), 7)]),
   // The Ogre (dungeon 4), a two-headed giant with a club.
   sheet('bosses', 'ogre', 128, 128, 5, 1, [anim('sway', range(0, 5), 6)]),
+  // The Centaur (dungeon 5): 4 frames of 112×144; its art faces left.
+  sheet('bosses', 'centaur', 112, 144, 4, 1, [anim('sway', range(0, 4), 6)]),
 
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),
@@ -141,6 +143,8 @@ export const ASSETS: readonly SheetAsset[] = [
     anim('up', range(0, 4), 8),
     anim('break', range(4, 4), 10, false),
   ]),
+  // The Centaur's lightning: frame 0 is the dark mark where a bolt will fall; 2-11 the strike.
+  sheet('effects', 'electro-shock', 96, 96, 12, 1, [anim('strike', range(2, 10), 14, false)]),
   // A spark barrier: tiles cut from the pack's waveform shot (tools/art/spark_barrier.py).
   // Each frame is a strip two tiles wide, so a cell plays its left or right half.
   sheet('effects', 'spark', 16, 16, 8, 1, [
