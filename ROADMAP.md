@@ -126,9 +126,9 @@
   - [x] M5.2b Seven rooms under the ruins (in sandy stone; the archway needs two shards): Lightning in a closet behind a stone, crystal switches that open the way to the tomb hall and a caged key, thorns before the first key; a found item goes straight into Jarrett's hand
   - [x] M5.2c The Mummy: it shambles after Jarrett firing spreads; wrapped tight, sword, daggers and fire glance off until a Lightning bolt stuns it (3 s); beaten, it leaves the third shard and a heart container
 - [x] Touch controls and the phone layout (M8.2), brought forward to here (owner 2026-10-21): a pad, HIT, SWAP and MAGIC, the potions and the bag; the game fills the screen, at the top when the phone is upright
-- [ ] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre, in two PRs:
+- [x] M5.3 Dungeon 4, Stonecrag Mine: Axe, Ogre, in two PRs:
   - [x] M5.3a Seven tunnels under the mountains (in earthy stone; the cave needs three shards): the Axe behind thorns, rubble across the hub's way north and a boulder before key 2 (the Axe), key 1 caged behind a crystal switch (Lightning)
-  - [ ] M5.3b The Ogre
+  - [x] M5.3b The Ogre: it lumbers side to side, raises its club and slams down a ring of shockwaves (eight, then twelve); only the Axe gets through its hide; beaten, it leaves the fourth shard and a heart container
 - [ ] M5.4 New enemy types for these regions
 - [x] M5.5 Walker's lines at dungeons 2–4 and on the overworld: a hint at each entrance (the boss, and what the dungeon's item does), and outside each once its shard is found (the way on; choosing spells; secrets the Axe opens). On a phone he names the touch buttons, not the keys
 

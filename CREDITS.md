@@ -26,6 +26,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/bosses/treant.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/Treant.png`
 - `assets/bosses/frog.png` — `TinyRPG/Characters/Battle Sprites/Living Pack 1/Frog/Frog-sheet.png`
 - `assets/bosses/mummy.png` — `TinyRPG/Characters/Battle Sprites/Living Pack 1/Mummy/Mummy-sheet.png`
+- `assets/bosses/ogre.png` — `TinyRPG/Characters/Battle Sprites/Living Pack 1/Ogre/Ogre-sheet.png`
 
 ### Tiles
 

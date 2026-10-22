@@ -46,7 +46,7 @@ import {
   hitBoss,
   isAirborne,
   isBeaten,
-  isWrapped,
+  glancesOff,
   isFierce,
   leapHeight,
   spawnBoss,
@@ -1251,21 +1251,21 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.sfx.play('zap');
   }
 
-  /** One hit (by id, so each lands once) on the boss. */
-  private strikeBoss(damage: number, hitId: number): void {
+  /** One hit (by id, so each lands once) on the boss: a swing of `weapon`, or a shot (null). */
+  private strikeBoss(damage: number, hitId: number, weapon: ItemId | null): void {
     const live = this.boss;
     if (!live) return;
     const before = live.b;
     const stats = BOSSES[live.b.kind];
-    if (isWrapped(live.b, stats)) {
-      // Wrapped tight: the blow glances off (once per hit).
+    if (glancesOff(live.b, stats, weapon)) {
+      // Wrapped tight, or a hide too thick: the blow glances off (once per hit).
       if (live.b.lastHitBy !== hitId) {
         live.b = { ...live.b, lastHitBy: hitId };
         this.sfx.play('block');
       }
       return;
     }
-    live.b = hitBoss(live.b, damage, hitId, BOSS_FX.flashMs, stats);
+    live.b = hitBoss(live.b, damage, hitId, BOSS_FX.flashMs, stats, weapon);
     if (live.b === before) return;
     this.effect('hit', live.b.pos.x, live.b.pos.y - stats.box.height / 2);
     if (isBeaten(live.b)) {
@@ -1629,7 +1629,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       if (!overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind]))) continue;
       this.strike(live, SWORD.damage, this.swings, this.facing);
     }
-    if (this.bossAt(box)) this.strikeBoss(SWORD.damage, this.swings);
+    if (this.bossAt(box)) this.strikeBoss(SWORD.damage, this.swings, this.inv.equipped.near);
     this.strikeFalseWalls(box);
     this.strikeBreakables(box);
   }
@@ -1986,7 +1986,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       const boss = !target && this.bossAt(box);
       // A bolt stuns a wrapped boss (the Mummy), and does nothing to the others.
       if (boss && shot.kind === 'bolt') this.stunTheBoss(shot.d.id);
-      else if (boss) this.strikeBoss(t.damage, shot.d.id);
+      else if (boss) this.strikeBoss(t.damage, shot.d.id, null);
       const burned = shot.kind === 'fireball' && this.burnThorns(box);
       const powered = shot.kind === 'bolt' && this.powerSwitches(box);
       if (target || boss || burned || powered || step.stopped) this.dropShot(shot);
