@@ -2029,7 +2029,6 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.enteredRoom();
   }
 
-  /** Pauses the game and shows the inventory over it. */
   /** The pause screen: the game waits behind it, its play time too. */
   private openPause(): void {
     this.moving = false;
@@ -2039,6 +2038,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.scene.pause();
   }
 
+  /** Pauses the game and shows the inventory over it. */
   private openInventory(): void {
     this.moving = false;
     this.animate(false);
