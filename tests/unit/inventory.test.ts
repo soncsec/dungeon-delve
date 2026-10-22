@@ -107,6 +107,24 @@ describe('startingKit', () => {
       'fireball',
       'lightning',
     ]);
+    // Stonecrag Mine's Axe and Thunder Spire's Ward count from the dungeons after them.
+    expect(startingKit(5)).toEqual([
+      'wooden-sword',
+      'wooden-shield',
+      'daggers',
+      'fireball',
+      'lightning',
+      'axe',
+    ]);
+    expect(startingKit(6)).toEqual([
+      'wooden-sword',
+      'wooden-shield',
+      'daggers',
+      'fireball',
+      'lightning',
+      'axe',
+      'ward',
+    ]);
   });
 
   it('the Fireball comes from Walker after dungeon 1, with its daggers', () => {

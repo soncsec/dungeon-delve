@@ -1386,6 +1386,128 @@ test('Stonecrag Mine’s prize: the Axe behind thorns, which smashes the hub’s
   expect(watched.errors).toEqual([]);
 });
 
+test('Thunder Spire’s archway in the mountains opens once Jarrett holds four shards', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(4, 0);
+    window.__game?.clearEnemies();
+    for (const n of [1, 2, 3]) window.__game?.takeShard(n);
+  });
+  expect((await snapshot(page)).shards).toBe(3);
+  // With three shards, he stands in the archway and nothing happens.
+  await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(48);
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  // The fourth shard, and the way opens.
+  await page.evaluate(() => {
+    window.__game?.takeShard(4);
+    window.__game?.placeHero(160, 70, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const s = await snapshot(page);
+  expect(s.map).toBe('dungeon5');
+  expect(s.room).toEqual({ col: 1, row: 3 });
+  expect(s.enteredAt).toEqual({ x: 160, y: 140 });
+  expect(watched.errors).toEqual([]);
+});
+
+/** Chooses a spell in the bag: the spell slot (third), Space until it shows `name`. */
+async function chooseSpell(page: Page, name: string): Promise<void> {
+  const inv = () => page.evaluate(() => window.__game?.inventory());
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await inv())?.cursor).toBe(0);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await inv())?.cursor).toBe(2);
+  for (let i = 0; i < 4 && (await inv())?.slots['spell'] !== name; i++) {
+    const before = (await inv())?.slots['spell'];
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await inv())?.slots['spell']).not.toBe(before);
+  }
+  expect((await inv())?.slots['spell']).toBe(name);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+}
+
+test('Thunder Spire’s prize: the Ward, caged past thorns and a crystal switch', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=5'); // with the Fireball, Lightning and the Axe
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(0, 2); // the west gallery
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(168, 78, 'up');
+  });
+  // A Fireball burns the thorns (column 10, row 2) below the switch.
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon5/0,2/10,2');
+  // Lightning, up into the switch in the wall above (column 10, row 1): the cage opens.
+  await chooseSpell(page, 'Lightning');
+  await page.evaluate(() => window.__game?.placeHero(168, 46, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon5/0,2/10,1');
+  // In the cage, beside the chest (column 7, row 7): the Ward, in his hand at once.
+  await page.evaluate(() => window.__game?.placeHero(136, 127, 'left'));
+  await page.evaluate(() => window.__game?.bump(7, 7));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon5/0,2/7,7');
+  const ward = (await snapshot(page)).pickups.find((p) => p.kind === 'item');
+  expect(ward).toBeDefined();
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), ward ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  // In his hand: the bag's spell slot shows it.
+  await page.keyboard.press('Tab');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.inventory()))?.slots['spell'])
+    .toBe('Ward');
+  await page.keyboard.press('Escape');
+  expect(watched.errors).toEqual([]);
+});
+
+test('in Thunder Spire, the Ward takes Jarrett through the sparks up the stair hall', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=5');
+  await page.evaluate(() => window.__game?.giveItem('ward'));
+  await chooseSpell(page, 'Ward');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the stair hall
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(160, 60, 'up');
+  });
+  // Without the Ward up, the sparks across the way up (row 1) throw him back.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).zaps).toBe(1);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).room).toEqual({ col: 1, row: 2 });
+  // With it up, he walks through, up into the upper hall.
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  await holdUntil(page, 'ArrowUp', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 1 && room.row === 1;
+  });
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {

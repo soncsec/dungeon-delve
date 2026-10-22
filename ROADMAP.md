@@ -141,7 +141,7 @@
 
 - [ ] M6.1 Dungeon 5, Thunder Spire: Ward (moved from Crimson Manor: owner 2026-10-21), Centaur, in three PRs:
   - [x] M6.1a The Ward spell: a bubble (40 mana, 3 s) that blocks every hit, from every side, and can't be cast again while up; it breaks up as a warning just before it drops. Spark barriers (`e`, owner 2026-10-22): crackling energy that zaps Jarrett back (half a heart), but he walks through inside the Ward; the reachability test knows them
-  - [ ] M6.1b The Spire's rooms (the archway needs four shards): the Ward in a chest, spark barriers before the keys and the boss, and the earlier items' puzzles
+  - [x] M6.1b Seven rooms up the Spire (in stormy blue stone; the archway needs four shards): the Ward caged past thorns (Fireball) and a crystal switch (Lightning), key 1 behind rubble (the Axe), sparks across the way up to the boss's door and before key 2
   - [ ] M6.1c The Centaur (owner 2026-10-22): it gallops at Jarrett when he is in line with it, and rears to call down lightning on marked spots (one under Jarrett), 0.8 s after the marks appear; below half health the storm covers most of the floor, so the Ward or the one safe gap saves him. Any weapon hurts it; beaten, it leaves the fifth shard and a heart container
 - [ ] M6.2 Dungeon 6, Witchwood Tower: Steel Sword, Witch (the mana upgrade moved to dungeon 3: owner 2026-10-21)
 - [ ] M6.3 Dungeon 7, Crimson Manor: Triple Daggers (owner 2026-10-21), Vampire

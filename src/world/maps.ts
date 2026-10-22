@@ -1,16 +1,17 @@
 /** Every map in the game: the overworld and the dungeons, each with its look and start room. */
 import type { RoomDef } from '../logic/world';
-import { CRYPT_TINT, MARSH_TINT, MINE_TINT } from '../logic/tiles';
+import { CRYPT_TINT, MARSH_TINT, MINE_TINT, SPIRE_TINT } from '../logic/tiles';
 import { DUNGEON_1, DUNGEON_1_START } from './dungeon1';
 import { DUNGEON_2, DUNGEON_2_START } from './dungeon2';
 import { DUNGEON_3, DUNGEON_3_START } from './dungeon3';
 import { DUNGEON_4, DUNGEON_4_START } from './dungeon4';
+import { DUNGEON_5, DUNGEON_5_START } from './dungeon5';
 import { OVERWORLD, START_ROOM } from './overworld';
 import { SHOP, SHOP_START } from './shop';
 import { CAVES, CAVES_START } from './caves';
 
 export type MapId =
-  'overworld' | 'dungeon1' | 'dungeon2' | 'dungeon3' | 'dungeon4' | 'shop' | 'caves';
+  'overworld' | 'dungeon1' | 'dungeon2' | 'dungeon3' | 'dungeon4' | 'dungeon5' | 'shop' | 'caves';
 /** How a map looks: outdoors, a dungeon, or indoors (drawn like a dungeon, without its small keys). */
 export type Theme = 'forest' | 'dungeon' | 'indoors';
 
@@ -48,6 +49,13 @@ export const MAPS: Readonly<Record<MapId, GameMap>> = {
     rooms: DUNGEON_4,
     tint: MINE_TINT,
   },
+  dungeon5: {
+    name: 'Thunder Spire',
+    theme: 'dungeon',
+    start: DUNGEON_5_START,
+    rooms: DUNGEON_5,
+    tint: SPIRE_TINT,
+  },
   shop: { name: 'Shop', theme: 'indoors', start: SHOP_START, rooms: SHOP },
   caves: { name: 'Secret cave', theme: 'indoors', start: CAVES_START, rooms: CAVES },
 };
@@ -58,4 +66,5 @@ export const DUNGEON_MAPS: Readonly<Record<number, MapId>> = {
   2: 'dungeon2',
   3: 'dungeon3',
   4: 'dungeon4',
+  5: 'dungeon5',
 };
