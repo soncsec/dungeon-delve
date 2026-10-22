@@ -292,10 +292,19 @@ const ROOMS: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
-  // Witchwood's clearing: the sealed archway of dungeon 6 (it opens in M6).
+  // Witchwood's clearing: the archway of dungeon 6 (it opens with five shards).
   {
     col: 0,
     row: 3,
+    exits: [
+      {
+        cells: [
+          { col: 9, row: 2 },
+          { col: 10, row: 2 },
+        ],
+        to: { map: 'dungeon6', room: { col: 1, row: 3 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     enemies: [
       { kind: 'robot', col: 13, row: 2 },
       { kind: 'wolf', col: 6, row: 5 },
@@ -303,7 +312,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
       'FFFFFFF.A.....FFFFFF',
-      'FFF..............FFF',
+      'FFF......DD......FFF',
       'FF................FF',
       'FFF.................',
       'FFFF................',

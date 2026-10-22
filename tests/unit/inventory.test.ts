@@ -125,6 +125,7 @@ describe('startingKit', () => {
       'axe',
       'ward',
     ]);
+    expect(startingKit(7)).toContain('steel-sword');
   });
 
   it('the Fireball comes from Walker after dungeon 1, with its daggers', () => {

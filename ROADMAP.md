@@ -145,7 +145,7 @@
   - [x] M6.1c The Centaur (owner 2026-10-22): it gallops at Jarrett when he is in line with it, and rears to call down lightning on marked spots (one under Jarrett), 0.8 s after the marks appear; below half health the storm covers most of the floor, so the Ward or the one safe gap saves him. Any weapon hurts it; beaten, it leaves the fifth shard and a heart container
 - [ ] M6.2 Dungeon 6, Witchwood Tower: Steel Sword, Witch (the mana upgrade moved to dungeon 3: owner 2026-10-21), in three PRs:
   - [x] M6.2a The Steel Sword (owner 2026-10-22): twice the Wooden Sword's blow, and a swing bats enemy shots back the way Jarrett faces. Eye statues (`y`) in walls fire orbs; one batted back into its eye shuts it for good and opens its room's gates (Lightning does nothing to them); the reachability test knows them
-  - [ ] M6.2b The tower's rooms (the archway needs five shards): the Steel Sword in a chest, eye statues, and the earlier items' puzzles
+  - [x] M6.2b Seven rooms up the tower (in mossy green stone; the archway needs five shards): the Steel Sword behind sparks (the Ward), key 1 behind thorns (Fireball), eye statues barring the way up and key 2's cage (the Steel Sword)
   - [ ] M6.2c The Witch (owner 2026-10-22): she blinks from place to place throwing fire; below half health she leaves look-alike decoys, and only the real Witch takes hits. Any weapon hurts her
 - [ ] M6.3 Dungeon 7, Crimson Manor: Triple Daggers (owner 2026-10-21), Vampire
 - [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon

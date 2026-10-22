@@ -143,6 +143,9 @@ export const VOLCANO_TINT = 0xffa486;
 export const CRYPT_TINT = 0xe8d0a0;
 /** Stonecrag Mine: the dungeon stone under a warm, earthy tint. */
 export const MINE_TINT = 0xd0a880;
+/** Witchwood Tower: the dungeon stone under a mossy, forest green. */
+export const WOOD_TINT = 0x9cc890;
+
 /** An eye statue, watching (it fires orbs): the pillar orb glowing red (runtime tint, ADR-D05). */
 export const EYE_TINT = 0xff7060;
 

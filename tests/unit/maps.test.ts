@@ -7,6 +7,7 @@ import {
   MARSH_TINT,
   MINE_TINT,
   SPIRE_TINT,
+  WOOD_TINT,
   coveredCells,
   dungeonArt,
   roomArt,
@@ -128,6 +129,18 @@ describe('maps', () => {
     expect(DUNGEON_MAPS[5]).toBe('dungeon5');
     expect(MAPS.dungeon5.name).toBe('Thunder Spire');
     expect(MAPS.dungeon5.tint).toBe(SPIRE_TINT);
+  });
+
+  it('the overworld and Witchwood Tower lead into each other, through the forest archway', () => {
+    const into = MAPS.overworld.rooms
+      .filter((r) => (r.exits ?? []).some((e) => e.to.map === 'dungeon6'))
+      .map((r) => `${r.col},${r.row}`);
+    expect(into).toEqual(['0,3']);
+    const out = MAPS.dungeon6.rooms.flatMap((r) => r.exits ?? []).map((e) => e.to);
+    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 0, row: 3 } })]);
+    expect(DUNGEON_MAPS[6]).toBe('dungeon6');
+    expect(MAPS.dungeon6.name).toBe('Witchwood Tower');
+    expect(MAPS.dungeon6.tint).toBe(WOOD_TINT);
   });
 
   it('the overworld and Stonecrag Mine lead into each other, through the mountain cave', () => {
