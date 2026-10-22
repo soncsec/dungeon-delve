@@ -2139,6 +2139,121 @@ test('Dragon’s Maw’s prize: the Star Blade, caged until the forge’s eye is
   expect(watched.errors).toEqual([]);
 });
 
+/** Into Dragon's Maw's lair (by the test hook), Jarrett placed at once at `at`. */
+async function enterDragonRoom(page: Page, at: { x: number; y: number }): Promise<void> {
+  await openGame(page, '?dungeon=8');
+  await page.evaluate(({ x, y }) => {
+    window.__game?.goToRoom(1, 0);
+    window.__game?.placeHero(x, y, 'up');
+  }, at);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('dragon');
+}
+
+test('the Dragon rears, then sweeps its fire across Jarrett, burst by burst', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterDragonRoom(page, { x: 60, y: 120 });
+  await page.evaluate(() => {
+    window.__game?.clearEnemies();
+    window.__game?.enemiesShootNow();
+  });
+  // The warning: it rears. Then it breathes, and when it is done, five bursts have flown.
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.crouching, { intervals: [20] })
+    .toBe(true);
+  expect((await snapshot(page)).shotsFired).toBe(0);
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.breathing, { intervals: [20] })
+    .toBe(true);
+  await expect.poll(async () => (await snapshot(page)).boss?.breathing).toBe(false);
+  const s = await snapshot(page);
+  expect(s.shotsFired).toBe(5);
+  expect(s.sounds.rumble).toBe(1);
+  expect(s.sounds.burn).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the shield held up towards the Dragon stops its fire', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterDragonRoom(page, { x: 60, y: 120 });
+  await page.evaluate(() => {
+    window.__game?.clearEnemies();
+    window.__game?.holdEnemies(true);
+  });
+  // Straight below it, out of its tail's reach, facing it.
+  const boss = (await snapshot(page)).boss;
+  await page.evaluate(({ x }) => window.__game?.placeHero(x, 124, 'up'), { x: boss?.x ?? 0 });
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(false);
+    window.__game?.enemiesShootNow();
+  });
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.breathing, { intervals: [20] })
+    .toBe(true);
+  await expect.poll(async () => (await snapshot(page)).boss?.breathing).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).enemyShots).toEqual([]);
+  const s = await snapshot(page);
+  expect(s.blocked).toBeGreaterThan(0);
+  expect(s.health.points).toBe(s.health.max);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the Dragon’s tail lashes Jarrett when he comes close; stepping back in time dodges it', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterDragonRoom(page, { x: 60, y: 120 });
+  await page.evaluate(() => window.__game?.clearEnemies());
+  // Close below it, not touching it: its body ends at its feet, and his reaches 20 px above his.
+  const close = await page.evaluate(() => {
+    const b = window.__game?.snapshot()?.boss ?? { x: 0, y: 0 };
+    window.__game?.placeHero(b.x, b.y + 24, 'up');
+    return { x: b.x, y: b.y };
+  });
+  await expect.poll(async () => (await snapshot(page)).lashes, { intervals: [20] }).toBe(1);
+  expect((await snapshot(page)).health.points).toBe(4);
+  // Once his moment of safety is over: close again, and the moment the tail starts, back out of reach.
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).boss?.lashing).toBe(false);
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 24, 'up'), close);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const s = window.__game?.snapshot();
+          if (!s?.boss?.lashing) return false;
+          window.__game?.placeHero(s.boss.x, s.boss.y + 48, 'up');
+          return true;
+        }),
+      { intervals: [20] },
+    )
+    .toBe(true);
+  await expect.poll(async () => (await snapshot(page)).boss?.lashing).toBe(false);
+  expect((await snapshot(page)).lashes).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Dragon leaves a heart container and Dragon’s Maw’s shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterDragonRoom(page, { x: 60, y: 120 });
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+    window.__game?.setBossHealth(1);
+  });
+  // Below it, the blade's reach up into its body.
+  const boss = (await snapshot(page)).boss;
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 26, 'up'), {
+    x: boss?.x ?? 0,
+    y: boss?.y ?? 0,
+  });
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(kinds).toEqual(['heart-container', 'shard']);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the Star Blade sends a beam at full hearts, and none with a heart missing', async ({
   page,
 }) => {

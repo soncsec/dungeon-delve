@@ -115,6 +115,14 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('bosses', 'witch', 55, 93, 5, 1, [anim('sway', range(0, 5), 7)]),
   // The Vampire (dungeon 7): 4 frames of 121×110; its art faces left.
   sheet('bosses', 'vampire', 121, 110, 4, 1, [anim('sway', range(0, 4), 6)]),
+  // The Dragon (dungeon 8): frames of 144×64, its art facing left. Idle; rearing, then breathing
+  // fire (the breath sheet: frames 0-2 rear, 3-6 the flame); and its tail lash.
+  sheet('bosses', 'dragon', 144, 64, 6, 1, [anim('sway', range(0, 6), 8)]),
+  sheet('bosses', 'dragon-breath', 144, 64, 7, 1, [
+    anim('rear', range(0, 3), 5, false),
+    anim('breathe', range(3, 4), 10),
+  ]),
+  sheet('bosses', 'dragon-tail', 144, 64, 8, 1, [anim('lash', range(0, 8), 12, false)]),
 
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),

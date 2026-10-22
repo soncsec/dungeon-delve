@@ -61,6 +61,9 @@ import {
   isAirborne,
   isBeaten,
   isGalloping,
+  isBreathing,
+  isLashing,
+  lashHurts,
   glancesOff,
   isFierce,
   leapHeight,
@@ -334,11 +337,16 @@ export interface GameSnapshot {
     /** Vanished mid-blink (the Witch), and her decoys' feet. */
     gone: boolean;
     decoys: { x: number; y: number }[];
+    /** Breathing fire, and lashing its tail (the Dragon). */
+    breathing: boolean;
+    lashing: boolean;
   } | null;
   /** The Witch's decoys popped so far. */
   decoysPopped: number;
   /** Shots batted back with the Steel Sword, and those in the air; Star Blade beams sent. */
   batted: number;
+  /** Times the Dragon's tail has caught Jarrett. */
+  lashes: number;
   beams: number;
   orbs: { x: number; y: number; dir: Facing }[];
   /** The Centaur's storm: bolts on their way (their patches' top-left cells), storms called, bolts landed. */
@@ -408,6 +416,8 @@ interface LiveBoss {
   shadow: Phaser.GameObjects.Ellipse | null;
   /** A blinker's decoys (the Witch, fierce): look-alikes, one sprite each. */
   decoys: Phaser.GameObjects.Sprite[];
+  /** The animation it is playing, for a boss with more than one (the Dragon). */
+  pose: string;
 }
 
 interface LiveWalker {
@@ -448,7 +458,20 @@ const ENEMY_ART: Readonly<
   toad: { sheet: 'toad', anim: 'hop', feetY: 38 / 38 },
 };
 /** Bosses whose art faces left (the rest face right or straight on): mirrored to face right. */
-const BOSS_FACES_LEFT: ReadonlySet<BossKind> = new Set(['centaur', 'vampire']);
+const BOSS_FACES_LEFT: ReadonlySet<BossKind> = new Set(['centaur', 'vampire', 'dragon']);
+/**
+ * Where a boss's feet are across its frame, facing left, when not in the middle:
+ * the Dragon's body sits right of its frame's middle, with room for its breath on the left.
+ */
+const BOSS_FEET_X: Partial<Record<BossKind, number>> = { dragon: 96 / 144 };
+
+/** The Dragon's animation for what it is doing: lashing, breathing, rearing, or standing. */
+function dragonPose(b: Boss): string {
+  if (isLashing(b)) return animKey('dragon-tail', 'lash');
+  if (isBreathing(b)) return animKey('dragon-breath', 'breathe');
+  if (b.phase === 'crouch') return animKey('dragon-breath', 'rear');
+  return animKey('dragon', 'sway');
+}
 
 /** The mushroom's spores: the enemy orb under a sickly green (runtime tint, ADR-D05). */
 const SPORE_TINT = 0x9fe070;
@@ -590,6 +613,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private eyes: { x: number; y: number; dir: Facing; inMs: number }[] = [];
   /** Shots batted back with the Steel Sword so far, and the Witch's decoys popped. */
   private batted = 0;
+  /** Times the Dragon's tail has caught Jarrett. */
+  private lashes = 0;
   /** Beams sent flying with the Star Blade so far. */
   private beams = 0;
   private decoysPopped = 0;
@@ -684,6 +709,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.boltsLanded = 0;
     this.eyes = [];
     this.batted = 0;
+    this.lashes = 0;
     this.beams = 0;
     this.decoysPopped = 0;
     this.enemiesHold = false;
@@ -1330,6 +1356,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       fill,
       shadow,
       decoys: [],
+      pose: animKey(kind, 'sway'),
     };
     this.drawBoss(this.boss);
   }
@@ -1356,8 +1383,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (!this.enemiesHold) {
       const wasGone = isGone(live.b);
       const before = { pos: { ...live.b.pos }, decoys: live.b.decoys };
+      const was = {
+        rear: live.b.phase === 'crouch',
+        breath: isBreathing(live.b),
+        lash: isLashing(live.b),
+      };
       const step = stepBoss(live.b, deltaMs, this.pos, stats, this.rng);
       live.b = step.boss;
+      // The Dragon roars as it rears, roars fire, and its tail whips.
+      if (stats.moves.style === 'prowl') {
+        if (!was.rear && live.b.phase === 'crouch') this.sfx.play('rumble');
+        if (!was.breath && isBreathing(live.b)) this.sfx.play('burn');
+        if (!was.lash && isLashing(live.b)) this.sfx.play('swing');
+      }
       const kind = stats.shotKind ?? 'orb';
       const from = bossShotOrigin(live.b, stats);
       for (const dir of step.shots) this.addEnemyShot(from, dir, kind);
@@ -1397,14 +1435,23 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const o = this.origin(this.room.col, this.room.row);
     // A leaper rises off the ground mid-leap, and squats while it crouches (the warning).
     const lift = leapHeight(b, BOSSES[b.kind]);
-    const crouching = b.phase === 'crouch' && !isAirborne(b);
+    // The Dragon rears in its own art; others squat or stretch (below).
+    const crouching = b.phase === 'crouch' && !isAirborne(b) && b.kind !== 'dragon';
+    const flip = BOSS_FACES_LEFT.has(b.kind) && b.heading > 0;
+    const feetX = BOSS_FEET_X[b.kind];
+    if (feetX !== undefined) sprite.setOrigin(flip ? 1 - feetX : feetX, 1);
+    if (b.kind === 'dragon') {
+      const pose = dragonPose(b);
+      if (pose !== live.pose) sprite.play(pose);
+      live.pose = pose;
+    }
     // A storm-caller rears up instead (the Centaur); its art faces left, so it turns to its heading.
     const pose = BOSSES[b.kind].storm ? BOSS_FX.rear : BOSS_FX.crouch;
     sprite
       .setPosition(o.x + b.pos.x, o.y + b.pos.y - lift)
       .setDepth(DEPTH.sorted + o.y + b.pos.y)
       .setScale(crouching ? pose.x : 1, crouching ? pose.y : 1)
-      .setFlipX(BOSS_FACES_LEFT.has(b.kind) && b.heading > 0)
+      .setFlipX(flip)
       .setVisible(!isGone(b));
     // Decoys: one look-alike sprite each, where they stand.
     while (live.decoys.length < b.decoys.length) {
@@ -2302,6 +2349,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.hurtHero(stats.contactDamage, this.boss.b.pos, now);
       // A draining boss (the Vampire) heals by what it takes.
       if (this.health.points < before) this.boss.b = drainHeal(this.boss.b, stats);
+    } else if (this.boss) {
+      // The Dragon's tail, lashing all round it.
+      const lash = lashHurts(this.boss.b, BOSSES[this.boss.b.kind], this.pos);
+      if (lash > 0) {
+        this.lashes += 1;
+        this.hurtHero(lash, this.boss.b.pos, now);
+      }
     }
   }
 
@@ -2625,10 +2679,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             galloping: isGalloping(this.boss.b),
             gone: isGone(this.boss.b),
             decoys: this.boss.b.decoys.map((d) => ({ ...d })),
+            breathing: isBreathing(this.boss.b),
+            lashing: isLashing(this.boss.b),
           }
         : null,
       decoysPopped: this.decoysPopped,
       batted: this.batted,
+      lashes: this.lashes,
       beams: this.beams,
       orbs: this.shotsOf('orb'),
       strikes: this.strikes.map(({ s: st }) => ({ ...st.patch })),

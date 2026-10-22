@@ -8,6 +8,10 @@ import {
   hitBoss,
   isGalloping,
   isGone,
+  isBreathing,
+  isLashing,
+  lashHurts,
+  nearBody,
   popDecoy,
   isAirborne,
   isBeaten,
@@ -15,6 +19,7 @@ import {
   glancesOff,
   leapHeight,
   leapTarget,
+  aimAt,
   spawnBoss,
   spread,
   stepBoss,
@@ -55,6 +60,8 @@ const boss = (over: Partial<Boss> = {}): Boss => ({
   stayMs: 0,
   goneMs: 0,
   decoys: [],
+  breath: null,
+  lash: null,
   ...over,
 });
 const hero = { x: 160, y: 140 };
@@ -645,5 +652,156 @@ describe('the Vampire: gliding after Jarrett, draining him, and bursting into a 
     expect(drainHeal(vampire({ health: 5 }), v).health).toBe(6);
     expect(drainHeal(vampire({ health: 12 }), v).health).toBe(12);
     expect(drainHeal(boss({ health: 5 }), s)).toEqual(boss({ health: 5 }));
+  });
+});
+
+describe('the Dragon: prowling its lair, sweeping fire breath, and lashing its tail', () => {
+  const m = {
+    style: 'prowl' as const,
+    speed: 20,
+    gapMs: 100,
+    tail: { reach: 16, ms: 600, hurtFromMs: 300, restMs: 1000, damage: 2 },
+    arena: { x: 70, y: 72, w: 180, h: 0 },
+  };
+  const d: BossStats = {
+    health: 18,
+    contactDamage: 2,
+    box: { halfWidth: 30, height: 34 },
+    moves: m,
+    shotKind: 'fire',
+    mouth: { ahead: 32, up: 26 },
+    windUpMs: 500,
+    calm: { shots: 5, spreadDeg: 15, everyMs: { min: 3000, max: 3000 } },
+    fierce: { shots: 7, spreadDeg: 12, everyMs: { min: 2000, max: 2000 } },
+  };
+  const dragon = (over: Partial<Boss> = {}): Boss =>
+    boss({
+      kind: 'dragon',
+      pos: { x: 160, y: 72 },
+      home: { x: 160, y: 72 },
+      health: 18,
+      heading: -1,
+      ...over,
+    });
+  const below = { x: 160, y: 130 };
+  const close = { x: 160, y: 80 };
+  const lastRng: Rng = { ...firstRng, pick: (i) => i[i.length - 1] as (typeof i)[number] };
+
+  it('starts with no breath and no lash', () => {
+    expect(spawnBoss('dragon', { x: 160, y: 72 }, d, firstRng)).toMatchObject({
+      breath: null,
+      lash: null,
+    });
+  });
+
+  it('paces along the top of its lair towards his side, facing him', () => {
+    const r = stepBoss(dragon(), 1000, { x: 260, y: 130 }, d, firstRng);
+    expect(r.boss.pos).toEqual({ x: 180, y: 72 });
+    expect(r.boss.heading).toBe(1);
+    expect(r.shots).toEqual([]);
+    // No further than the arena's edge.
+    expect(
+      stepBoss(dragon({ pos: { x: 80, y: 72 } }), 1000, { x: 0, y: 130 }, d, firstRng).boss,
+    ).toMatchObject({ pos: { x: 70, y: 72 }, heading: -1 });
+    // Right above him: it stays put, facing as it was.
+    expect(stepBoss(dragon({ heading: 1 }), 100, below, d, firstRng).boss).toMatchObject({
+      pos: { x: 160, y: 72 },
+      heading: 1,
+    });
+  });
+
+  it('breathes from its mouth, on the side it faces', () => {
+    expect(bossShotOrigin(dragon({ heading: -1 }), d)).toEqual({ x: 128, y: 46 });
+    expect(bossShotOrigin(dragon({ heading: 1 }), d)).toEqual({ x: 192, y: 46 });
+  });
+
+  it('rears when its timer is up, standing still, then sweeps its breath across him one shot at a time', () => {
+    const rear = stepBoss(dragon({ shootInMs: 10 }), 20, below, d, firstRng).boss;
+    expect(rear).toMatchObject({ phase: 'crouch', shootInMs: 500 });
+    const rearing = stepBoss(rear, 499, { x: 260, y: 130 }, d, firstRng).boss;
+    expect(rearing).toMatchObject({ phase: 'crouch', pos: { x: 160, y: 72 } });
+    // Done rearing: the breath, aimed where he is now.
+    const start = stepBoss(rearing, 10, below, d, firstRng).boss;
+    expect(isBreathing(start)).toBe(true);
+    const aim = aimAt(bossShotOrigin(start, d), below);
+    expect(start.breath).toEqual({ aim, sent: 0, inMs: 0, side: 1 });
+    // One shot at once, then one every 100 ms, from one side of the spread to the other.
+    const a = stepBoss(start, 1, { x: 260, y: 130 }, d, firstRng);
+    expect(a.shots).toHaveLength(1);
+    expect(a.boss.pos).toEqual({ x: 160, y: 72 });
+    const b = stepBoss(a.boss, 250, below, d, firstRng);
+    expect(b.shots).toHaveLength(2);
+    const c = stepBoss(b.boss, 400, below, d, firstRng);
+    expect(c.shots).toHaveLength(2);
+    expect([...a.shots, ...b.shots, ...c.shots]).toEqual(spread(aim, 5, 15));
+    expect(isBreathing(c.boss)).toBe(false);
+    expect(c.boss.shootInMs).toBe(3000);
+  });
+
+  it('sweeps from either side', () => {
+    const start = stepBoss(dragon({ phase: 'crouch', shootInMs: 1 }), 10, below, d, lastRng).boss;
+    expect(start.breath?.side).toBe(-1);
+    const r = stepBoss(start, 1000, below, d, lastRng);
+    expect(r.shots).toEqual([...spread(start.breath?.aim ?? { x: 0, y: 1 }, 5, 15)].reverse());
+  });
+
+  it('fierce, it breathes more shots, more often', () => {
+    const start = stepBoss(
+      dragon({ health: 9, phase: 'crouch', shootInMs: 1 }),
+      10,
+      below,
+      d,
+      firstRng,
+    );
+    const r = stepBoss(start.boss, 1000, below, d, firstRng);
+    expect(r.shots).toHaveLength(7);
+    expect(r.boss.shootInMs).toBe(2000);
+  });
+
+  it('with no wind-up, it breathes at once', () => {
+    const quick: BossStats = { ...d };
+    delete quick.windUpMs;
+    const rear = stepBoss(dragon({ shootInMs: 10 }), 20, below, quick, firstRng).boss;
+    expect(rear).toMatchObject({ phase: 'crouch', shootInMs: 0 });
+    expect(isBreathing(stepBoss(rear, 1, below, quick, firstRng).boss)).toBe(true);
+  });
+
+  it('knows when he is close to its body', () => {
+    const b = dragon(); // its body: x 130 to 190, y 38 to 72
+    expect(nearBody(b, d, { x: 160, y: 80 }, 16)).toBe(true);
+    expect(nearBody(b, d, { x: 160, y: 50 }, 0)).toBe(true);
+    expect(nearBody(b, d, { x: 200, y: 80 }, 16)).toBe(true);
+    expect(nearBody(b, d, { x: 160, y: 90 }, 16)).toBe(false);
+    expect(nearBody(b, d, { x: 110, y: 50 }, 16)).toBe(false);
+  });
+
+  it('lashes its tail when he comes close: from partway in it hurts him if he is still in reach, then the tail rests', () => {
+    const lash = stepBoss(dragon(), 10, close, d, firstRng).boss;
+    expect(isLashing(lash)).toBe(true);
+    expect(lashHurts(lash, d, close)).toBe(0);
+    const swinging = stepBoss(lash, 300, close, d, firstRng).boss;
+    expect(swinging.pos).toEqual({ x: 160, y: 72 });
+    expect(lashHurts(swinging, d, close)).toBe(2);
+    // Stepped back out of reach in time: it misses.
+    expect(lashHurts(swinging, d, below)).toBe(0);
+    const done = stepBoss(swinging, 300, close, d, firstRng).boss;
+    expect(isLashing(done)).toBe(false);
+    expect(lashHurts(done, d, close)).toBe(0);
+    expect(done.restMs).toBe(1000);
+    // Rested no longer than that: close again, it lashes again.
+    const resting = stepBoss(done, 500, close, d, firstRng).boss;
+    expect(isLashing(resting)).toBe(false);
+    expect(isLashing(stepBoss(resting, 500, close, d, firstRng).boss)).toBe(true);
+  });
+
+  it('rearing or breathing, it does not lash', () => {
+    const rearing = stepBoss(dragon({ phase: 'crouch', shootInMs: 100 }), 10, close, d, firstRng);
+    expect(isLashing(rearing.boss)).toBe(false);
+    const breath = { aim: { x: 0, y: 1 }, sent: 0, inMs: 50, side: 1 as const };
+    expect(isLashing(stepBoss(dragon({ breath }), 10, close, d, firstRng).boss)).toBe(false);
+  });
+
+  it('only a prowler has a tail to lash', () => {
+    expect(lashHurts(dragon({ lash: { ms: 400 } }), s, close)).toBe(0);
   });
 });
