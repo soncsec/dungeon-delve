@@ -155,7 +155,7 @@
   - [x] M6.4a The Star Blade (owner 2026-10-22: a beam at full hearts): three times the Wooden Sword's strength, it bats shots back like the Steel Sword, and with every heart full a swing also sends a golden beam flying ahead
   - [x] M6.4b Seven caverns of the Maw (in ember red; the cave needs seven shards): key 1 behind a boulder (the Axe), the Star Blade caged by an eye statue (the Steel Sword), key 2 behind sparks (the Ward), a Health Potion behind a crystal switch (Lightning)
   - [x] M6.4c The Dragon (owner 2026-10-22: fire breath and tail): it prowls the top of its lair facing Jarrett; it rears, then sweeps its fire across him burst by burst (the Ward, or a shield held towards it, stops it); when he comes close its tail lashes all round it, and stepping back in time dodges it. Fierce: more fire, more often. Any weapon hurts it
-- [ ] M6.5 Walker's lines at dungeons 5–8
+- [x] M6.5 Walker's lines at dungeons 5–8: a hint at each entrance (the boss, and the item hidden there), and outside each once its shard is found (how to use what was found, and the way on; after the last, the Shadow Vault)
 
 ## M7 — Shadow Vault and ending
 

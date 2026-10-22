@@ -97,6 +97,41 @@ describe('Walker at dungeons 2 to 4 (M5.5)', () => {
     },
   );
 
+  it.each([
+    [5, 'dungeon5', { col: 4, row: 0 }],
+    [6, 'dungeon6', { col: 0, row: 3 }],
+    [7, 'dungeon7', { col: 12, row: 5 }],
+    [8, 'dungeon8', { col: 14, row: 0 }],
+  ] as const)(
+    'waits at dungeon %i’s entrance, and outside it once its shard is found (M6.5)',
+    (_n, map, outside) => {
+      const start = MAPS[map].start;
+      expect(here(map, start.col, start.row)).toBe(map);
+      expect(here('overworld', outside.col, outside.row)).toBeNull();
+      expect(here('overworld', outside.col, outside.row, [`${map}/shard`])).toBe(`${map}-done`);
+      expect(
+        here('overworld', outside.col, outside.row, [`${map}/shard`, `walker/${map}-done`]),
+      ).toBeNull();
+    },
+  );
+
+  it('outside each dungeon from the first to the seventh, he names the next; after the last, the vault', () => {
+    const next = [
+      'BOG GROTTO',
+      'SUNKEN CRYPT',
+      'STONECRAG MINE',
+      'THUNDER SPIRE',
+      'WITCHWOOD TOWER',
+      'CRIMSON MANOR',
+      "DRAGON'S MAW",
+      'SHADOW VAULT',
+    ];
+    next.forEach((name, i) => {
+      const done = WALKER_VISITS.find((v) => v.id === `dungeon${i + 1}-done`);
+      expect(done?.speech.map((p) => p.text).join(' '), `dungeon${i + 1}-done`).toContain(name);
+    });
+  });
+
   it('names the touch buttons wherever he names keys', () => {
     for (const v of WALKER_VISITS) {
       for (const p of v.speech) {
