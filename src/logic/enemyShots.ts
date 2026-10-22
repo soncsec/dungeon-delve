@@ -7,9 +7,11 @@
 import { TILE } from '../config/tuning';
 import type { Point } from './movement';
 import type { Rect } from './sword';
-import type { Vec } from './enemies';
+import type { ShotKind, Vec } from './enemies';
 
 export interface EnemyShot {
+  /** The eye's orb, the snake's venom or the mushroom's spores (each flies its own way). */
+  kind: ShotKind;
   pos: Point;
   /** Unit direction. */
   dir: Vec;
@@ -23,10 +25,12 @@ export interface ShotTuning {
   range: number;
   /** Width and height of its hit box. */
   size: number;
+  /** Half hearts it costs Jarrett. */
+  damage: number;
 }
 
-export function fireShot(from: Point, dir: Vec): EnemyShot {
-  return { pos: { ...from }, dir: { ...dir }, travelled: 0, clear: false };
+export function fireShot(from: Point, dir: Vec, kind: ShotKind = 'orb'): EnemyShot {
+  return { kind, pos: { ...from }, dir: { ...dir }, travelled: 0, clear: false };
 }
 
 /** Flies a shot for `dtMs`; `stopped` when it meets a solid cell (once clear) or its range ends. Sub-tile steps. */

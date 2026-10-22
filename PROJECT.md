@@ -38,8 +38,8 @@ It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff 
 |---|---|
 | Near and far weapons | Jarrett carries a **near** (melee) weapon and a **far** (ranged) weapon. One key **switches** which is active; the attack key uses the active one. The HUD shows which is active |
 | Near weapons | Wooden Sword (start) → Steel Sword → Star Blade (stronger, wider swing). The **Axe** also breaks cracked walls and boulders |
-| Far weapons | **Throwing daggers** (cooldown, no ammo) → later a faster triple throw |
-| Spells | Cost **mana**. **Fireball** (burns thorn bushes; Walker teaches it after Hollow Oak, owner 2026-10-21), **Lightning** (Sunken Crypt's prize: a fast bolt that stuns an enemy for 3 s without hurting it, and powers crystal switches, which open barred gates), **Ward** (a short energy shield that blocks all damage). Cast with the spell key; the equipped spell is chosen in the inventory |
+| Far weapons | **Throwing daggers** (cooldown, no ammo) → **Triple Daggers**, a fan of three (Crimson Manor's prize, owner 2026-10-21) |
+| Spells | Cost **mana**. **Fireball** (burns thorn bushes; Walker teaches it after Hollow Oak, owner 2026-10-21), **Lightning** (Sunken Crypt's prize: a fast bolt that stuns an enemy for 3 s without hurting it, and powers crystal switches, which open barred gates), **Ward** (Thunder Spire's prize, owner 2026-10-21: a short energy shield that blocks all damage). Cast with the spell key; the equipped spell is chosen in the inventory |
 | Shields | Wooden Shield (start: blocks arrows and darts from the front while walking or standing), Iron Shield (also blocks fireballs; bought in the village shop for 80 gems) |
 | Mana | A mana bar that **refills automatically** after a short pause without casting; it shows once Jarrett knows a spell. A **Mana Brew** potion makes it refill much faster for a while (about 3× for 30 s). Bog Grotto's Mana Crystal raises the maximum from 100 to 150 |
 | Potions | **Health Potion** (refills hearts) and **Mana Brew**. Found in chests and pots, bought in the village shop. Up to 3 of each |
@@ -57,9 +57,9 @@ Shards are the keys (owner 2026-10-21): dungeon *n*'s entrance opens once Jarret
 | 2 | Bog Grotto | Marsh | A bigger mana bar (the Mana Crystal) | Giant Frog |
 | 3 | Sunken Crypt | Ruins | Lightning spell (moved from Thunder Spire, owner 2026-10-21) | Mummy |
 | 4 | Stonecrag Mine | Mountains | Axe | Ogre |
-| 5 | Thunder Spire | Mountains | To be decided (its Lightning moved to Sunken Crypt, owner 2026-10-21) | Centaur |
+| 5 | Thunder Spire | Mountains | Ward spell (moved from Crimson Manor; its Lightning moved to Sunken Crypt, owner 2026-10-21) | Centaur |
 | 6 | Witchwood Tower | Forest | Steel Sword | Witch |
-| 7 | Crimson Manor | Ruins | Ward spell | Vampire |
+| 7 | Crimson Manor | Ruins | Triple Daggers (owner 2026-10-21) | Vampire |
 | 8 | Dragon's Maw | Volcano edge | Star Blade | Dragon |
 | — | Shadow Vault | Centre of the map | Princess Kira | Demon sorcerer (final boss) |
 
@@ -74,6 +74,14 @@ Around 12–15 types, each with its own movement and attack, introduced a few at
 | Ghost | Drifts slowly straight at Jarrett, through walls | 3 |
 | Flying eye | Keeps its distance, circling, and shoots at Jarrett | 2 |
 | Wolf | Prowls, and charges when Jarrett is in line with it (a full heart if it hits) | 3 |
+
+Three more for the marsh, ruins and mountains (M5.4):
+
+| Enemy | Where | How it moves | Health |
+|---|---|---|---|
+| Snake | Marsh, Bog Grotto | Slithers about; when Jarrett is in line, spits venom along the line, then coils a moment | 2 |
+| Mushroom | Ruins, Sunken Crypt | Plods slowly; every few seconds puffs a ring of six spores that drift a short way | 3 |
+| Toad | Marsh, mountains, Bog Grotto, Stonecrag Mine | Sits, then hops at Jarrett | 2 |
 
 Later regions mix these with stronger variants and new kinds. The pack's large creatures (slime, frog, mummy, ogre, fire skull…) are too big for common enemies at native size, so they serve as mini-bosses and bosses.
 
@@ -167,10 +175,12 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-21 | Magic: Jarrett starts with no spell and no mana bar. After Hollow Oak, Walker thanks him for taking on the quest and teaches him the Fireball. Bog Grotto's prize becomes the bigger mana bar (a Mana Crystal: the pack's second Rocky Pass crystal recoloured blue, ADR-D05); Sunken Crypt's prize is to be decided |
 | 2026-10-21 | Touch controls and the phone layout (M8.2) come right after M5.2, so the owner can play-test on a phone |
 | 2026-10-21 | Sunken Crypt's prize is the Lightning spell (moved from Thunder Spire, whose prize is to be decided): a bolt that stuns enemies and powers crystal switches, which open barred gates. The bolt is the pack's "Warped shooting fx" bolt; a switch is the dungeon's pillar orb, dim until powered (runtime tint) |
+| 2026-10-21 | Thunder Spire's prize is the Ward spell, moved up from Crimson Manor; Crimson Manor's prize becomes the Triple Daggers (the daggers' upgrade to a fan of three) |
+| 2026-10-21 | New enemies (M5.4): the snake in the marsh and Bog Grotto, the mushroom in the ruins and Sunken Crypt, the toad in the marsh, the mountains, Bog Grotto and Stonecrag Mine. They take the places of some birds, eyes, ghosts and robots there. The pack's small snake, mushroom and frog sprites at native size; the snake's spit is its own sprite, the spores are the eye's shot tinted green |
 | 2026-10-21 | Bosses each fight their own way: the Treant shuffles and spits seeds; the Giant Frog crouches and leaps at Jarrett, out of reach in the air, and each landing throws a ring of shots; the Mummy shambles after him firing spreads, and only a Lightning bolt's stun lets blows land on it |
 | 2026-10-20 | A small title screen arrives with the save game (M3.5): CONTINUE when there is a save, and NEW GAME, which asks before wiping it. `?dungeon=n` skips the title and starts a new run marked as a cheat |
 | 2026-10-20 | Each beaten boss leaves a heart container and a shard of the Star of Power; a shard is the pack's crystal recoloured gold |
 
 ## 8. Open questions
 
-- Thunder Spire's prize (dungeon 5), since its Lightning moved to Sunken Crypt (owner 2026-10-21): a proposal comes with M6.
+None at the moment.

@@ -108,7 +108,7 @@ describe('knockback', () => {
     const r = stepEnemy(enemy({ knockMs: 150, knockDir: 'left' }), 100, base, ctx());
     expect(r.enemy.pos).toEqual({ x: 84, y: 100 });
     expect(r.enemy.knockMs).toBe(50);
-    expect(r.shot).toBeNull();
+    expect(r.shots).toEqual([]);
   });
 
   it('uses the fliers’ rules for fliers', () => {
@@ -210,23 +210,23 @@ describe('hover (flying eye)', () => {
   it('shoots at him when its timer runs out, then waits again', () => {
     const r = stepEnemy(enemy({ shootInMs: 100 }), 200, stats, ctx({ hero: { x: 100, y: 180 } }));
     // From the middle of its body (box height 10), straight at him.
-    expect(r.shot?.dir).toEqual({ x: 0, y: 1 });
-    expect(r.shot?.from.x).toBeCloseTo(r.enemy.pos.x);
-    expect(r.shot?.from.y).toBeCloseTo(r.enemy.pos.y - 5);
+    expect(r.shots[0]?.dir).toEqual({ x: 0, y: 1 });
+    expect(r.shots[0]?.from.x).toBeCloseTo(r.enemy.pos.x);
+    expect(r.shots[0]?.from.y).toBeCloseTo(r.enemy.pos.y - 5);
     expect(r.enemy.shootInMs).toBe(2000);
-    expect(stepEnemy(r.enemy, 100, stats, ctx()).shot).toBeNull();
+    expect(stepEnemy(r.enemy, 100, stats, ctx()).shots).toEqual([]);
   });
 
   it('shoots straight down if he is right on top of it', () => {
     const r = stepEnemy(enemy({ shootInMs: 0 }), 10, stats, ctx({ hero: { x: 100, y: 100 } }));
-    expect(r.shot?.dir).toEqual({ x: 0, y: 1 });
+    expect(r.shots[0]?.dir).toEqual({ x: 0, y: 1 });
   });
 
   it('without distances or a gun it just comes closer and never shoots', () => {
     const plain: EnemyStats = { ...base, behaviour: 'hover', flies: true, speed: 10 };
     const r = stepEnemy(enemy(), 1000, plain, ctx({ hero: { x: 130, y: 100 } }));
     expect(r.enemy.pos.x).toBe(110);
-    expect(r.shot).toBeNull();
+    expect(r.shots).toEqual([]);
   });
 });
 
@@ -330,7 +330,7 @@ describe('stunned by Lightning', () => {
     let r = stepEnemy(e, 300, base, ctx());
     expect(r.enemy.pos).toEqual(e.pos);
     expect(r.enemy.stunMs).toBe(200);
-    expect(r.shot).toBeNull();
+    expect(r.shots).toEqual([]);
     r = stepEnemy(r.enemy, 300, base, ctx());
     expect(r.enemy.stunMs).toBe(0);
     expect(r.enemy.pos).toEqual(e.pos); // the last of the stun used this step up
@@ -342,5 +342,120 @@ describe('stunned by Lightning', () => {
     const r = stepEnemy(enemy({ stunMs: 500, knockMs: 100, knockDir: 'left' }), 50, base, ctx());
     expect(r.enemy.pos.x).toBeLessThan(100);
     expect(r.enemy.stunMs).toBe(500);
+  });
+});
+
+describe('the snake: spits along a line', () => {
+  const snake: EnemyStats = {
+    ...base,
+    behaviour: 'spit',
+    speed: 20,
+    spit: { sight: 100, inLine: 8, restMs: 1000 },
+    shotKind: 'venom',
+  };
+
+  it('in line with Jarrett, it faces him and spits along the line, then coils', () => {
+    const r = stepEnemy(enemy({ restMs: 0 }), 100, snake, ctx({ hero: { x: 160, y: 104 } }));
+    expect(r.shots).toEqual([{ from: { x: 100, y: 95 }, dir: { x: 1, y: 0 } }]);
+    expect(r.enemy).toMatchObject({ facing: 'right', restMs: 1000, pos: { x: 100, y: 100 } });
+    // Coiled: still, and no more spit until it has rested.
+    const coiled = stepEnemy(r.enemy, 400, snake, ctx({ hero: { x: 160, y: 104 } }));
+    expect(coiled.shots).toEqual([]);
+    expect(coiled.enemy).toMatchObject({ restMs: 600, pos: { x: 100, y: 100 } });
+  });
+
+  it('spits up or down a column too, and not beyond its sight', () => {
+    const up = stepEnemy(enemy(), 10, snake, ctx({ hero: { x: 96, y: 40 } }));
+    expect(up.shots[0]?.dir).toEqual({ x: 0, y: -1 });
+    const far = stepEnemy(enemy(), 10, snake, ctx({ hero: { x: 300, y: 100 } }));
+    expect(far.shots).toEqual([]);
+  });
+
+  it('out of line, it just slithers about', () => {
+    const r = stepEnemy(
+      enemy({ dir: { x: 1, y: 0 } }),
+      500,
+      snake,
+      ctx({ hero: { x: 160, y: 160 } }),
+    );
+    expect(r.shots).toEqual([]);
+    expect(r.enemy.pos.x).toBe(110);
+  });
+
+  it('with no spit settings it never sees him', () => {
+    const blind: EnemyStats = { ...base, behaviour: 'spit' };
+    const r = stepEnemy(enemy(), 10, blind, ctx({ hero: { x: 160, y: 100 } }));
+    expect(r.shots).toEqual([]);
+  });
+});
+
+describe('the mushroom: puffs spores all round', () => {
+  const mushroom: EnemyStats = {
+    ...base,
+    behaviour: 'puff',
+    speed: 10,
+    shootMs: { min: 3000, max: 3000 },
+    puff: { shots: 4 },
+    shotKind: 'spore',
+  };
+
+  it('plods about, and when its timer runs out puffs spores out evenly round it', () => {
+    const r = stepEnemy(enemy({ shootInMs: 50 }), 100, mushroom, ctx());
+    expect(r.shots).toHaveLength(4);
+    expect(r.shots.map((p) => [Math.round(p.dir.x) + 0, Math.round(p.dir.y) + 0])).toEqual([
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+    ]);
+    expect(r.enemy.shootInMs).toBe(3000);
+    expect(r.enemy.pos.x).toBe(101);
+  });
+
+  it('between puffs, nothing; without a timer, never', () => {
+    expect(stepEnemy(enemy({ shootInMs: 500 }), 100, mushroom, ctx()).shots).toEqual([]);
+    const shy: EnemyStats = { ...base, behaviour: 'puff' };
+    expect(stepEnemy(enemy({ shootInMs: 0 }), 100, shy, ctx()).shots).toEqual([]);
+  });
+
+  it('puffs four spores if it doesn’t say how many', () => {
+    const plain: EnemyStats = {
+      ...base,
+      behaviour: 'puff',
+      shootMs: { min: 3000, max: 3000 },
+    };
+    expect(stepEnemy(enemy({ shootInMs: 0 }), 10, plain, ctx()).shots).toHaveLength(4);
+  });
+});
+
+describe('the toad: sits, then hops at Jarrett', () => {
+  const toad: EnemyStats = {
+    ...base,
+    behaviour: 'leap',
+    leap: { speed: 100, ms: 300, restMs: { min: 800, max: 800 } },
+  };
+
+  it('sits out its rest without moving', () => {
+    const r = stepEnemy(enemy({ restMs: 500 }), 200, toad, ctx({ hero: { x: 160, y: 100 } }));
+    expect(r.enemy).toMatchObject({ restMs: 300, pos: { x: 100, y: 100 }, chargeMs: 0 });
+  });
+
+  it('then hops at where he is, and sits again when the hop ends', () => {
+    let r = stepEnemy(enemy({ restMs: 0 }), 10, toad, ctx({ hero: { x: 160, y: 100 } }));
+    expect(r.enemy).toMatchObject({ chargeMs: 300, dir: { x: 1, y: 0 }, facing: 'right' });
+    r = stepEnemy(r.enemy, 200, toad, ctx({ hero: { x: 160, y: 100 } }));
+    expect(r.enemy.pos.x).toBe(120);
+    expect(r.enemy.chargeMs).toBe(100);
+    r = stepEnemy(r.enemy, 200, toad, ctx({ hero: { x: 160, y: 100 } }));
+    expect(r.enemy.pos.x).toBe(130); // only the last 100 ms of the hop
+    expect(r.enemy).toMatchObject({ chargeMs: 0, restMs: 800 });
+  });
+
+  it('right on top of him, it waits; with no hop settings, it never moves', () => {
+    const on = stepEnemy(enemy({ restMs: 0 }), 10, toad, ctx({ hero: { x: 100, y: 100 } }));
+    expect(on.enemy).toMatchObject({ chargeMs: 0, restMs: 0 });
+    const lazy: EnemyStats = { ...base, behaviour: 'leap' };
+    const r = stepEnemy(enemy({ restMs: 0 }), 100, lazy, ctx({ hero: { x: 160, y: 100 } }));
+    expect(r.enemy.pos).toEqual({ x: 100, y: 100 });
   });
 });

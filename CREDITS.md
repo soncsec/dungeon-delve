@@ -20,6 +20,9 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/enemies/eye.png` — `Gothicvania/Characters/flying-eye-demon/Spritesheet.png`
 - `assets/enemies/ghost.png` — `Gothicvania/Characters/enemy-ghost/Spritesheets/no-particles.png`
 - `assets/enemies/wolf.png` — `Gothicvania/Characters/wolf-runing-cycle/spritesheets/wolf-runing-cycle-skin.png`
+- `assets/enemies/snake.png` — `Warped/Characters/Grotto-escape-2-snake/spritesheets/walk.png`
+- `assets/enemies/mushroom.png` — `Misc/Characters/sunny-mushroom/spritesheets/sunny-mushroom-walk.png`
+- `assets/enemies/toad.png` — `Misc/Characters/sunny-froggy/Spritesheets/sunny-froggy-walk.png`
 
 ### Bosses
 
@@ -45,6 +48,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/effects/fire-ball.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/fire-ball.png`
 - `assets/effects/bolt.png` — `Explosions and Magic/Warped shooting fx/Bolt/spritesheet.png`
 - `assets/effects/enemy-shot.png` — `Gothicvania/Misc/EnemyProjectile/spritesheet.png`
+- `assets/effects/snake-spit.png` — `Warped/Characters/Grotto-escape-2-snake/spritesheets/spit.png`
 
 ### Items
 

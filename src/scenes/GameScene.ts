@@ -25,7 +25,7 @@ import {
   BOSS_REWARDS,
   STAR,
   ENEMIES,
-  ENEMY_SHOT,
+  ENEMY_SHOTS,
   ROOM_SLIDE_MS,
   STONE,
   TRAVEL,
@@ -138,6 +138,7 @@ import {
   stepEnemy,
   type Enemy,
   type EnemyKind,
+  type ShotKind as EnemyShotKind,
 } from '../logic/enemies';
 import { fireShot, shotBox, stepShot, type EnemyShot } from '../logic/enemyShots';
 import { PROP_FOOTPRINT, isSolid, sealCells, type Dir } from '../logic/room';
@@ -370,13 +371,21 @@ interface LiveEnemyShot {
  * art and are mirrored to face left; the robot has a sheet per facing.
  */
 const ENEMY_ART: Readonly<
-  Record<Exclude<EnemyKind, 'robot'>, { sheet: string; anim: string; feetY: number }>
+  Record<
+    Exclude<EnemyKind, 'robot'>,
+    { sheet: string; anim: string; feetY: number; facesLeft?: boolean }
+  >
 > = {
   bird: { sheet: 'bird', anim: 'fly', feetY: 30 / 32 },
   eye: { sheet: 'eye', anim: 'fly', feetY: 39 / 48 },
   ghost: { sheet: 'ghost', anim: 'fly', feetY: 52 / 64 },
   wolf: { sheet: 'wolf', anim: 'run', feetY: 1 },
+  snake: { sheet: 'snake', anim: 'crawl', feetY: 20 / 20 },
+  mushroom: { sheet: 'mushroom', anim: 'walk', feetY: 30 / 30, facesLeft: true },
+  toad: { sheet: 'toad', anim: 'hop', feetY: 38 / 38 },
 };
+/** The mushroom's spores: the enemy orb under a sickly green (runtime tint, ADR-D05). */
+const SPORE_TINT = 0x9fe070;
 
 interface Pickup {
   kind: PickupKind;
@@ -1369,7 +1378,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         flySolid,
       });
       live.e = step.enemy;
-      if (step.shot) this.addEnemyShot(step.shot.from, step.shot.dir);
+      const kind = ENEMIES[live.e.kind].shotKind ?? 'orb';
+      for (const shot of step.shots) this.addEnemyShot(shot.from, shot.dir, kind);
       this.drawEnemy(live);
     }
   }
@@ -1384,9 +1394,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     } else {
       const art = ENEMY_ART[e.kind];
       sprite.play(animKey(art.sheet, art.anim), true);
-      // These face right in the art; facing up or down keeps the last side.
-      if (e.facing === 'left') sprite.setFlipX(true);
-      if (e.facing === 'right') sprite.setFlipX(false);
+      // Most face right in the art (the mushroom left); facing up or down keeps the last side.
+      const mirrored = art.facesLeft ? 'right' : 'left';
+      if (e.facing === mirrored) sprite.setFlipX(true);
+      if (e.facing === (art.facesLeft ? 'left' : 'right')) sprite.setFlipX(false);
     }
     if (e.knockMs > 0) sprite.setTint(0xff7070);
     else if (isStunned(e) && Math.floor(e.stunMs / LIGHTNING.flickerMs) % 2 === 0) {
@@ -1577,11 +1588,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     );
   }
 
-  private addEnemyShot(from: Point, dir: { x: number; y: number }): void {
-    const s = fireShot(from, dir);
+  private addEnemyShot(
+    from: Point,
+    dir: { x: number; y: number },
+    kind: EnemyShotKind = 'orb',
+  ): void {
+    const s = fireShot(from, dir, kind);
     this.shotsFired += 1;
     this.sfx.play('enemyShot');
-    const sprite = this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
+    const sprite =
+      kind === 'venom'
+        ? this.enemyPool.take('snake-spit').setFlipX(dir.x < 0)
+        : this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
+    if (kind === 'spore') sprite.setTint(SPORE_TINT);
     const live = { s, sprite };
     this.enemyShots.push(live);
     this.drawEnemyShot(live);
@@ -1594,9 +1613,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.outsideRoom(cx, cy) || (room ? isSolid(room, cx, cy) : true);
     for (const live of [...this.enemyShots]) {
       if (this.enemiesHold) continue;
-      const step = stepShot(live.s, deltaMs, ENEMY_SHOT, solid);
+      const t = ENEMY_SHOTS[live.s.kind];
+      const step = stepShot(live.s, deltaMs, t, solid);
       live.s = step.shot;
-      const hit = overlaps(shotBox(live.s, ENEMY_SHOT), this.heroBody());
+      const hit = overlaps(shotBox(live.s, t), this.heroBody());
       if (hit) {
         const shieldUp = this.inv.equipped.shield !== null && !this.handsBusy(now);
         if (shieldUp && shieldBlocks(this.facing, live.s.dir, false, SHIELD.coverCos)) {
@@ -1604,7 +1624,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
           this.sfx.play('block');
           this.effect('hit', live.s.pos.x, live.s.pos.y);
         } else {
-          this.hurtHero(ENEMY_SHOT.damage, live.s.pos, now);
+          this.hurtHero(t.damage, live.s.pos, now);
         }
       }
       if (hit || step.stopped) this.dropEnemyShot(live);
@@ -1619,7 +1639,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   private dropEnemyShot(live: LiveEnemyShot): void {
     this.enemyShots = this.enemyShots.filter((x) => x !== live);
-    this.enemyPool.give(live.sprite);
+    this.enemyPool.give(live.sprite.clearTint().setFlipX(false));
   }
 
   /** Every enemy under the blade takes one hit per swing; defeated ones vanish in a puff. */

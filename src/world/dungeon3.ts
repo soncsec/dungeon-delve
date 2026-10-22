@@ -86,7 +86,7 @@ export const DUNGEON_3: readonly RoomDef[] = [
     col: 1,
     row: 2,
     enemies: [
-      { kind: 'robot', col: 5, row: 3 },
+      { kind: 'mushroom', col: 5, row: 3 },
       { kind: 'ghost', col: 14, row: 6 },
     ],
     lines: [
@@ -109,7 +109,7 @@ export const DUNGEON_3: readonly RoomDef[] = [
     chests: [{ col: 16, row: 4, contents: { kind: 'item', item: 'lightning' } }],
     enemies: [
       { kind: 'eye', col: 5, row: 3 },
-      { kind: 'robot', col: 8, row: 7 },
+      { kind: 'mushroom', col: 8, row: 7 },
     ],
     lines: [
       '####################',
@@ -131,7 +131,7 @@ export const DUNGEON_3: readonly RoomDef[] = [
     chests: [{ col: 6, row: 4, contents: { kind: 'key' } }],
     enemies: [
       { kind: 'eye', col: 14, row: 3 },
-      { kind: 'robot', col: 12, row: 7 },
+      { kind: 'mushroom', col: 12, row: 7 },
     ],
     lines: [
       '####################',

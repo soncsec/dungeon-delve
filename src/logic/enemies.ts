@@ -15,8 +15,12 @@ import type { Point } from './movement';
 import type { Rng } from './rng';
 import { facingVector, type Rect } from './sword';
 
-export type EnemyKind = 'robot' | 'bird' | 'ghost' | 'eye' | 'wolf';
-export type Behaviour = 'wander' | 'flutter' | 'drift' | 'hover' | 'charge';
+export type EnemyKind = 'robot' | 'bird' | 'ghost' | 'eye' | 'wolf' | 'snake' | 'mushroom' | 'toad';
+export type Behaviour =
+  'wander' | 'flutter' | 'drift' | 'hover' | 'charge' | 'spit' | 'puff' | 'leap';
+
+/** What an enemy shoots: the eye's orb, the snake's venom, the mushroom's spores. */
+export type ShotKind = 'orb' | 'venom' | 'spore';
 
 export interface EnemyStats {
   behaviour: Behaviour;
@@ -37,6 +41,14 @@ export interface EnemyStats {
   shootMs?: { min: number; max: number };
   /** Charge: how fast and long, how far it sees, how close in line counts, and the rest after. */
   charge?: { speed: number; ms: number; sight: number; inLine: number; restMs: number };
+  /** Spit (the snake): how far it sees, how close in line counts, and how long it coils after. */
+  spit?: { sight: number; inLine: number; restMs: number };
+  /** Puff (the mushroom): how many spores fly out, evenly round, every `shootMs`. */
+  puff?: { shots: number };
+  /** Leap (the toad): a hop at Jarrett, how fast and long, and the sit between hops. */
+  leap?: { speed: number; ms: number; restMs: { min: number; max: number } };
+  /** What it shoots (default: the eye's orb). */
+  shotKind?: ShotKind;
 }
 
 export interface Vec {
@@ -80,8 +92,8 @@ export interface StepContext {
 
 export interface StepResult {
   enemy: Enemy;
-  /** Set when it shoots this step: where the shot starts and its direction (unit length). */
-  shot: { from: Point; dir: Vec } | null;
+  /** What it shoots this step: where each shot starts and its direction (unit length). */
+  shots: { from: Point; dir: Vec }[];
 }
 
 const FOUR: readonly Vec[] = [
@@ -146,20 +158,26 @@ export function stepEnemy(e: Enemy, dtMs: number, s: EnemyStats, ctx: StepContex
       s.box,
       solid,
     );
-    return { enemy: { ...e, pos, knockMs: e.knockMs - ms }, shot: null };
+    return { enemy: { ...e, pos, knockMs: e.knockMs - ms }, shots: [] };
   }
-  if (e.stunMs > 0) return { enemy: { ...e, stunMs: Math.max(0, e.stunMs - dtMs) }, shot: null };
+  if (e.stunMs > 0) return { enemy: { ...e, stunMs: Math.max(0, e.stunMs - dtMs) }, shots: [] };
   switch (s.behaviour) {
     case 'wander':
-      return { enemy: wander(e, dtMs, s, ctx.rng, solid, FOUR), shot: null };
+      return { enemy: wander(e, dtMs, s, ctx.rng, solid, FOUR), shots: [] };
     case 'flutter':
-      return { enemy: wander(e, dtMs, s, ctx.rng, solid, EIGHT), shot: null };
+      return { enemy: wander(e, dtMs, s, ctx.rng, solid, EIGHT), shots: [] };
     case 'drift':
-      return { enemy: glide(e, towards(e.pos, ctx.hero), dtMs, s.speed, s, solid), shot: null };
+      return { enemy: glide(e, towards(e.pos, ctx.hero), dtMs, s.speed, s, solid), shots: [] };
     case 'hover':
       return hover(e, dtMs, s, ctx, solid);
     case 'charge':
-      return { enemy: charge(e, dtMs, s, ctx, solid), shot: null };
+      return { enemy: charge(e, dtMs, s, ctx, solid), shots: [] };
+    case 'spit':
+      return spit(e, dtMs, s, ctx, solid);
+    case 'puff':
+      return puff(e, dtMs, s, ctx, solid);
+    case 'leap':
+      return { enemy: leap(e, dtMs, s, ctx, solid), shots: [] };
   }
 }
 
@@ -225,12 +243,12 @@ function hover(
   // Face Jarrett, whichever way it drifts.
   const facing = facingOf(to, moved.facing);
   let shootInMs = e.shootInMs - dtMs;
-  let shot: StepResult['shot'] = null;
+  const shots: StepResult['shots'] = [];
   if (s.shootMs && shootInMs <= 0) {
-    shot = { from: shotOrigin(moved, s), dir: to.x === 0 && to.y === 0 ? { x: 0, y: 1 } : to };
+    shots.push({ from: shotOrigin(moved, s), dir: to.x === 0 && to.y === 0 ? { x: 0, y: 1 } : to });
     shootInMs = ctx.rng.int(s.shootMs.min, s.shootMs.max);
   }
-  return { enemy: { ...moved, facing, shootInMs }, shot };
+  return { enemy: { ...moved, facing, shootInMs }, shots };
 }
 
 function charge(
@@ -262,6 +280,88 @@ function charge(
     if (way) return { ...e, dir: way, facing: facingOf(way, e.facing), chargeMs: c.ms, restMs: 0 };
   }
   return { ...wander({ ...e, restMs }, dtMs, s, ctx.rng, solid, FOUR), restMs };
+}
+
+/** The way along a row or column to Jarrett, if he is in line (within `inLine`) and in sight. */
+function inLineWith(e: Enemy, hero: Point, sight: number, inLine: number): Vec | null {
+  const dx = hero.x - e.pos.x;
+  const dy = hero.y - e.pos.y;
+  if (Math.abs(dy) <= inLine && Math.abs(dx) <= sight && dx !== 0)
+    return { x: Math.sign(dx), y: 0 };
+  if (Math.abs(dx) <= inLine && Math.abs(dy) <= sight && dy !== 0)
+    return { x: 0, y: Math.sign(dy) };
+  return null;
+}
+
+/**
+ * The snake: wanders, and when Jarrett is in line with it, stops, faces him
+ * and spits venom along the line; then coils a while (standing still).
+ */
+function spit(
+  e: Enemy,
+  dtMs: number,
+  s: EnemyStats,
+  ctx: StepContext,
+  solid: (cx: number, cy: number) => boolean,
+): StepResult {
+  const sp = s.spit ?? { sight: 0, inLine: 0, restMs: 0 };
+  if (e.restMs > 0) return { enemy: { ...e, restMs: Math.max(0, e.restMs - dtMs) }, shots: [] };
+  const way = inLineWith(e, ctx.hero, sp.sight, sp.inLine);
+  if (way) {
+    const facing = facingOf(way, e.facing);
+    const coiled = { ...e, dir: way, facing, restMs: sp.restMs };
+    return { enemy: coiled, shots: [{ from: shotOrigin(coiled, s), dir: way }] };
+  }
+  return { enemy: wander(e, dtMs, s, ctx.rng, solid, FOUR), shots: [] };
+}
+
+/** The mushroom: plods about, and every so often puffs spores out all round it. */
+function puff(
+  e: Enemy,
+  dtMs: number,
+  s: EnemyStats,
+  ctx: StepContext,
+  solid: (cx: number, cy: number) => boolean,
+): StepResult {
+  const moved = wander(e, dtMs, s, ctx.rng, solid, FOUR);
+  const shootInMs = e.shootInMs - dtMs;
+  if (!s.shootMs || shootInMs > 0) return { enemy: { ...moved, shootInMs }, shots: [] };
+  const n = s.puff?.shots ?? 4;
+  const from = shotOrigin(moved, s);
+  const shots = Array.from({ length: n }, (_, i) => {
+    const a = (2 * Math.PI * i) / n;
+    return { from, dir: { x: Math.cos(a), y: Math.sin(a) } };
+  });
+  return {
+    enemy: { ...moved, shootInMs: ctx.rng.int(s.shootMs.min, s.shootMs.max) },
+    shots,
+  };
+}
+
+/** The toad: sits, then hops at Jarrett (a quick leap that stops at walls), then sits again. */
+function leap(
+  e: Enemy,
+  dtMs: number,
+  s: EnemyStats,
+  ctx: StepContext,
+  solid: (cx: number, cy: number) => boolean,
+): Enemy {
+  const l = s.leap ?? { speed: s.speed, ms: 0, restMs: { min: 0, max: 0 } };
+  if (e.chargeMs > 0) {
+    const ms = Math.min(dtMs, e.chargeMs);
+    const moved = glide(e, e.dir, ms, l.speed, s, solid);
+    const chargeMs = e.chargeMs - ms;
+    return {
+      ...moved,
+      chargeMs,
+      restMs: chargeMs === 0 ? ctx.rng.int(l.restMs.min, l.restMs.max) : 0,
+    };
+  }
+  const restMs = e.restMs - dtMs;
+  if (restMs > 0) return { ...e, restMs };
+  const dir = towards(e.pos, ctx.hero);
+  if (dir.x === 0 && dir.y === 0) return { ...e, restMs: 0 };
+  return { ...e, dir, facing: facingOf(dir, e.facing), chargeMs: l.ms, restMs: 0 };
 }
 
 /** Where its shots start: the middle of its body. */
