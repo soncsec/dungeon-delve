@@ -55,7 +55,8 @@ import {
   type Boss,
   type BossKind,
 } from '../logic/boss';
-import { paginate, type Page } from '../logic/dialogue';
+import { forDevice, paginate, type Page } from '../logic/dialogue';
+import { isTouchDevice } from '../platform/touch';
 import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
 import { markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
 import { WALKER_VISITS } from '../world/walker';
@@ -481,6 +482,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   /** The shopkeeper (in the shop), and his feet. */
   private shopkeeper: { sprite: Phaser.GameObjects.Sprite; feet: Point } | null = null;
   private talk: Talk | null = null;
+  /** A phone or tablet: Walker names the touch buttons rather than the keys. */
+  private readonly touch = isTouchDevice();
   /** The cells shut while a boss fight is on, and the gates drawn over them. */
   private sealed: { x: number; y: number }[] = [];
   /** Messages shown so far (finding a shard). */
@@ -1095,7 +1098,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       .setDepth(DEPTH.hud - 2);
     this.tweens.add({ targets: more, alpha: 0.2, duration: 400, yoyo: true, repeat: -1 });
     this.talk = {
-      pages: paginate(live.visit.speech, DIALOGUE.width, DIALOGUE.lines),
+      pages: paginate(forDevice(live.visit.speech, this.touch), DIALOGUE.width, DIALOGUE.lines),
       page: 0,
       objects: [box, name, text, more],
       text,

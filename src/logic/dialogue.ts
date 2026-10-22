@@ -7,8 +7,15 @@ import type { ItemId } from './inventory';
 
 export interface Paragraph {
   text: string;
+  /** What is said instead on a phone or tablet (the touch buttons, not the keys). */
+  touch?: string;
   /** Items given when this paragraph's first page shows. */
   give?: readonly ItemId[];
+}
+
+/** The speech for this device: on a touchscreen, each paragraph's `touch` wording where it has one. */
+export function forDevice(speech: readonly Paragraph[], touch: boolean): Paragraph[] {
+  return speech.map((p) => (touch && p.touch !== undefined ? { ...p, text: p.touch } : p));
 }
 
 export interface Page {

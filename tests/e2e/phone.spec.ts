@@ -146,3 +146,43 @@ test('the touch controls sit below the game when the phone is upright', async ({
     expect((box?.y ?? 0) + (box?.height ?? 0), sel).toBeLessThanOrEqual(viewport?.height ?? 0);
   }
 });
+
+test('on a phone, Walker names the touch buttons, not the keys', async ({ page }) => {
+  await page.goto('./');
+  await expect
+    .poll(() => page.evaluate(() => window.__game?.scene() ?? null), { timeout: 15_000 })
+    .toBe('Title');
+  await page.keyboard.press('Enter'); // NEW GAME
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+  const w = (await snapshot(page)).walker;
+  expect(w).not.toBeNull();
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), {
+    x: w?.x ?? 0,
+    y: w?.y ?? 0,
+  });
+  // HIT starts the talk and turns its pages, as Space does.
+  const hit = await page.locator('#touch .attack').boundingBox();
+  const tapHit = () =>
+    page.touchscreen.tap(
+      (hit?.x ?? 0) + (hit?.width ?? 0) / 2,
+      (hit?.y ?? 0) + (hit?.height ?? 0) / 2,
+    );
+  await tapHit();
+  await expect.poll(async () => (await snapshot(page)).talking).not.toBeNull();
+  const pages: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    const talking = (await snapshot(page)).talking;
+    if (!talking) break;
+    pages.push(talking.lines.join(' '));
+    await tapHit();
+    await expect
+      .poll(async () => (await snapshot(page)).talking?.page ?? -1, { intervals: [50] })
+      .not.toBe(talking.page);
+  }
+  const said = pages.join(' ');
+  expect(said).toContain('THE PAD WALKS. HIT STRIKES.');
+  expect(said).toContain('BAG OPENS YOUR BAG');
+  expect(said).not.toContain('WASD');
+  expect(said).not.toContain('SPACE');
+  expect((await snapshot(page)).walker).toBeNull();
+});

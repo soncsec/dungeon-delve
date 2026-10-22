@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { paginate, wrap } from '../../src/logic/dialogue';
+import { forDevice, paginate, wrap } from '../../src/logic/dialogue';
 
 describe('wrap', () => {
   it('breaks between words to fit the width', () => {
@@ -38,5 +38,14 @@ describe('paginate', () => {
   it('gives items only on the first page of their paragraph', () => {
     const pages = paginate([{ text: 'A B C D', give: ['daggers'] }], 1, 2);
     expect(pages.map((p) => p.give)).toEqual([['daggers'], []]);
+  });
+});
+
+describe('forDevice', () => {
+  const speech = [{ text: 'PRESS C.', touch: 'TAP MAGIC.' }, { text: 'HELLO.' }];
+
+  it('keeps the words on a keyboard, and uses the touch words on a touchscreen', () => {
+    expect(forDevice(speech, false)).toEqual(speech);
+    expect(forDevice(speech, true).map((p) => p.text)).toEqual(['TAP MAGIC.', 'HELLO.']);
   });
 });

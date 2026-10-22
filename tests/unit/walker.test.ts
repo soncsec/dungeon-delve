@@ -76,3 +76,34 @@ describe('Walker after dungeon 1', () => {
     expect(here('overworld', 3, 5, ['dungeon1/shard', 'walker/dungeon1-done'])).toBeNull();
   });
 });
+
+describe('Walker at dungeons 2 to 4 (M5.5)', () => {
+  const here = (map: string, col: number, row: number, opened: string[] = []) =>
+    walkerHere(WALKER_VISITS, map, { col, row }, { opened, keys: {} })?.id ?? null;
+
+  it.each([
+    [2, 'dungeon2', { col: 1, row: 5 }],
+    [3, 'dungeon3', { col: 5, row: 4 }],
+    [4, 'dungeon4', { col: 3, row: 1 }],
+  ] as const)(
+    'waits at dungeon %i’s entrance, and outside it once its shard is found',
+    (_n, map, outside) => {
+      expect(here(map, 1, 3)).toBe(map);
+      expect(here('overworld', outside.col, outside.row)).toBeNull();
+      expect(here('overworld', outside.col, outside.row, [`${map}/shard`])).toBe(`${map}-done`);
+      expect(
+        here('overworld', outside.col, outside.row, [`${map}/shard`, `walker/${map}-done`]),
+      ).toBeNull();
+    },
+  );
+
+  it('names the touch buttons wherever he names keys', () => {
+    for (const v of WALKER_VISITS) {
+      for (const p of v.speech) {
+        const keys = /\b(PRESS [A-Z0-9]\b|SPACE|WASD|ARROWS)/.test(p.text);
+        expect(keys ? p.touch : 'no keys', `${v.id}: ${p.text}`).toBeDefined();
+        expect(p.touch ?? '', `${v.id}: ${p.text}`).not.toMatch(/SPACE|WASD|PRESS [A-Z0-9]\b/);
+      }
+    }
+  });
+});

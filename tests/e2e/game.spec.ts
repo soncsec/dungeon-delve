@@ -1953,6 +1953,42 @@ test('once dungeon 1’s shard is found, Walker waits outside, thanks Jarrett an
   expect(watched.errors).toEqual([]);
 });
 
+test('Walker gives a hint at each dungeon’s entrance, and waits outside once its shard is found', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  // At Bog Grotto's entrance: a hint about the frog and the thorns.
+  await openGame(page, '?dungeon=2');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  expect((await snapshot(page)).walker).toEqual({ x: 72, y: 111 });
+  let said = (await talkToWalker(page)).flat().join(' ');
+  expect(said).toContain('THIS IS BOG GROTTO');
+  expect(said).toContain('FIREBALL BURNS THEM');
+  // At Stonecrag Mine's entrance: the Axe and the Ogre.
+  await openGame(page, '?dungeon=4');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  said = (await talkToWalker(page)).flat().join(' ');
+  expect(said).toContain('THIS IS STONECRAG MINE');
+  expect(said).toContain('ONLY THE AXE WILL HURT IT');
+  // Outside Sunken Crypt once its shard is found: how to choose a spell, and the way on.
+  // (A new game: the runs above saved, so the title would offer to continue them.)
+  await page.evaluate(() => localStorage.clear());
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.takeShard(3);
+    window.__game?.goToRoom(5, 4);
+    window.__game?.clearEnemies();
+  });
+  expect((await snapshot(page)).walker).toEqual({ x: 200, y: 63 });
+  said = (await talkToWalker(page)).flat().join(' ');
+  expect(said).toContain('THREE SHARDS');
+  expect(said).toContain('CHOOSE ONE IN YOUR BAG: PRESS I');
+  expect(said).toContain('STONECRAG MINE');
+  expect((await snapshot(page)).opened).toContain('walker/dungeon3-done');
+  expect(watched.errors).toEqual([]);
+});
+
 test('a new game starts at the village gate; a house’s walls stop Jarrett', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page);
