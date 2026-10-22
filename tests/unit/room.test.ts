@@ -431,11 +431,10 @@ describe('eye statues (the Steel Sword)', () => {
     );
     expect(eyeFacing(left, 19, 4)).toBe('left');
     // Walled in all round: it looks nowhere.
-    const shut = parseRoom(
-      Array.from({ length: 10 }, () => '####################'.replace(/^#/, '#')),
-    );
     const boxed = parseRoom(
-      shut.cells.map((row, y) => row.map((_, x) => (x === 5 && y === 5 ? 'y' : '#')).join('')),
+      Array.from({ length: 10 }, (_, y) =>
+        Array.from({ length: 20 }, (_, x) => (x === 5 && y === 5 ? 'y' : '#')).join(''),
+      ),
     );
     expect(eyeFacing(boxed, 5, 5)).toBeNull();
   });
