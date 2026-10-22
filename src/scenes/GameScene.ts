@@ -89,7 +89,7 @@ import {
   type WeaponMode,
 } from '../logic/weapons';
 import { fullHealth, heal, isInvulnerable, isOut, takeDamage, type Health } from '../logic/health';
-import { awayFrom, facingFor, moveHero, type Facing } from '../logic/hero';
+import { awayFrom, boxCells, facingFor, moveHero, type Facing } from '../logic/hero';
 import {
   boost,
   canCast,
@@ -1523,10 +1523,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     // Everyone stays in the room; walkers are also stopped by walls and trees, and keep
     // out from under tree tops and the like, so none looks lost inside a tree.
     const flySolid = (cx: number, cy: number): boolean => this.outsideRoom(cx, cy);
-    const walkSolid = (cx: number, cy: number): boolean =>
-      flySolid(cx, cy) || (room ? isSolid(room, cx, cy) : true) || this.covered.has(`${cx},${cy}`);
     for (const live of this.enemies) {
       if (this.enemiesHold && live.e.knockMs <= 0) continue;
+      // One already under such art (put there by hand) may walk out of it, but not further in.
+      const under = boxCells(live.e.pos, ENEMIES[live.e.kind].box);
+      const walkSolid = (cx: number, cy: number): boolean =>
+        flySolid(cx, cy) ||
+        (room ? isSolid(room, cx, cy) : true) ||
+        (this.covered.has(`${cx},${cy}`) && !under.has(`${cx},${cy}`));
       const step = stepEnemy(live.e, deltaMs, ENEMIES[live.e.kind], {
         hero: this.pos,
         rng: this.rng,

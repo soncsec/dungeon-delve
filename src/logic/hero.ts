@@ -43,6 +43,22 @@ export function boxHitsSolid(
   return false;
 }
 
+/** The cells a box with its feet at `p` covers (counted as boxHitsSolid counts them), as `x,y` keys. */
+export function boxCells(p: Point, box: Box): Set<string> {
+  const EPS = 1e-6;
+  const cells = new Set<string>();
+  for (let cy = Math.floor((p.y - box.height) / TILE); cy <= Math.floor((p.y - EPS) / TILE); cy++) {
+    for (
+      let cx = Math.floor((p.x - box.halfWidth) / TILE);
+      cx <= Math.floor((p.x + box.halfWidth - EPS) / TILE);
+      cx++
+    ) {
+      cells.add(`${cx},${cy}`);
+    }
+  }
+  return cells;
+}
+
 /**
  * Moves the hero (or any walker) `dist` pixels along `axis` (any direction,
  * normalised, so diagonals are no faster), one axis at a time so it slides
