@@ -382,6 +382,16 @@ export const ENEMY_SHOTS = {
   spore: { speed: 40, range: 44, size: 8, damage: 1 },
 } as const;
 
+/**
+ * Holding up a find (owner 2026-10-22): from a chest, or a boss's heart
+ * container and shard. He faces you with it over his head while the game waits.
+ */
+export const HOLD_UP = {
+  ms: 1500,
+  /** The find's middle sits this far above his feet, just over his head (px; he is about 27 tall). */
+  lift: 36,
+} as const;
+
 /** What a defeated enemy drops, in whole percent (the rest drops nothing). */
 export const DROPS = { gem: 40, heart: 20 } as const;
 
@@ -440,7 +450,8 @@ export type SfxName =
   | 'zap'
   | 'switch'
   | 'ward'
-  | 'spark';
+  | 'spark'
+  | 'found';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -546,6 +557,16 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
       steps: [1, 1.5, 2, 1.5, 2],
     },
     spark: { wave: 'noise', seconds: 0.25, from: 5000, to: 1500, attack: 0.002, volume: 0.35 },
+    // A find held up: a bright rising jingle, its last note held (owner 2026-10-22).
+    found: {
+      wave: 'square',
+      seconds: 1.1,
+      from: 523,
+      to: 523,
+      attack: 0.005,
+      volume: 0.3,
+      steps: [1, 1.26, 1.5, 1.68, 2, 2],
+    },
   },
 };
 

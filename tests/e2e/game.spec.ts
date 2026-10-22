@@ -675,6 +675,65 @@ test('the toad sits, then hops at Jarrett', async ({ page }) => {
   expect(watched.errors).toEqual([]);
 });
 
+test('a find from a chest is held up over his head with a success tune, and the game waits', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  // The entrance's chest (column 4, row 3) holds a key.
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(88, 63, 'left');
+    window.__game?.bump(4, 3);
+  });
+  await expect.poll(async () => (await snapshot(page)).pickups.length).toBe(1);
+  const key = (await snapshot(page)).pickups[0];
+  expect(key?.kind).toBe('key');
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'left'), key ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(true);
+  const held = await snapshot(page);
+  expect(held.keys).toBe(1);
+  expect(held.facing).toBe('down'); // he turns to face you
+  expect(held.sounds.found).toBe(1);
+  expect(held.sounds.chest).toBe(1); // only the chest's opening; the find has its own tune
+  // The game waits: walking does nothing until the moment is over.
+  await page.keyboard.down('ArrowRight');
+  let sawHold = false;
+  for (;;) {
+    const s = await snapshot(page);
+    if (!s.holding) break;
+    sawHold = true;
+    expect(s.player).toEqual(held.player);
+  }
+  expect(sawHold).toBe(true);
+  // Then he walks on.
+  await expect.poll(async () => (await snapshot(page)).player.x).toBeGreaterThan(held.player.x);
+  await page.keyboard.up('ArrowRight');
+  expect(watched.errors).toEqual([]);
+});
+
+test('a heart container is held up too, wherever it lies; a dropped gem is not', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+    window.__game?.spawnPickup('gem', 120, 94);
+    window.__game?.spawnPickup('heart-container', 200, 94);
+  });
+  await page.evaluate(() => window.__game?.placeHero(120, 94, 'right'));
+  await expect.poll(async () => (await snapshot(page)).gems).toBe(1);
+  expect((await snapshot(page)).holding).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(200, 94, 'right'));
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(true);
+  expect((await snapshot(page)).health.max).toBe(8);
+  await expect.poll(async () => (await snapshot(page)).holding, { timeout: 10_000 }).toBe(false);
+  expect(watched.errors).toEqual([]);
+});
+
 /** The hub emptied (see emptyHub), with a pine whose trunk is at cell (10,5): its art hides cells 9-11 × 3-5. */
 async function hubWithPine(page: Page): Promise<void> {
   await emptyHub(page);
@@ -1310,7 +1369,8 @@ test('the daggers: push the stone into the closet, open the chest, and throw one
   await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon1/0,2/3,3');
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]); // picked up
-  // He can throw them now.
+  // He holds them up for a moment, while the game waits; then he can throw them.
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
   await page.keyboard.press('x');
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).thrown).toBe(1);
