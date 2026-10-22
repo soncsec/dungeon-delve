@@ -143,6 +143,9 @@ export const VOLCANO_TINT = 0xffa486;
 export const CRYPT_TINT = 0xe8d0a0;
 /** Stonecrag Mine: the dungeon stone under a warm, earthy tint. */
 export const MINE_TINT = 0xd0a880;
+/** Crimson Manor: the dungeon stone under a deep, old-blood red. */
+export const MANOR_TINT = 0xd89098;
+
 /** Witchwood Tower: the dungeon stone under a mossy, forest green. */
 export const WOOD_TINT = 0x9cc890;
 
