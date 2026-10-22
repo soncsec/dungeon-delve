@@ -1913,6 +1913,69 @@ test('the Triple Daggers throw a fan of three, which spread as they fly', async 
   expect(watched.errors).toEqual([]);
 });
 
+test('Crimson Manor’s archway in the ruins opens once Jarrett holds six shards', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(12, 5);
+    window.__game?.clearEnemies();
+    for (const n of [1, 2, 3, 4, 5]) window.__game?.takeShard(n);
+  });
+  await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(48);
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  await page.evaluate(() => {
+    window.__game?.takeShard(6);
+    window.__game?.placeHero(160, 70, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const s = await snapshot(page);
+  expect(s.map).toBe('dungeon7');
+  expect(s.room).toEqual({ col: 1, row: 2 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('Crimson Manor’s prize: the Triple Daggers, behind rubble the Axe smashes', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=7'); // with the Axe, among the rest
+  await chooseItem(page, 'near', 'Axe');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(2, 2); // the east wing
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(232, 110, 'up'); // below the rubble (column 14, row 5)
+  });
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon7/2,2/14,5');
+  // In, under the chest (column 14, row 4): it opens and the Triple Daggers drop right where
+  // he stands, so he takes them at once, holds them up, and has them in hand.
+  await page.evaluate(() => window.__game?.placeHero(232, 94, 'up'));
+  await page.evaluate(() => window.__game?.bump(14, 4));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon7/2,2/14,4');
+  await expect.poll(async () => (await snapshot(page)).sounds.found).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  expect((await snapshot(page)).pickups).toEqual([]);
+  await page.keyboard.press('Tab');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.inventory()))?.slots['far'])
+    .toBe('Triple Daggers');
+  await page.keyboard.press('Escape');
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {
