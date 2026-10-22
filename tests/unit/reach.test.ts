@@ -501,3 +501,45 @@ describe('explore, with Lightning', () => {
     expect(r.chests).toEqual(['0,0/2,3', '0,0/9,7']);
   });
 });
+
+describe('explore, with the Ward', () => {
+  // A spark barrier shuts the corridor (columns 9-10) to a chest below.
+  const defs: RoomDef[] = [
+    {
+      col: 0,
+      row: 0,
+      lines: room({
+        5: '#########ee#########',
+        6: '#########..#########',
+        7: '#########C.#########',
+      }),
+      chests: [{ col: 9, row: 7, contents: { kind: 'gems', amount: 1 } }],
+    },
+  ];
+  const start = { col: 0, row: 0, cx: 5, cy: 2 };
+
+  it('without it, the barrier stays shut', () => {
+    const r = explore(buildWorld(defs), start);
+    expect(r.chests).toEqual([]);
+    expect(r.broken).toEqual([]);
+  });
+
+  it('with it, he walks through the barrier to the chest beyond', () => {
+    const r = explore(buildWorld(defs), start, { ward: true });
+    expect(r.broken).toEqual(['0,0/10,5', '0,0/9,5']);
+    expect(r.chests).toEqual(['0,0/9,7']);
+  });
+
+  it('found in a chest, it counts from then on', () => {
+    const withWard = defs.map((d) => ({
+      ...d,
+      lines: d.lines.map((line, y) => (y === 3 ? '#.C................#' : line)),
+      chests: [
+        ...(d.chests ?? []),
+        { col: 2, row: 3, contents: { kind: 'item' as const, item: 'ward' as const } },
+      ],
+    }));
+    const r = explore(buildWorld(withWard), start);
+    expect(r.chests).toEqual(['0,0/2,3', '0,0/9,7']);
+  });
+});
