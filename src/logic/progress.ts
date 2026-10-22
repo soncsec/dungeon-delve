@@ -62,6 +62,11 @@ export function unlockDoor(
 /** What a beaten boss leaves: a heart container and a shard of the Star of Power. */
 export type Reward = 'heart' | 'shard' | 'crystal';
 
+/** What a map's beaten boss leaves: a heart container and its shard; the Shadow Vault's, neither (it ends the quest). */
+export function bossRewards(map: string): ('heart' | 'shard')[] {
+  return map === 'vault' ? [] : ['heart', 'shard'];
+}
+
 /** A reward's id: one of each per map. */
 export const rewardId = (map: string, reward: Reward): string => `${map}/${reward}`;
 

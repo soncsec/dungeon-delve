@@ -3,7 +3,7 @@
  * vault grounds at the centre of the land. Walker opens its door once Jarrett
  * holds all 8 shards (M7.1).
  *
- *                 [sorcerer's hall]               the sorcerer (M7.2b), Kira's cell behind a
+ *                 [sorcerer's hall]               the Sorcerer, Kira's cell behind a
  *                                                 gate; a locked door from below (key 2)
  *   [west trial]  [entry hall]       [east trial] west: key 1 past sparks, thorns and a boulder;
  *                                                 entry: a locked door up (key 1), and a gate
@@ -24,6 +24,7 @@ export const VAULT: readonly RoomDef[] = [
   {
     col: 1,
     row: 1,
+    boss: { kind: 'sorcerer', col: 13, row: 7 },
     lines: [
       '####################',
       '####################',

@@ -63,6 +63,8 @@ import {
   isGalloping,
   isBreathing,
   isLashing,
+  isShielded,
+  breakShield,
   lashHurts,
   glancesOff,
   isFierce,
@@ -154,11 +156,11 @@ import {
   manaCrystals,
   markSeen,
   seenId,
+  bossRewards,
   rewardId,
   shardMessage,
   shardsHeld,
   takeReward,
-  type Reward,
   isOpened,
   keysIn,
   openChest,
@@ -340,11 +342,15 @@ export interface GameSnapshot {
     /** Breathing fire, and lashing its tail (the Dragon). */
     breathing: boolean;
     lashing: boolean;
+    /** Its shield of dark magic up (the Sorcerer). */
+    shielded: boolean;
   } | null;
   /** The Witch's decoys popped so far. */
   decoysPopped: number;
   /** Shots batted back with the Steel Sword, and those in the air; Star Blade beams sent. */
   batted: number;
+  /** Times a batted shot has broken the boss's shield. */
+  shieldsBroken: number;
   /** Times the Dragon's tail has caught Jarrett. */
   lashes: number;
   beams: number;
@@ -418,6 +424,8 @@ interface LiveBoss {
   decoys: Phaser.GameObjects.Sprite[];
   /** The animation it is playing, for a boss with more than one (the Dragon). */
   pose: string;
+  /** A shielded boss's shield (the Sorcerer): the Ward's bubble, round its body. */
+  shield: Phaser.GameObjects.Sprite | null;
 }
 
 interface LiveWalker {
@@ -477,6 +485,10 @@ function dragonPose(b: Boss): string {
 const SPORE_TINT = 0x9fe070;
 /** The Star Blade's beam: the blade in starlit gold (runtime tint, as its icon). */
 const STAR_GOLD = 0xfff0a0;
+/** The Sorcerer's magic: the enemy orb in a golden glow, like his hands (runtime tint). */
+const MAGIC_TINT = 0xffd860;
+/** The Sorcerer's shield of dark magic: the Ward's bubble in violet (runtime tint). */
+const SHIELD_TINT = 0xb080ff;
 /** The Vampire's dark shots: the enemy orb under a deep purple (runtime tint). */
 const DARK_TINT = 0x9050d0;
 
@@ -613,6 +625,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private eyes: { x: number; y: number; dir: Facing; inMs: number }[] = [];
   /** Shots batted back with the Steel Sword so far, and the Witch's decoys popped. */
   private batted = 0;
+  /** Times a batted shot has broken the boss's shield. */
+  private shieldsBroken = 0;
   /** Times the Dragon's tail has caught Jarrett. */
   private lashes = 0;
   /** Beams sent flying with the Star Blade so far. */
@@ -709,6 +723,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.boltsLanded = 0;
     this.eyes = [];
     this.batted = 0;
+    this.shieldsBroken = 0;
     this.lashes = 0;
     this.beams = 0;
     this.decoysPopped = 0;
@@ -1364,6 +1379,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       shadow,
       decoys: [],
       pose: animKey(kind, 'sway'),
+      shield: stats.shield
+        ? this.add
+            .sprite(0, 0, 'ward', 0)
+            .setOrigin(WARD.bubbleOrigin.x, WARD.bubbleOrigin.y)
+            .setScale(BOSS_FX.shield.scale)
+            .setTint(SHIELD_TINT)
+            .setAlpha(BOSS_FX.shield.alpha)
+            .setVisible(false)
+        : null,
     };
     this.drawBoss(this.boss);
   }
@@ -1475,6 +1499,18 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       ?.setPosition(o.x + b.pos.x, o.y + b.pos.y)
       .setDepth(DEPTH.sorted + o.y + b.pos.y - 1)
       .setVisible(lift > 0);
+    // Its shield, round its body while it holds; breaking, it plays out its break first.
+    const shield = live.shield;
+    if (shield) {
+      const breakKey = animKey('ward', 'break');
+      const breaking = shield.anims.isPlaying && shield.anims.currentAnim?.key === breakKey;
+      shield
+        .setPosition(o.x + b.pos.x, o.y + b.pos.y - BOSS_FX.shield.lift)
+        .setDepth(DEPTH.sorted + o.y + b.pos.y + 0.5);
+      if (isShielded(b, BOSSES[b.kind]) && !isGone(b)) {
+        if (!shield.visible || breaking) shield.setVisible(true).play(animKey('ward', 'up'));
+      } else if (!breaking) shield.setVisible(false);
+    }
     if (b.flashMs > 0) sprite.setTint(0xff7070);
     else if (b.stunMs > 0 && Math.floor(b.stunMs / LIGHTNING.flickerMs) % 2 === 0) {
       sprite.setTint(STUN_TINT);
@@ -1582,6 +1618,22 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.sfx.play('zap');
   }
 
+  /** Whether the boss's shield of dark magic is up. */
+  private shieldUp(): boolean {
+    return !!this.boss && isShielded(this.boss.b, BOSSES[this.boss.b.kind]);
+  }
+
+  /** One of its own shots batted back into it: the boss's shield breaks for a while. */
+  private breakTheShield(): void {
+    const live = this.boss;
+    if (!live) return;
+    live.b = breakShield(live.b, BOSSES[live.b.kind]);
+    this.shieldsBroken += 1;
+    live.shield?.play(animKey('ward', 'break'));
+    this.sfx.play('crumble');
+    this.drawBoss(live);
+  }
+
   /** One hit (by id, so each lands once) on the boss: a swing of `weapon`, or a shot (null). */
   private strikeBoss(damage: number, hitId: number, weapon: ItemId | null): void {
     const live = this.boss;
@@ -1636,7 +1688,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const boss = this.world.bosses.get(key);
     if (!boss || !isOpened(this.progress, bossId(this.mapId, key))) return;
     const feet = { x: boss.col * TILE + TILE / 2, y: (boss.row + 1) * TILE - 1 };
-    for (const reward of ['heart', 'shard'] as const satisfies readonly Reward[]) {
+    for (const reward of bossRewards(this.mapId)) {
       if (isOpened(this.progress, rewardId(this.mapId, reward))) continue;
       const at = BOSS_REWARDS[reward];
       this.addPickup(reward === 'heart' ? 'heart-container' : 'shard', {
@@ -1673,6 +1725,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.boss.back.destroy();
     this.boss.fill.destroy();
     this.boss.shadow?.destroy();
+    this.boss.shield?.destroy();
     this.boss = null;
   }
 
@@ -1938,6 +1991,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
           : this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
     if (kind === 'spore') sprite.setTint(SPORE_TINT);
     if (kind === 'dark') sprite.setTint(DARK_TINT);
+    if (kind === 'magic') sprite.setTint(MAGIC_TINT);
     const live = { s, sprite };
     this.enemyShots.push(live);
     this.drawEnemyShot(live);
@@ -2551,8 +2605,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       if (target && shot.kind === 'bolt') this.stun(target, shot.d.id);
       else if (target) this.strike(target, t.damage, shot.d.id, shot.d.dir);
       const boss = !target && this.bossAt(box);
-      // A bolt stuns a wrapped boss (the Mummy), and does nothing to the others.
+      // A bolt stuns a wrapped boss (the Mummy), and does nothing to the others. A shot
+      // batted back breaks a shield (the Sorcerer's).
       if (boss && shot.kind === 'bolt') this.stunTheBoss(shot.d.id);
+      else if (boss && shot.kind === 'orb' && this.shieldUp()) this.breakTheShield();
       else if (boss) this.strikeBoss(t.damage, shot.d.id, null);
       const popped = !target && !boss && this.popDecoys(box);
       const burned = shot.kind === 'fireball' && this.burnThorns(box);
@@ -2688,10 +2744,12 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             decoys: this.boss.b.decoys.map((d) => ({ ...d })),
             breathing: isBreathing(this.boss.b),
             lashing: isLashing(this.boss.b),
+            shielded: isShielded(this.boss.b, BOSSES[this.boss.b.kind]),
           }
         : null,
       decoysPopped: this.decoysPopped,
       batted: this.batted,
+      shieldsBroken: this.shieldsBroken,
       lashes: this.lashes,
       beams: this.beams,
       orbs: this.shotsOf('orb'),

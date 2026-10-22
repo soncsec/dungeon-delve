@@ -9,6 +9,8 @@ import {
   isGalloping,
   isGone,
   isBreathing,
+  isShielded,
+  breakShield,
   isLashing,
   lashHurts,
   nearBody,
@@ -62,6 +64,7 @@ const boss = (over: Partial<Boss> = {}): Boss => ({
   decoys: [],
   breath: null,
   lash: null,
+  bareMs: 0,
   ...over,
 });
 const hero = { x: 160, y: 140 };
@@ -803,5 +806,57 @@ describe('the Dragon: prowling its lair, sweeping fire breath, and lashing its t
 
   it('only a prowler has a tail to lash', () => {
     expect(lashHurts(dragon({ lash: { ms: 400 } }), s, close)).toBe(0);
+  });
+});
+
+describe('the Sorcerer: a shield of dark magic that only his own magic, sent back, breaks', () => {
+  const so: BossStats = {
+    health: 24,
+    contactDamage: 2,
+    box: { halfWidth: 14, height: 64 },
+    moves: {
+      style: 'blink',
+      stayMs: { min: 3000, max: 3000 },
+      goneMs: 700,
+      spots: [
+        { x: 48, y: 126 },
+        { x: 100, y: 126 },
+      ],
+      decoys: 0,
+    },
+    shotKind: 'magic',
+    shield: { bareMs: 4000 },
+    calm: { shots: 1, spreadDeg: 0, everyMs: { min: 1500, max: 1500 } },
+    fierce: { shots: 3, spreadDeg: 18, everyMs: { min: 1200, max: 1200 } },
+  };
+  const sorcerer = (over: Partial<Boss> = {}): Boss =>
+    boss({ kind: 'sorcerer', pos: { x: 48, y: 126 }, health: 24, stayMs: 3000, ...over });
+
+  it('starts shielded: every blow and every shot glances off', () => {
+    const b = spawnBoss('sorcerer', { x: 48, y: 126 }, so, firstRng);
+    expect(isShielded(b, so)).toBe(true);
+    expect(glancesOff(b, so, 'star-blade')).toBe(true);
+    expect(glancesOff(b, so, null)).toBe(true);
+    expect(hitBoss(b, 3, 1, 150, so, 'star-blade')).toBe(b);
+  });
+
+  it('one of his orbs sent back breaks the shield for a while; then blows land, until it mends', () => {
+    const bare = breakShield(sorcerer(), so);
+    expect(bare.bareMs).toBe(4000);
+    expect(isShielded(bare, so)).toBe(false);
+    expect(hitBoss(bare, 3, 1, 150, so, 'star-blade').health).toBe(21);
+    // Broken already: another orb changes nothing.
+    expect(breakShield(bare, so)).toBe(bare);
+    const later = stepBoss(bare, 3000, hero, so, firstRng).boss;
+    expect(later.bareMs).toBe(1000);
+    const mended = stepBoss(later, 1500, hero, so, firstRng).boss;
+    expect(mended.bareMs).toBe(0);
+    expect(isShielded(mended, so)).toBe(true);
+  });
+
+  it('a boss with no shield is never shielded, and an orb sent back does nothing to it', () => {
+    const b = boss();
+    expect(isShielded(b, s)).toBe(false);
+    expect(breakShield(b, s)).toBe(b);
   });
 });
