@@ -592,3 +592,45 @@ describe('explore, with the Ward', () => {
     expect(r.chests).toEqual(['0,0/2,3', '0,0/9,7']);
   });
 });
+
+describe('explore, with the Steel Sword', () => {
+  // An eye statue in the top wall; a gate shuts the corridor (columns 9-10) to a chest below.
+  const defs: RoomDef[] = [
+    {
+      col: 0,
+      row: 0,
+      lines: room({
+        0: '###y################',
+        5: '#########gg#########',
+        6: '#########..#########',
+        7: '#########C.#########',
+      }),
+      chests: [{ col: 9, row: 7, contents: { kind: 'gems', amount: 1 } }],
+    },
+  ];
+  const start = { col: 0, row: 0, cx: 5, cy: 2 };
+
+  it('without it, the gate stays shut (Lightning does nothing to an eye)', () => {
+    const r = explore(buildWorld(defs), start, { lightning: true });
+    expect(r.chests).toEqual([]);
+  });
+
+  it('with it, he bats an orb back into the eye: it shuts, and the gate opens', () => {
+    const r = explore(buildWorld(defs), start, { steel: true });
+    expect(r.broken).toEqual(['0,0/3,0']);
+    expect(r.chests).toEqual(['0,0/9,7']);
+  });
+
+  it('found in a chest, it counts from then on', () => {
+    const withSword = defs.map((d) => ({
+      ...d,
+      lines: d.lines.map((line, y) => (y === 3 ? '#.C................#' : line)),
+      chests: [
+        ...(d.chests ?? []),
+        { col: 2, row: 3, contents: { kind: 'item' as const, item: 'steel-sword' as const } },
+      ],
+    }));
+    const r = explore(buildWorld(withSword), start);
+    expect(r.chests).toEqual(['0,0/2,3', '0,0/9,7']);
+  });
+});

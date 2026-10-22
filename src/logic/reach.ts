@@ -26,7 +26,7 @@ export interface Reach {
   chests: string[];
   doors: string[];
   hollows: string[];
-  /** Cracked walls, boulders and thorn bushes broken or burned, crystal switches powered, and spark barriers warded through (with the items held). */
+  /** Cracked walls, boulders and thorn bushes broken or burned, crystal switches powered, eye statues shut, and spark barriers warded through (with the items held). */
   broken: string[];
   /** Doorways to other maps reached, as `room/x,y`. */
   exits: string[];
@@ -42,6 +42,8 @@ export interface ReachItems {
   fireball?: boolean;
   lightning?: boolean;
   ward?: boolean;
+  /** The Steel Sword: it bats an eye statue's orb back into it, which shuts it. */
+  steel?: boolean;
 }
 
 /** Where the exploring starts: a room, and a cell in it. */
@@ -194,7 +196,8 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
           (held.axe && (f === 'cracked' || f === 'boulder')) ||
           (held.fireball && f === 'thorns') ||
           (held.lightning && f === 'switch') ||
-          (held.ward && f === 'spark'),
+          (held.ward && f === 'spark') ||
+          (held.steel && f === 'eye'),
       )
       .map(([c]) => c);
     for (const cell of breakable) {
@@ -216,6 +219,7 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
       if (item === 'axe' || item === 'fireball' || item === 'lightning' || item === 'ward') {
         held[item] = true;
       }
+      if (item === 'steel-sword') held.steel = true;
     }
     if (found.length > 0) continue;
     // Then a key on a door in reach.

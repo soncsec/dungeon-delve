@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cellAt,
   edgeOpenings,
+  eyeFacing,
   isForest,
   exitsIn,
   fixturesIn,
@@ -388,5 +389,53 @@ describe('spark barriers (the Ward)', () => {
     expect(cellAt(r, 9, 9)).toMatchObject({ solid: true, wall: false, fixture: 'spark' });
     expect(isPassage(r, 9, 9)).toBe(true);
     expect(edgeOpenings(r, 'south').filter(Boolean)).toHaveLength(2);
+  });
+});
+
+describe('eye statues (the Steel Sword)', () => {
+  // An eye in the top wall (column 3), one in the west wall (row 5), a gate across the way south.
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 0
+        ? '###y################'
+        : y === 9
+          ? '#########gg#########'
+          : y === 5
+            ? 'y..................#'
+            : '#..................#',
+    ),
+  );
+
+  it('parses an eye as part of the wall', () => {
+    expect(cellAt(r, 3, 0)).toMatchObject({ solid: true, wall: true, fixture: 'eye' });
+  });
+
+  it('a shut eye opens its room’s gates, as a powered switch does', () => {
+    expect(gatesOpen(r, () => false)).toBe(false);
+    expect(gatesOpen(r, (x, y) => x === 3 && y === 0)).toBe(true);
+  });
+
+  it('looks out towards the open floor beside it', () => {
+    expect(eyeFacing(r, 3, 0)).toBe('down');
+    expect(eyeFacing(r, 0, 5)).toBe('right');
+    const up = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        y === 9 ? '#########y##########' : '#..................#',
+      ),
+    );
+    expect(eyeFacing(up, 9, 9)).toBe('up');
+    const left = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        y === 4 ? '#..................y' : '#..................#',
+      ),
+    );
+    expect(eyeFacing(left, 19, 4)).toBe('left');
+    // Walled in all round: it looks nowhere.
+    const boxed = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        Array.from({ length: 20 }, (_, x) => (x === 5 && y === 5 ? 'y' : '#')).join(''),
+      ),
+    );
+    expect(eyeFacing(boxed, 5, 5)).toBeNull();
   });
 });

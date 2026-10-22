@@ -45,6 +45,10 @@
  * Ward puzzles (dungeons):
  *   e  spark barrier  (crackling energy; zaps Jarrett back, but he walks through inside the Ward)
  *
+ * Steel Sword puzzles (dungeons):
+ *   y  eye statue     (part of a wall; it fires orbs straight out. One batted back into it with
+ *                      the Steel Sword shuts it for good, which opens the gates in its room)
+ *
  * Mountains:
  *   V  cave entrance (3×3, anchored top-left: rock all round, the doorway in the middle column open)
  *
@@ -97,10 +101,20 @@ export interface Cell {
  * Things that block until opened: a locked door (a key), a chest, a false wall
  * (the sword), a cracked wall or a boulder (the Axe), a thorn bush (Fireball).
  * A crystal switch (Lightning) is powered rather than opened, and opens the
- * gates in its room. A spark barrier never opens: only the Ward lets him through.
+ * gates in its room, as an eye statue does once shut by its own orb (the Steel Sword).
+ * A spark barrier never opens: only the Ward lets him through.
  */
 export type Fixture =
-  'door' | 'chest' | 'hollow' | 'cracked' | 'boulder' | 'thorns' | 'switch' | 'gate' | 'spark';
+  | 'door'
+  | 'chest'
+  | 'hollow'
+  | 'cracked'
+  | 'boulder'
+  | 'thorns'
+  | 'switch'
+  | 'gate'
+  | 'spark'
+  | 'eye';
 
 export interface Room {
   cells: readonly (readonly Cell[])[];
@@ -205,6 +219,7 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       if (ch === 'z') return { ...plain, solid: true, wall: true, fixture: 'switch' };
       if (ch === 'g') return { ...plain, solid: true, fixture: 'gate' };
       if (ch === 'e') return { ...plain, solid: true, fixture: 'spark' };
+      if (ch === 'y') return { ...plain, solid: true, wall: true, fixture: 'eye' };
       if (ch === 'C') return { ...plain, solid: true, fixture: 'chest' };
       if (ch === 'D') return { ...plain, solid: false, exit: true };
       if (ch === 'B') {
@@ -282,11 +297,31 @@ export function cellAt(room: Room, x: number, y: number): Cell | null {
   return room.cells[y]?.[x] ?? null;
 }
 
-/** Whether a crystal switch in the room is powered (`powered` says which are): its gates are open. */
+/**
+ * Whether a crystal switch in the room is powered, or an eye statue shut
+ * (`powered` says which are): then its gates are open.
+ */
 export function gatesOpen(room: Room, powered: (x: number, y: number) => boolean): boolean {
   return room.cells.some((row, y) =>
-    row.some((cell, x) => cell.fixture === 'switch' && powered(x, y)),
+    row.some((cell, x) => (cell.fixture === 'switch' || cell.fixture === 'eye') && powered(x, y)),
   );
+}
+
+/** Which way an eye statue looks (and fires): towards the open floor beside it, if any. */
+export function eyeFacing(
+  room: Room,
+  x: number,
+  y: number,
+): 'up' | 'down' | 'left' | 'right' | null {
+  const open = (cx: number, cy: number) => {
+    const cell = room.cells[cy]?.[cx];
+    return cell !== undefined && !cell.solid;
+  };
+  if (open(x, y + 1)) return 'down';
+  if (open(x, y - 1)) return 'up';
+  if (open(x + 1, y)) return 'right';
+  if (open(x - 1, y)) return 'left';
+  return null;
 }
 
 /** Whether (x, y) blocks movement. Outside the room counts as open: exits are handled by the world. */

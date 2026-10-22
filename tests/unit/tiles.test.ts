@@ -20,6 +20,7 @@ import {
   cliffFrame,
   THORN_TINT,
   SWITCH_DIM,
+  EYE_TINT,
   mixTint,
   propSheet,
   roomArt,
@@ -632,5 +633,28 @@ describe('coveredCells: where the art hides the ground', () => {
     expect(coveredCells(roomArt(at({}))).size).toBe(0);
     const r = at({ 5: '.....R..............' });
     expect(coveredCells(roomArt(r, 'forest', () => true)).size).toBe(0);
+  });
+});
+
+describe('eye statues in a dungeon', () => {
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 0 ? '###y################' : '#..................#',
+    ),
+  );
+  const at = (art: ReturnType<typeof dungeonArt>) =>
+    art.ground.find((t) => t.x === 48 && t.y === 0);
+
+  it('is drawn as the pillar orb, glowing red while it watches', () => {
+    expect(at(dungeonArt(r))).toEqual({ frame: DUNGEON_FRAMES.orb, x: 48, y: 0, tint: EYE_TINT });
+  });
+
+  it('dim once shut', () => {
+    expect(at(dungeonArt(r, (x, y) => x === 3 && y === 0))).toEqual({
+      frame: DUNGEON_FRAMES.orb,
+      x: 48,
+      y: 0,
+      dim: true,
+    });
   });
 });

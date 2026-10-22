@@ -7,6 +7,7 @@ import {
   stepProjectile,
   type Projectile,
   type ProjectileTuning,
+  batBack,
 } from '../../src/logic/weapons';
 
 const t: ProjectileTuning = { speed: 200, range: 100, length: 12, thickness: 4 };
@@ -89,5 +90,14 @@ describe('canThrow', () => {
   });
   it('never allows more daggers in flight than the maximum', () => {
     expect(canThrow(2, 2, null, 5000, 300)).toBe(false);
+  });
+});
+
+describe('batBack (the Steel Sword)', () => {
+  it('sends a shot back from where it was, the way Jarrett faces, as one of his', () => {
+    const at = { x: 100.5, y: 40 };
+    const d = batBack(77, at, 'up');
+    expect(d).toEqual({ id: 77, pos: { x: 100.5, y: 40 }, dir: 'up', travelled: 0 });
+    expect(d.pos).not.toBe(at);
   });
 });

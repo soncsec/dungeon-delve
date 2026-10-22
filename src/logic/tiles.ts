@@ -143,6 +143,9 @@ export const VOLCANO_TINT = 0xffa486;
 export const CRYPT_TINT = 0xe8d0a0;
 /** Stonecrag Mine: the dungeon stone under a warm, earthy tint. */
 export const MINE_TINT = 0xd0a880;
+/** An eye statue, watching (it fires orbs): the pillar orb glowing red (runtime tint, ADR-D05). */
+export const EYE_TINT = 0xff7060;
+
 /** Thunder Spire: the dungeon stone under a cold, stormy blue. */
 export const SPIRE_TINT = 0x7888d0;
 
@@ -232,8 +235,10 @@ export interface TileDraw {
   x: number;
   y: number;
   sheet?: 'town' | 'forest-village' | 'marsh-water' | 'dungeon' | 'mountain';
-  /** Drawn dimmed (SWITCH_DIM): a crystal switch not yet powered. */
+  /** Drawn dimmed (SWITCH_DIM): a crystal switch not yet powered, or an eye statue shut. */
   dim?: boolean;
+  /** Drawn under a tint of its own (an eye statue, watching: EYE_TINT). */
+  tint?: number;
 }
 
 /** A prop drawn with its bottom-centre at (x, y) in room pixels; sorted by y for depth. */
@@ -397,7 +402,7 @@ export function crackAt(x: number, y: number): number | null {
 export function dungeonFrame(room: Room, x: number, y: number, opened = false): number {
   const fixture = room.cells[y]?.[x]?.fixture;
   if ((fixture === 'door' || fixture === 'gate') && !opened) return DUNGEON_FRAMES.gate;
-  if (fixture === 'switch') return DUNGEON_FRAMES.orb;
+  if (fixture === 'switch' || fixture === 'eye') return DUNGEON_FRAMES.orb;
   if (isWall(room, x, y)) return isWall(room, x, y + 1) ? DUNGEON_FRAMES.top : DUNGEON_FRAMES.face;
   if (isWall(room, x - 1, y)) return DUNGEON_FRAMES.shadow;
   return crackAt(x, y) ?? DUNGEON_FRAMES.floor;
@@ -419,7 +424,10 @@ export function dungeonArt(
     rowCells.forEach((cell, x) => {
       const isOpen = cell.fixture === 'gate' ? gates : cell.fixture !== null && opened(x, y);
       const tile = { frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE };
-      art.ground.push(cell.fixture === 'switch' && !isOpen ? { ...tile, dim: true } : tile);
+      // A switch is dim until powered; an eye statue glows red until shut, then is dim.
+      if (cell.fixture === 'eye')
+        art.ground.push(isOpen ? { ...tile, dim: true } : { ...tile, tint: EYE_TINT });
+      else art.ground.push(cell.fixture === 'switch' && !isOpen ? { ...tile, dim: true } : tile);
       // Rubble the Axe smashes: the mountain set's, on the floor.
       if (cell.fixture === 'cracked' && !isOpen) {
         const frame = MOUNTAIN_FRAMES.rubble[x % 2] as number;
