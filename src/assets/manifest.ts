@@ -111,6 +111,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('bosses', 'ogre', 128, 128, 5, 1, [anim('sway', range(0, 5), 6)]),
   // The Centaur (dungeon 5): 4 frames of 112×144; its art faces left.
   sheet('bosses', 'centaur', 112, 144, 4, 1, [anim('sway', range(0, 4), 6)]),
+  // The Witch (dungeon 6): 5 frames of 55×93, floating.
+  sheet('bosses', 'witch', 55, 93, 5, 1, [anim('sway', range(0, 5), 7)]),
 
   // Overworld tiles and props on a 16×16 grid (trees and rocks span several cells).
   sheet('tiles', 'forest', 16, 16, 27, 11),

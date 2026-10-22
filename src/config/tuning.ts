@@ -383,6 +383,30 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     calm: { shots: 0, spreadDeg: 0, everyMs: { min: 2600, max: 3400 } },
     fierce: { shots: 0, spreadDeg: 0, everyMs: { min: 1800, max: 2400 } },
   },
+  // Dungeon 6: blinks from spot to spot throwing fire; below half health two look-alike decoys
+  // appear with her (owner 2026-10-22). Any weapon hurts her; a blow pops a decoy.
+  witch: {
+    health: 10,
+    contactDamage: 2,
+    box: { halfWidth: 14, height: 60 },
+    moves: {
+      style: 'blink',
+      stayMs: { min: 2200, max: 3200 },
+      goneMs: 600,
+      // Five spots across the room, 52 px apart (her body is 28 wide), so no two figures overlap.
+      spots: [
+        { x: 56, y: 96 },
+        { x: 108, y: 120 },
+        { x: 160, y: 96 },
+        { x: 212, y: 120 },
+        { x: 264, y: 96 },
+      ],
+      decoys: 2,
+    },
+    shotKind: 'fire',
+    calm: { shots: 3, spreadDeg: 20, everyMs: { min: 1400, max: 2000 } },
+    fierce: { shots: 3, spreadDeg: 25, everyMs: { min: 1100, max: 1600 } },
+  },
 };
 
 /**
@@ -438,11 +462,12 @@ export const ENEMY_SHOT = {
   damage: 1,
 } as const;
 
-/** Each kind of enemy shot: the eye's orb, the snake's venom (fast), the mushroom's spores (slow, short). */
+/** Each kind of enemy shot: the eye's orb, the snake's venom (fast), the mushroom's spores (slow, short), the Witch's fire. */
 export const ENEMY_SHOTS = {
   orb: ENEMY_SHOT,
   venom: { speed: 150, range: 160, size: 6, damage: 1 },
   spore: { speed: 40, range: 44, size: 8, damage: 1 },
+  fire: { speed: 120, range: 260, size: 10, damage: 2 },
 } as const;
 
 /**

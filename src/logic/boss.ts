@@ -8,15 +8,17 @@
  * of shockwaves; its hide is too thick for anything but the Axe.
  * The Centaur paces, and gallops at Jarrett when he is level with it; it rears,
  * and calls down a storm of lightning (logic/storm.ts) instead of shooting.
+ * The Witch blinks from spot to spot, throwing fire; fierce, she leaves
+ * look-alike decoys, which fire too but pop at a blow and never hurt her.
  * Below half health a boss turns fiercer: more shots, more often. A hit (by
  * id, so each lands once) costs it health; at zero it is beaten.
  */
 import type { ItemId } from './inventory';
 import type { Point } from './movement';
 import type { Rng } from './rng';
-import type { Vec } from './enemies';
+import type { ShotKind, Vec } from './enemies';
 
-export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur';
+export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur' | 'witch';
 
 /** How a boss moves. */
 export type BossMoves =
@@ -47,6 +49,18 @@ export type BossMoves =
    * that line at `dashSpeed` for up to `dashMs`, stopping at the arena's edge,
    * then rests `restMs`. Its feet stay inside `arena` (room pixels).
    */
+  /**
+   * Blinking from spot to spot: it stays `stayMs` at a spot, vanishes for
+   * `goneMs` (no hits land, no touch), and appears at another of `spots` (room
+   * pixels). Fierce, `decoys` look-alikes appear with it at other spots.
+   */
+  | {
+      style: 'blink';
+      stayMs: { min: number; max: number };
+      goneMs: number;
+      spots: readonly Point[];
+      decoys: number;
+    }
   | {
       style: 'gallop';
       speed: number;
@@ -85,6 +99,8 @@ export interface BossStats {
   hide?: 'axe';
   /** Its attack is a storm of lightning (the Centaur), not shots: logic/storm.ts says where. */
   storm?: boolean;
+  /** What its shots are (the Witch throws fire); the flying eye's orbs if not said. */
+  shotKind?: ShotKind;
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -114,6 +130,10 @@ export interface Boss {
   /** A galloper's dash: its way, and the time left (ms); then the time left resting. */
   dash: { dir: Vec; ms: number } | null;
   restMs: number;
+  /** A blinker: time left at this spot (ms), or gone (`goneMs` > 0); and its decoys. */
+  stayMs: number;
+  goneMs: number;
+  decoys: Point[];
 }
 
 export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): Boss {
@@ -131,6 +151,9 @@ export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): B
     stunMs: 0,
     dash: null,
     restMs: 0,
+    stayMs: s.moves.style === 'blink' ? rng.int(s.moves.stayMs.min, s.moves.stayMs.max) : 0,
+    goneMs: 0,
+    decoys: [],
   };
 }
 
@@ -159,7 +182,7 @@ export function ring(aim: Vec, n: number, stepDeg: number): Vec[] {
 }
 
 /** The unit vector from `from` towards `to` (straight down if they meet). */
-function aimAt(from: Point, to: Point): Vec {
+export function aimAt(from: Point, to: Point): Vec {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const len = Math.hypot(dx, dy);
@@ -185,6 +208,7 @@ export function stepBoss(
   const m = s.moves;
   if (m.style === 'hop') return { ...stepLeaper(b, dtMs, hero, s, m, rng), storm: false };
   if (m.style === 'gallop') return stepGalloper(b, dtMs, hero, s, m, rng);
+  if (m.style === 'blink') return stepBlinker(b, dtMs, hero, s, m, rng);
   const mood = isFierce(b, s) ? s.fierce : s.calm;
   let x = b.pos.x;
   let y = b.pos.y;
@@ -328,6 +352,72 @@ function stepGalloper(
   return { ...still, boss: { ...still.boss, pos, heading, shootInMs } };
 }
 
+type BlinkMoves = Extract<BossMoves, { style: 'blink' }>;
+
+/** Spots to appear at: one for it, then one for each decoy, all different, none where it was. */
+export function blinkSpots(from: Point, m: BlinkMoves, count: number, rng: Rng): Point[] {
+  const pool = m.spots.filter((p) => p.x !== from.x || p.y !== from.y);
+  const out: Point[] = [];
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    out.push({ ...(pool.splice(rng.int(0, pool.length - 1), 1)[0] as Point) });
+  }
+  return out;
+}
+
+/**
+ * A blinker: gone, it waits, then appears (with decoys, if fierce); at a spot,
+ * it throws its spread when its timer runs out (its decoys too: the scene fires
+ * from each), and vanishes when its stay is up.
+ */
+function stepBlinker(
+  b: Boss,
+  dtMs: number,
+  hero: Point,
+  s: BossStats,
+  m: BlinkMoves,
+  rng: Rng,
+): { boss: Boss; shots: Vec[]; storm: boolean } {
+  const flashMs = Math.max(0, b.flashMs - dtMs);
+  const mood = isFierce(b, s) ? s.fierce : s.calm;
+  if (b.goneMs > 0) {
+    const goneMs = b.goneMs - dtMs;
+    if (goneMs > 0) return { boss: { ...b, goneMs, flashMs }, shots: [], storm: false };
+    const fierce = isFierce(b, s);
+    const [to, ...decoys] = blinkSpots(b.pos, m, 1 + (fierce ? m.decoys : 0), rng);
+    const stayMs = rng.int(m.stayMs.min, m.stayMs.max);
+    return {
+      boss: { ...b, pos: to ?? b.pos, goneMs: 0, stayMs, decoys, flashMs },
+      shots: [],
+      storm: false,
+    };
+  }
+  const stayMs = b.stayMs - dtMs;
+  if (stayMs <= 0) {
+    return {
+      boss: { ...b, stayMs: 0, goneMs: m.goneMs, decoys: [], flashMs },
+      shots: [],
+      storm: false,
+    };
+  }
+  let shootInMs = b.shootInMs - dtMs;
+  let shots: Vec[] = [];
+  if (shootInMs <= 0) {
+    shots = spread(aimAt(bossShotOrigin(b, s), hero), mood.shots, mood.spreadDeg);
+    shootInMs = rng.int(mood.everyMs.min, mood.everyMs.max);
+  }
+  return { boss: { ...b, stayMs, shootInMs, flashMs }, shots, storm: false };
+}
+
+/** Whether it has vanished mid-blink: nothing lands on it, and it hurts no one. */
+export function isGone(b: Boss): boolean {
+  return b.goneMs > 0;
+}
+
+/** A blow on decoy `i` pops it: gone, and the Witch none the worse. */
+export function popDecoy(b: Boss, i: number): Boss {
+  return { ...b, decoys: b.decoys.filter((_, k) => k !== i) };
+}
+
 /** Whether it is galloping (a dash under way). */
 export function isGalloping(b: Boss): boolean {
   return b.dash !== null;
@@ -422,7 +512,13 @@ export function hitBoss(
   s: BossStats,
   weapon: ItemId | null = null,
 ): Boss {
-  if (b.lastHitBy === hitId || b.health <= 0 || isAirborne(b) || glancesOff(b, s, weapon)) {
+  if (
+    b.lastHitBy === hitId ||
+    b.health <= 0 ||
+    isAirborne(b) ||
+    isGone(b) ||
+    glancesOff(b, s, weapon)
+  ) {
     return b;
   }
   return { ...b, health: Math.max(0, b.health - damage), lastHitBy: hitId, flashMs };

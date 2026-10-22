@@ -1,7 +1,7 @@
 /**
  * Dungeon 6, Witchwood Tower (PROJECT.md §3c): seven rooms up a tower deep in the forest.
  *
- *                [boss room]                 the Witch (M6.2c)
+ *                [boss room]                 the Witch
  *                [library]                   locked door up (needs key 2)
  *   [west hall]  [great stair] [east hall]   west: the Steel Sword behind sparks; stair: an eye
  *                                            statue's gate across the way up; east: key 2 caged by an eye
@@ -19,10 +19,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_6_START = { col: 1, row: 3 } as const;
 
 export const DUNGEON_6: readonly RoomDef[] = [
-  // The boss room: the Witch (M6.2c).
+  // The boss room: the Witch.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'witch', col: 10, row: 4 },
     lines: [
       '####################',
       '####################',

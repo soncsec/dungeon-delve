@@ -48,8 +48,12 @@ import { SpritePool } from '../entities/SpritePool';
 import { KeyInput } from '../input/keyboard';
 import { fallMessage, gemsAfterFalling } from '../logic/death';
 import {
+  aimAt,
   bossBody,
   bossShotOrigin,
+  isGone,
+  popDecoy,
+  spread,
   hitBoss,
   isAirborne,
   isBeaten,
@@ -323,7 +327,12 @@ export interface GameSnapshot {
     stunned: boolean;
     /** Galloping along a line at Jarrett (the Centaur). */
     galloping: boolean;
+    /** Vanished mid-blink (the Witch), and her decoys' feet. */
+    gone: boolean;
+    decoys: { x: number; y: number }[];
   } | null;
+  /** The Witch's decoys popped so far. */
+  decoysPopped: number;
   /** Shots batted back with the Steel Sword, and those in the air. */
   batted: number;
   orbs: { x: number; y: number; dir: Facing }[];
@@ -390,6 +399,8 @@ interface LiveBoss {
   fill: Phaser.GameObjects.Rectangle;
   /** A leaper's shadow on the ground, under it while it is in the air. */
   shadow: Phaser.GameObjects.Ellipse | null;
+  /** A blinker's decoys (the Witch, fierce): look-alikes, one sprite each. */
+  decoys: Phaser.GameObjects.Sprite[];
 }
 
 interface LiveWalker {
@@ -566,8 +577,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private pickups: Pickup[] = [];
   /** The room's eye statues still watching: where, which way they fire, and when next (ms). */
   private eyes: { x: number; y: number; dir: Facing; inMs: number }[] = [];
-  /** Shots batted back with the Steel Sword so far. */
+  /** Shots batted back with the Steel Sword so far, and the Witch's decoys popped. */
   private batted = 0;
+  private decoysPopped = 0;
   /** The Centaur's bolts on their way, each with its mark on the floor; storms called and bolts landed. */
   private strikes: { s: Strike; mark: Phaser.GameObjects.Sprite }[] = [];
   private storms = 0;
@@ -659,6 +671,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.boltsLanded = 0;
     this.eyes = [];
     this.batted = 0;
+    this.decoysPopped = 0;
     this.enemiesHold = false;
     this.mode = 'near';
     this.shots = [];
@@ -1293,14 +1306,26 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             .setAlpha(BOSS_FX.shadow.alpha)
             .setVisible(false)
         : null;
-    this.boss = { b: spawnBoss(kind, feet, stats, this.rng), sprite, back, fill, shadow };
+    this.boss = {
+      b: spawnBoss(kind, feet, stats, this.rng),
+      sprite,
+      back,
+      fill,
+      shadow,
+      decoys: [],
+    };
     this.drawBoss(this.boss);
   }
 
   /** Whether the boss's body overlaps `box`. In the air it is out of reach: nothing hits it, and it hurts no one. */
   private bossAt(box: Rect): boolean {
     const live = this.boss;
-    return !!live && !isAirborne(live.b) && overlaps(box, bossBody(live.b, BOSSES[live.b.kind]));
+    return (
+      !!live &&
+      !isAirborne(live.b) &&
+      !isGone(live.b) &&
+      overlaps(box, bossBody(live.b, BOSSES[live.b.kind]))
+    );
   }
 
   /**
@@ -1312,10 +1337,28 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (!live) return;
     const stats = BOSSES[live.b.kind];
     if (!this.enemiesHold) {
+      const wasGone = isGone(live.b);
+      const before = { pos: { ...live.b.pos }, decoys: live.b.decoys };
       const step = stepBoss(live.b, deltaMs, this.pos, stats, this.rng);
       live.b = step.boss;
+      const kind = stats.shotKind ?? 'orb';
       const from = bossShotOrigin(live.b, stats);
-      for (const dir of step.shots) this.addEnemyShot(from, dir);
+      for (const dir of step.shots) this.addEnemyShot(from, dir, kind);
+      // Its decoys throw the same at him, from where they stand.
+      if (step.shots.length > 0) {
+        for (const d of live.b.decoys) {
+          const at = bossShotOrigin({ ...live.b, pos: d }, stats);
+          const n = step.shots.length;
+          const deg = (isFierce(live.b, stats) ? stats.fierce : stats.calm).spreadDeg;
+          for (const dir of spread(aimAt(at, this.pos), n, deg)) this.addEnemyShot(at, dir, kind);
+        }
+      }
+      // A blinker vanishes and appears in a puff of smoke (its decoys too).
+      if (wasGone !== isGone(live.b)) {
+        const h = stats.box.height / 2;
+        const at = wasGone ? [live.b.pos, ...live.b.decoys] : [before.pos, ...before.decoys];
+        for (const p of at) this.effect('puff', p.x, p.y - h);
+      }
       if (step.storm) this.callStorm(isFierce(live.b, stats));
       this.stepStorm(deltaMs);
     }
@@ -1332,7 +1375,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     }
   }
 
-  private drawBoss({ b, sprite, fill, shadow }: LiveBoss): void {
+  private drawBoss(live: LiveBoss): void {
+    const { b, sprite, fill, shadow } = live;
     const o = this.origin(this.room.col, this.room.row);
     // A leaper rises off the ground mid-leap, and squats while it crouches (the warning).
     const lift = leapHeight(b, BOSSES[b.kind]);
@@ -1343,7 +1387,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       .setPosition(o.x + b.pos.x, o.y + b.pos.y - lift)
       .setDepth(DEPTH.sorted + o.y + b.pos.y)
       .setScale(crouching ? pose.x : 1, crouching ? pose.y : 1)
-      .setFlipX(BOSS_FACES_LEFT.has(b.kind) && b.heading > 0);
+      .setFlipX(BOSS_FACES_LEFT.has(b.kind) && b.heading > 0)
+      .setVisible(!isGone(b));
+    // Decoys: one look-alike sprite each, where they stand.
+    while (live.decoys.length < b.decoys.length) {
+      live.decoys.push(this.enemyPool.take(b.kind).setOrigin(0.5, 1).play(animKey(b.kind, 'sway')));
+    }
+    while (live.decoys.length > b.decoys.length) {
+      const extra = live.decoys.pop();
+      if (extra) this.enemyPool.give(extra);
+    }
+    b.decoys.forEach((d, i) =>
+      live.decoys[i]?.setPosition(o.x + d.x, o.y + d.y).setDepth(DEPTH.sorted + o.y + d.y),
+    );
     shadow
       ?.setPosition(o.x + b.pos.x, o.y + b.pos.y)
       .setDepth(DEPTH.sorted + o.y + b.pos.y - 1)
@@ -1404,6 +1460,22 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private clearStorm(): void {
     for (const x of this.strikes) this.fxPool.give(x.mark);
     this.strikes = [];
+  }
+
+  /** A blow (or shot) on a decoy pops it in a puff of smoke; the Witch is none the worse. */
+  private popDecoys(box: Rect): boolean {
+    const live = this.boss;
+    if (!live) return false;
+    const stats = BOSSES[live.b.kind];
+    const i = live.b.decoys.findIndex((d) => overlaps(box, bossBody({ ...live.b, pos: d }, stats)));
+    if (i < 0) return false;
+    const d = live.b.decoys[i] as Point;
+    live.b = popDecoy(live.b, i);
+    this.effect('puff', d.x, d.y - stats.box.height / 2);
+    this.sfx.play('defeat');
+    this.decoysPopped += 1;
+    this.drawBoss(live);
+    return true;
   }
 
   /** Shuts the room's ways out (barred gates). */
@@ -1525,6 +1597,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private dropBoss(): void {
     if (!this.boss) return;
     this.enemyPool.give(this.boss.sprite.clearTint().setScale(1).setFlipX(false));
+    for (const d of this.boss.decoys) this.enemyPool.give(d);
     this.clearStorm();
     this.boss.back.destroy();
     this.boss.fill.destroy();
@@ -1786,7 +1859,12 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const sprite =
       kind === 'venom'
         ? this.enemyPool.take('snake-spit').setFlipX(dir.x < 0)
-        : this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
+        : kind === 'fire'
+          ? this.enemyPool
+              .take('fire-ball')
+              .setAngle((Math.atan2(dir.y, dir.x) * 180) / Math.PI)
+              .play(animKey('fire-ball', 'fly'))
+          : this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
     if (kind === 'spore') sprite.setTint(SPORE_TINT);
     const live = { s, sprite };
     this.enemyShots.push(live);
@@ -1830,7 +1908,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   private dropEnemyShot(live: LiveEnemyShot): void {
     this.enemyShots = this.enemyShots.filter((x) => x !== live);
-    this.enemyPool.give(live.sprite.clearTint().setFlipX(false));
+    this.enemyPool.give(live.sprite.clearTint().setFlipX(false).setAngle(0));
   }
 
   /** Every enemy under the blade takes one hit per swing; defeated ones vanish in a puff. */
@@ -1844,6 +1922,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.strike(live, blade.damage, this.swings, this.facing);
     }
     if (this.bossAt(box)) this.strikeBoss(blade.damage, this.swings, near);
+    this.popDecoys(box);
     if (blade.bats) this.batShots(box);
     this.strikeFalseWalls(box);
     this.strikeBreakables(box);
@@ -2378,11 +2457,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       // A bolt stuns a wrapped boss (the Mummy), and does nothing to the others.
       if (boss && shot.kind === 'bolt') this.stunTheBoss(shot.d.id);
       else if (boss) this.strikeBoss(t.damage, shot.d.id, null);
+      const popped = !target && !boss && this.popDecoys(box);
       const burned = shot.kind === 'fireball' && this.burnThorns(box);
       const powered = shot.kind === 'bolt' && this.powerSwitches(box);
       const shut = shot.kind === 'orb' && this.shutEyes(box);
-      if (target || boss || burned || powered || shut || step.stopped) this.dropShot(shot);
-      else this.drawShot(shot);
+      if (target || boss || popped || burned || powered || shut || step.stopped) {
+        this.dropShot(shot);
+      } else this.drawShot(shot);
     }
   }
 
@@ -2506,8 +2587,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             airborne: isAirborne(this.boss.b),
             stunned: this.boss.b.stunMs > 0,
             galloping: isGalloping(this.boss.b),
+            gone: isGone(this.boss.b),
+            decoys: this.boss.b.decoys.map((d) => ({ ...d })),
           }
         : null,
+      decoysPopped: this.decoysPopped,
       batted: this.batted,
       orbs: this.shotsOf('orb'),
       strikes: this.strikes.map(({ s: st }) => ({ ...st.patch })),
