@@ -1318,11 +1318,17 @@ const ROOMS: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
-  // Dragon's Maw: the sealed cave of dungeon 8 (it opens in M6).
+  // Dragon's Maw: the cave of dungeon 8 (it opens with seven shards).
   {
     col: 14,
     row: 0,
     region: 'volcano',
+    exits: [
+      {
+        cells: [{ col: 10, row: 2 }],
+        to: { map: 'dungeon8', room: { col: 1, row: 3 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     enemies: [
       { kind: 'ghost', col: 15, row: 2 },
       { kind: 'eye', col: 3, row: 7 },
@@ -1331,7 +1337,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
       'FFFFF....V.....FFFFF',
-      'FF...............FFF',
+      'FF........D......FFF',
       'FF..............FFFF',
       '..............R.FFFF',
       '.....r...r........FF',
