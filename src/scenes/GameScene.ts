@@ -2322,6 +2322,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.enemiesHold = hold;
   }
 
+  /**
+   * Test hook only: every enemy's shooting timer runs out now. (Its first timer is a random
+   * few seconds of game time, and a browser test's game clock can run far slower than the
+   * wall clock, so waiting for it can take longer than any sensible time limit.)
+   */
+  testEnemiesShootNow(): void {
+    for (const live of this.enemies) live.e = { ...live.e, shootInMs: 0 };
+  }
+
   /** Test hook only: give Jarrett an item. */
   testGiveItem(item: ItemId): void {
     this.inv = give(this.inv, item);
