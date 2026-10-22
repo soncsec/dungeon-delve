@@ -12,6 +12,7 @@ export type ItemId =
   | 'star-blade'
   | 'axe'
   | 'daggers'
+  | 'triple-daggers'
   | 'fireball'
   | 'lightning'
   | 'ward'
@@ -25,6 +26,7 @@ export const ITEMS: Readonly<Record<ItemId, { slot: Slot; name: string }>> = {
   'star-blade': { slot: 'near', name: 'Star Blade' },
   axe: { slot: 'near', name: 'Axe' },
   daggers: { slot: 'far', name: 'Daggers' },
+  'triple-daggers': { slot: 'far', name: 'Triple Daggers' },
   fireball: { slot: 'spell', name: 'Fireball' },
   lightning: { slot: 'spell', name: 'Lightning' },
   ward: { slot: 'spell', name: 'Ward' },

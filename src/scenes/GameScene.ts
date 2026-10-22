@@ -10,6 +10,7 @@ import {
   LIGHTNING,
   BATTED,
   BLADES,
+  TRIPLE_DAGGERS,
   EYE_STATUE,
   WARD,
   SPARK,
@@ -89,6 +90,7 @@ import { NO_CLEARED, defeat as defeatInRoom, enterRoom, type Cleared } from '../
 import {
   batBack,
   canThrow,
+  fan,
   projectileBox,
   otherMode,
   launch,
@@ -811,8 +813,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (attack && this.heroKnockMs <= 0) {
       if (this.mode === 'near') {
         if (this.inv.equipped.near) this.trySwing(time);
-      } else if (this.inv.equipped.far === 'daggers') {
-        this.tryThrow(time);
+      } else if (
+        this.inv.equipped.far === 'daggers' ||
+        this.inv.equipped.far === 'triple-daggers'
+      ) {
+        this.tryThrow(time, this.inv.equipped.far === 'triple-daggers');
       }
     } else if (cast && this.heroKnockMs <= 0) {
       const spell = this.inv.equipped.spell;
@@ -2298,23 +2303,26 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   }
 
   /** Throws a dagger the way Jarrett faces, if one is allowed now. */
-  private tryThrow(now: number): void {
-    if (
-      !canThrow(
-        this.countShots('dagger'),
-        DAGGER.maxInFlight,
-        this.lastThrowAt,
-        now,
-        DAGGER.cooldownMs,
-      )
-    ) {
+  private tryThrow(now: number, triple = false): void {
+    const t = triple ? TRIPLE_DAGGERS : DAGGER;
+    if (!canThrow(this.countShots('dagger'), t.maxInFlight, this.lastThrowAt, now, t.cooldownMs)) {
       return;
     }
     this.thrown += 1;
     this.sfx.play('throw');
     this.lastThrowAt = now;
-    this.throwUntil = now + DAGGER.throwPauseMs;
-    this.shoot('dagger');
+    this.throwUntil = now + t.throwPauseMs;
+    if (!triple) {
+      this.shoot('dagger');
+      return;
+    }
+    // A fan of three.
+    this.animate(false);
+    const first = SHOT_HIT_IDS + this.shotIds + 1;
+    this.shotIds += 3;
+    for (const d of fan(first, this.pos, this.facing, SWORD.bodyHeight, TRIPLE_DAGGERS.spreadDeg)) {
+      this.addShot('dagger', d);
+    }
   }
 
   /** Casts the equipped spell, if there's enough mana and none of it is already flying. */
@@ -2410,7 +2418,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             : 'fire-ball',
     );
     // The bolt's art points left; the others point right (an orb is round).
-    sprite.setAngle(kind === 'orb' ? 0 : DAGGER_ANGLE[d.dir] + (kind === 'bolt' ? 180 : 0));
+    const turn = ((d.turn ?? 0) * 180) / Math.PI;
+    sprite.setAngle(kind === 'orb' ? 0 : DAGGER_ANGLE[d.dir] + turn + (kind === 'bolt' ? 180 : 0));
     if (kind === 'fireball') sprite.play(animKey('fire-ball', 'fly'));
     if (kind === 'bolt') sprite.play(animKey('bolt', 'fly'));
     if (kind === 'orb') sprite.play(animKey('enemy-shot', 'fly'));

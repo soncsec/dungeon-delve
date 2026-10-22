@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  batBack,
   canThrow,
-  projectileBox,
-  otherMode,
+  fan,
+  flightVector,
   launch,
-  stepProjectile,
+  otherMode,
   type Projectile,
   type ProjectileTuning,
-  batBack,
+  projectileBox,
+  stepProjectile,
 } from '../../src/logic/weapons';
 
 const t: ProjectileTuning = { speed: 200, range: 100, length: 12, thickness: 4 };
@@ -99,5 +101,35 @@ describe('batBack (the Steel Sword)', () => {
     const d = batBack(77, at, 'up');
     expect(d).toEqual({ id: 77, pos: { x: 100.5, y: 40 }, dir: 'up', travelled: 0 });
     expect(d.pos).not.toBe(at);
+  });
+});
+
+describe('the Triple Daggers: a fan of three', () => {
+  const tuning = { speed: 200, range: 150, length: 12, thickness: 6 };
+  const open = () => false;
+
+  it('one straight ahead, and one either side, turned by the spread', () => {
+    const [mid, left, right] = fan(10, { x: 100, y: 100 }, 'right', 20, 14);
+    expect(mid).toEqual({ id: 10, pos: { x: 108, y: 90 }, dir: 'right', travelled: 0 });
+    expect(left?.id).toBe(11);
+    expect(right?.id).toBe(12);
+    expect(left?.turn).toBeCloseTo((-14 * Math.PI) / 180);
+    expect(right?.turn).toBeCloseTo((14 * Math.PI) / 180);
+    expect(left?.pos).not.toBe(mid?.pos);
+  });
+
+  it('each flies its own way: the middle straight, the others off to the sides', () => {
+    const [mid, left, right] = fan(1, { x: 100, y: 100 }, 'right', 20, 30) as [
+      Projectile,
+      Projectile,
+      Projectile,
+    ];
+    expect(flightVector(mid)).toEqual({ x: 1, y: 0 });
+    const l = flightVector(left);
+    expect(l.x).toBeCloseTo(Math.cos(Math.PI / 6));
+    expect(l.y).toBeCloseTo(-Math.sin(Math.PI / 6));
+    const step = stepProjectile(right, 500, tuning, open).projectile;
+    expect(step.pos.x).toBeCloseTo(108 + 100 * Math.cos(Math.PI / 6));
+    expect(step.pos.y).toBeCloseTo(90 + 100 * Math.sin(Math.PI / 6));
   });
 });
