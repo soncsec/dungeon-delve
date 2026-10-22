@@ -137,6 +137,31 @@ export const WARD = {
 /** A spark barrier: touching one without the Ward zaps Jarrett (half hearts). */
 export const SPARK = { damage: 1 } as const;
 
+/**
+ * Near weapons: what a blow costs an enemy, and whether a swing bats enemy
+ * shots back the way Jarrett faces (the Steel Sword: owner 2026-10-22).
+ */
+export const BLADES = {
+  'wooden-sword': { damage: 1, bats: false },
+  'steel-sword': { damage: 2, bats: true },
+  'star-blade': { damage: 3, bats: true },
+  axe: { damage: 1, bats: false },
+} as const;
+
+/** A shot batted back: it flies the way Jarrett faces, and hurts what it hits (or shuts an eye statue). */
+export const BATTED = {
+  speed: 170,
+  range: 240,
+  length: 10,
+  thickness: 10,
+  damage: 1,
+  maxInFlight: 99,
+  cooldownMs: 0,
+} as const;
+
+/** Eye statues (Steel Sword puzzles): each fires an orb straight out this often (ms), the first a little later. */
+export const EYE_STATUE = { everyMs: 1800, firstMs: { min: 600, max: 1400 } } as const;
+
 /** Jarrett's health, in half hearts (2 per heart). */
 export const HEALTH = {
   startHearts: 3,
@@ -491,7 +516,8 @@ export type SfxName =
   | 'spark'
   | 'found'
   | 'rumble'
-  | 'thunder';
+  | 'thunder'
+  | 'bat';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
 export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe>> } = {
@@ -610,6 +636,8 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
     // The Centaur's storm: a low rumble as the marks go down, a sharp crack as the bolts strike.
     rumble: { wave: 'noise', seconds: 0.7, from: 180, to: 90, attack: 0.15, volume: 0.4 },
     thunder: { wave: 'noise', seconds: 0.45, from: 3500, to: 200, attack: 0.002, volume: 0.45 },
+    // A shot batted back with the Steel Sword: a bright ringing ping.
+    bat: { wave: 'square', seconds: 0.16, from: 1300, to: 2100, attack: 0.002, volume: 0.3 },
   },
 };
 

@@ -157,7 +157,10 @@ export class InventoryScene extends Phaser.Scene {
         this.add.text(26, y, SLOT_NAMES[slot].toUpperCase(), { ...TEXT, color: DIM }),
       );
       const icon = item ? ITEM_ICON[item] : undefined;
-      if (icon) this.dynamic.push(this.add.image(96, y + 3, icon.texture, icon.frame));
+      if (icon) {
+        const image = this.add.image(96, y + 3, icon.texture, icon.frame);
+        this.dynamic.push(icon.tint === undefined ? image : image.setTint(icon.tint));
+      }
       const name = item ? ITEMS[item].name.toUpperCase() : '-';
       this.dynamic.push(this.add.text(116, y, name, TEXT));
       // Arrows show there is more than one to choose from.

@@ -152,7 +152,7 @@ export class Hud {
     }
     this.gemText.setText(gemLabel(gems, HUD.maxGems));
     const icon = weapon ? ITEM_ICON[weapon] : undefined;
-    if (icon) this.weapon.setTexture(icon.texture, icon.frame);
+    if (icon) this.weapon.setTexture(icon.texture, icon.frame).setTint(icon.tint ?? 0xffffff);
     this.weapon.setVisible(icon !== undefined);
     const left = MANA_BAR_RIGHT - (inner + 2);
     this.manaTrack.setPosition(left, MANA_BAR.y).setSize(inner + 2, MANA_BAR.h);

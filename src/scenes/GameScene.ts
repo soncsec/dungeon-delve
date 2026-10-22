@@ -8,6 +8,9 @@ import {
   GAME_WIDTH,
   FIREBALL,
   LIGHTNING,
+  BATTED,
+  BLADES,
+  EYE_STATUE,
   WARD,
   SPARK,
   DROPS,
@@ -80,6 +83,7 @@ import {
 } from '../logic/finds';
 import { NO_CLEARED, defeat as defeatInRoom, enterRoom, type Cleared } from '../logic/respawn';
 import {
+  batBack,
   canThrow,
   projectileBox,
   otherMode,
@@ -166,7 +170,14 @@ import {
   type ShotKind as EnemyShotKind,
 } from '../logic/enemies';
 import { fireShot, shotBox, stepShot, type EnemyShot } from '../logic/enemyShots';
-import { PROP_FOOTPRINT, isSolid, sealCells, type Dir, type Fixture } from '../logic/room';
+import {
+  PROP_FOOTPRINT,
+  eyeFacing,
+  isSolid,
+  sealCells,
+  type Dir,
+  type Fixture,
+} from '../logic/room';
 import {
   centre,
   facingVector,
@@ -313,6 +324,9 @@ export interface GameSnapshot {
     /** Galloping along a line at Jarrett (the Centaur). */
     galloping: boolean;
   } | null;
+  /** Shots batted back with the Steel Sword, and those in the air. */
+  batted: number;
+  orbs: { x: number; y: number; dir: Facing }[];
   /** The Centaur's storm: bolts on their way (their patches' top-left cells), storms called, bolts landed. */
   strikes: { x: number; y: number }[];
   storms: number;
@@ -333,7 +347,7 @@ export interface GameSnapshot {
   talking: { page: number; pages: number; lines: string[] } | null;
 }
 
-type ShotKind = 'dagger' | 'fireball' | 'bolt';
+type ShotKind = 'dagger' | 'fireball' | 'bolt' | 'orb';
 
 /** Something flying: a thrown dagger, a fireball or a Lightning bolt. */
 interface Shot {
@@ -342,12 +356,15 @@ interface Shot {
   sprite: Phaser.GameObjects.Sprite;
 }
 
-const SHOT_TUNING: Readonly<Record<ShotKind, typeof DAGGER | typeof FIREBALL | typeof LIGHTNING>> =
-  {
-    dagger: DAGGER,
-    fireball: FIREBALL,
-    bolt: LIGHTNING,
-  };
+const SHOT_TUNING: Readonly<
+  Record<ShotKind, typeof DAGGER | typeof FIREBALL | typeof LIGHTNING | typeof BATTED>
+> = {
+  dagger: DAGGER,
+  fireball: FIREBALL,
+  bolt: LIGHTNING,
+  // A shot batted back with the Steel Sword.
+  orb: BATTED,
+};
 /** A stunned enemy is drawn pale blue (runtime tint, ADR-D05). */
 const STUN_TINT = 0x9fd8ff;
 
@@ -547,6 +564,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private blocked = 0;
   private shotsFired = 0;
   private pickups: Pickup[] = [];
+  /** The room's eye statues still watching: where, which way they fire, and when next (ms). */
+  private eyes: { x: number; y: number; dir: Facing; inMs: number }[] = [];
+  /** Shots batted back with the Steel Sword so far. */
+  private batted = 0;
   /** The Centaur's bolts on their way, each with its mark on the floor; storms called and bolts landed. */
   private strikes: { s: Strike; mark: Phaser.GameObjects.Sprite }[] = [];
   private storms = 0;
@@ -636,6 +657,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.strikes = [];
     this.storms = 0;
     this.boltsLanded = 0;
+    this.eyes = [];
+    this.batted = 0;
     this.enemiesHold = false;
     this.mode = 'near';
     this.shots = [];
@@ -762,6 +785,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.stepEnemies(deltaMs);
     this.stepBoss(deltaMs);
     this.stepEnemyShots(deltaMs, time);
+    this.stepEyes(deltaMs);
     this.stepShots(deltaMs);
     if (attack && this.heroKnockMs <= 0 && this.walkerInReach()) {
       this.startTalk();
@@ -1090,6 +1114,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.placeChestLeftovers();
     this.placeWalker();
     this.placeShopkeeper();
+    this.wakeEyes();
   }
 
   /** In the shop, the shopkeeper stands behind his counter. */
@@ -1811,13 +1836,30 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   /** Every enemy under the blade takes one hit per swing; defeated ones vanish in a puff. */
   private swordHits(): void {
     const box = swordBox(this.pos, this.facing, SWORD);
+    const near = this.inv.equipped.near;
+    const blade =
+      near && near in BLADES ? BLADES[near as keyof typeof BLADES] : BLADES['wooden-sword'];
     for (const live of [...this.enemies]) {
       if (!overlaps(box, enemyBody(live.e, ENEMIES[live.e.kind]))) continue;
-      this.strike(live, SWORD.damage, this.swings, this.facing);
+      this.strike(live, blade.damage, this.swings, this.facing);
     }
-    if (this.bossAt(box)) this.strikeBoss(SWORD.damage, this.swings, this.inv.equipped.near);
+    if (this.bossAt(box)) this.strikeBoss(blade.damage, this.swings, near);
+    if (blade.bats) this.batShots(box);
     this.strikeFalseWalls(box);
     this.strikeBreakables(box);
+  }
+
+  /** The Steel Sword bats enemy shots under the blade back, the way Jarrett faces. */
+  private batShots(box: Rect): void {
+    for (const live of [...this.enemyShots]) {
+      if (!overlaps(box, shotBox(live.s, ENEMY_SHOTS[live.s.kind]))) continue;
+      const at = { ...live.s.pos };
+      this.dropEnemyShot(live);
+      this.batted += 1;
+      this.sfx.play('bat');
+      this.shotIds += 1;
+      this.addShot('orb', batBack(SHOT_HIT_IDS + this.shotIds, at, this.facing));
+    }
   }
 
   /**
@@ -1869,6 +1911,56 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       return true;
     }
     return false;
+  }
+
+  /** A batted orb back in an eye statue shuts it, for good: the room's gates open. */
+  private shutEyes(box: Rect): boolean {
+    const key = roomKey(this.room.col, this.room.row);
+    const room = this.world.rooms.get(key);
+    for (const { x, y } of cellsUnder(box)) {
+      if (room?.cells[y]?.[x]?.fixture !== 'eye') continue;
+      const id = fixtureId(this.mapId, key, x, y);
+      if (!isOpened(this.progress, id)) {
+        this.progress = openChest(this.progress, id);
+        this.eyes = this.eyes.filter((eye) => eye.x !== x || eye.y !== y);
+        this.sfx.play('switch');
+        this.redrawRoom();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /** On entering a room: its eye statues not yet shut start watching. */
+  private wakeEyes(): void {
+    const key = roomKey(this.room.col, this.room.row);
+    const room = this.world.rooms.get(key);
+    this.eyes = [];
+    room?.cells.forEach((row, y) =>
+      row.forEach((cell, x) => {
+        if (cell.fixture !== 'eye' || isOpened(this.progress, fixtureId(this.mapId, key, x, y))) {
+          return;
+        }
+        const dir = eyeFacing(room, x, y);
+        if (!dir) return;
+        const inMs = this.rng.int(EYE_STATUE.firstMs.min, EYE_STATUE.firstMs.max);
+        this.eyes.push({ x, y, dir, inMs });
+      }),
+    );
+  }
+
+  /** Eye statues fire an orb straight out, every so often (not while enemies are held). */
+  private stepEyes(deltaMs: number): void {
+    if (this.enemiesHold) return;
+    this.eyes = this.eyes.map((eye) => {
+      const inMs = eye.inMs - deltaMs;
+      if (inMs > 0) return { ...eye, inMs };
+      const v = facingVector(eye.dir);
+      // From the edge of its cell, on the open side.
+      const from = { x: (eye.x + 0.5 + v.x * 0.6) * TILE, y: (eye.y + 0.5 + v.y * 0.6) * TILE };
+      this.addEnemyShot(from, v, 'orb');
+      return { ...eye, inMs: EYE_STATUE.everyMs };
+    });
   }
 
   private burnThorns(box: Rect): boolean {
@@ -2000,6 +2092,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
                           : OBJECT_FRAMES.potion,
                     );
     sprite.setOrigin(0.5, 1);
+    if (icon?.tint !== undefined) sprite.setTint(icon.tint);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + pos.x, o.y + pos.y).setDepth(DEPTH.sorted + o.y + pos.y - 1);
     this.pickups.push({
@@ -2221,14 +2314,27 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private shoot(kind: ShotKind): void {
     this.animate(false);
     this.shotIds += 1;
-    const d = launch(SHOT_HIT_IDS + this.shotIds, this.pos, this.facing, SWORD.bodyHeight);
-    const sprite = this.shotPool.take(
-      kind === 'dagger' ? 'dagger' : kind === 'bolt' ? 'bolt' : 'fire-ball',
+    this.addShot(
+      kind,
+      launch(SHOT_HIT_IDS + this.shotIds, this.pos, this.facing, SWORD.bodyHeight),
     );
-    // The bolt's art points left; the others point right.
-    sprite.setAngle(DAGGER_ANGLE[d.dir] + (kind === 'bolt' ? 180 : 0));
+  }
+
+  private addShot(kind: ShotKind, d: Projectile): void {
+    const sprite = this.shotPool.take(
+      kind === 'dagger'
+        ? 'dagger'
+        : kind === 'bolt'
+          ? 'bolt'
+          : kind === 'orb'
+            ? 'enemy-shot'
+            : 'fire-ball',
+    );
+    // The bolt's art points left; the others point right (an orb is round).
+    sprite.setAngle(kind === 'orb' ? 0 : DAGGER_ANGLE[d.dir] + (kind === 'bolt' ? 180 : 0));
     if (kind === 'fireball') sprite.play(animKey('fire-ball', 'fly'));
     if (kind === 'bolt') sprite.play(animKey('bolt', 'fly'));
+    if (kind === 'orb') sprite.play(animKey('enemy-shot', 'fly'));
     const shot = { kind, d, sprite };
     this.shots.push(shot);
     this.drawShot(shot);
@@ -2258,7 +2364,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       const into = (cx: number, cy: number): boolean =>
         solid(cx, cy) &&
         !(shot.kind === 'fireball' && fixtureAt(cx, cy) === 'thorns') &&
-        !(shot.kind === 'bolt' && fixtureAt(cx, cy) === 'switch');
+        !(shot.kind === 'bolt' && fixtureAt(cx, cy) === 'switch') &&
+        !(shot.kind === 'orb' && fixtureAt(cx, cy) === 'eye');
       const step = stepProjectile(shot.d, deltaMs, t, into);
       shot.d = step.projectile;
       const box = projectileBox(shot.d, t);
@@ -2273,7 +2380,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       else if (boss) this.strikeBoss(t.damage, shot.d.id, null);
       const burned = shot.kind === 'fireball' && this.burnThorns(box);
       const powered = shot.kind === 'bolt' && this.powerSwitches(box);
-      if (target || boss || burned || powered || step.stopped) this.dropShot(shot);
+      const shut = shot.kind === 'orb' && this.shutEyes(box);
+      if (target || boss || burned || powered || shut || step.stopped) this.dropShot(shot);
       else this.drawShot(shot);
     }
   }
@@ -2310,6 +2418,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     for (const p of this.pickups) this.pickupPool.give(p.sprite);
     this.endHold();
     this.enemies = [];
+    this.eyes = [];
     this.pickups = [];
     this.dropBoss();
     this.unseal();
@@ -2399,6 +2508,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
             galloping: isGalloping(this.boss.b),
           }
         : null,
+      batted: this.batted,
+      orbs: this.shotsOf('orb'),
       strikes: this.strikes.map(({ s: st }) => ({ ...st.patch })),
       storms: this.storms,
       boltsLanded: this.boltsLanded,
@@ -2492,6 +2603,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   testEnemiesShootNow(): void {
     for (const live of this.enemies) live.e = { ...live.e, shootInMs: 0 };
     if (this.boss) this.boss.b = { ...this.boss.b, shootInMs: 0 };
+    this.eyes = this.eyes.map((eye) => ({ ...eye, inMs: 0 }));
   }
 
   /** Test hook only: give Jarrett an item. */
@@ -2535,6 +2647,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.world = buildWorld(defs);
     this.resetStones();
     this.redrawRoom();
+    this.wakeEyes();
   }
 
   /** Test hook only: set the boss's health (it still needs a hit to be beaten). */
@@ -2674,6 +2787,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       if (t.dim) {
         image.setTint(SWITCH_DIM);
         ownTint.set(image, SWITCH_DIM);
+      } else if (t.tint !== undefined) {
+        image.setTint(t.tint);
+        ownTint.set(image, t.tint);
       }
       drawn.push(image);
     }

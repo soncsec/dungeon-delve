@@ -40,6 +40,11 @@ export function launch(id: number, feet: Point, facing: Facing, bodyHeight: numb
   return { id, pos: start, dir: facing, travelled: 0 };
 }
 
+/** A shot batted back (the Steel Sword): from where it was, the way Jarrett faces. */
+export function batBack(id: number, at: Point, facing: Facing): Projectile {
+  return { id, pos: { ...at }, dir: facing, travelled: 0 };
+}
+
 /**
  * Flies a projectile for `dtMs`. It stops (`stopped: true`) when its middle enters
  * a solid cell or it has flown its full range. Moves in sub-tile steps so it
