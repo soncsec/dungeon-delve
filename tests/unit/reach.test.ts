@@ -291,14 +291,14 @@ describe('the real maps', () => {
     const hole = (c: (typeof SECRET_CAVES)[number]) =>
       `${c.room.col},${c.room.row}/${c.hole.col},${c.hole.row}`;
     const doors = [
-      '1,5/10,2',
-      '1,5/9,2',
-      '3,1/10,2',
-      '3,5/10,2',
-      '3,5/9,2',
-      '3,6/5,8',
-      '5,4/10,2',
-      '5,4/9,2',
+      '2,8/10,2',
+      '2,8/9,2',
+      '6,2/10,2',
+      '6,8/10,2',
+      '6,8/9,2',
+      '6,9/5,8',
+      '10,6/10,2',
+      '10,6/9,2',
     ];
     const free = SECRET_CAVES.filter((c) => !c.opensWith).map(hole);
     expect(free).toHaveLength(7);
@@ -414,20 +414,20 @@ describe('the overworld, stage by stage (M4.6)', () => {
 
   it('has the eight dungeon sites where the plan puts them', () => {
     expect(sites.map((t) => `${t.key} ${t.prop}`).sort()).toEqual([
-      '0,2 arch', // 6 Witchwood Tower
-      '1,5 arch', // 2 Bog Grotto
-      '2,0 arch', // 5 Thunder Spire
-      '3,1 cave', // 4 Stonecrag Mine
-      '3,5 arch', // 1 Hollow Oak
-      '5,4 arch', // 3 Sunken Crypt
-      '6,3 arch', // 7 Crimson Manor
-      '7,0 cave', // 8 Dragon's Maw
+      '0,3 arch', // 6 Witchwood Tower
+      '10,6 arch', // 3 Sunken Crypt
+      '12,5 arch', // 7 Crimson Manor
+      '14,0 cave', // 8 Dragon's Maw
+      '2,8 arch', // 2 Bog Grotto
+      '4,0 arch', // 5 Thunder Spire
+      '6,2 cave', // 4 Stonecrag Mine
+      '6,8 arch', // 1 Hollow Oak
     ]);
   });
 
   it('with no items: every room, every dungeon doorway, and the 7 caves that need nothing', () => {
     const r = explore(world, start);
-    expect(r.rooms).toHaveLength(64);
+    expect(r.rooms).toHaveLength(192); // 16 × 12 (owner 2026-10-22)
     for (const site of sites) {
       expect(
         site.door.some((c) => r.cells.has(c)),

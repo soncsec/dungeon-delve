@@ -1,23 +1,26 @@
 /**
- * The overworld (PROJECT.md decisions, 2026-10-20): an 8×8 map of rooms, each
- * a 20×10 block of text (legend in src/logic/room.ts). Village and meadows
- * along the south, the forest north of them with Hollow Oak, the marsh west,
- * the ruins east, the mountains across the north, the Shadow Vault in the
- * centre. Regions arrive one PR at a time (ROADMAP M4.1); edges toward rooms
- * not built yet stay closed. Rooms join through gaps in their walls; the world
- * test checks every gap lines up with the room next door.
+ * The overworld (PROJECT.md decisions, 2026-10-20 and 2026-10-22): a map 16
+ * rooms wide and 12 tall, each room a 20×10 block of text (legend in
+ * src/logic/room.ts). Village and meadows along the south, the forest north of
+ * them with Hollow Oak, the marsh west, the ruins east, the mountains across
+ * the north, the Shadow Vault in the centre. These are the first 64 rooms
+ * (the old 8×8 map, spread out: old column c is now 2c, and old rows 0–7 are
+ * rows 0, 2, 3, 5, 6, 8, 9, 11); the 128 between them are in wilds.ts. Rooms
+ * join through gaps in their walls; the world test checks every gap lines up
+ * with the room next door.
  */
 import type { RoomDef } from '../logic/world';
 import { caveDoors } from './caves';
+import { WILDS } from './wilds';
 
 /** The room the game starts in: the village gate. */
-export const START_ROOM = { col: 4, row: 7 } as const;
+export const START_ROOM = { col: 8, row: 11 } as const;
 
 const ROOMS: readonly RoomDef[] = [
   // The archway into dungeon 1, Hollow Oak (the forest).
   {
-    col: 3,
-    row: 5,
+    col: 6,
+    row: 8,
     exits: [
       {
         cells: [
@@ -46,8 +49,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Forest east of the archway; north to the vault grounds.
   {
-    col: 4,
-    row: 5,
+    col: 8,
+    row: 8,
     enemies: [
       { kind: 'wolf', col: 12, row: 2 },
       { kind: 'bird', col: 3, row: 7 },
@@ -67,8 +70,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The village's west street: the shop; north to Hollow Oak.
   {
-    col: 3,
-    row: 6,
+    col: 6,
+    row: 9,
     region: 'village',
     // The house is the shop: its steps lead inside.
     exits: [
@@ -92,8 +95,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The green, north of the start: trees and flowers around the crossroads.
   {
-    col: 4,
-    row: 6,
+    col: 8,
+    row: 9,
     region: 'village',
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -110,8 +113,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The east green: maples and a stump; the lane runs east.
   {
-    col: 5,
-    row: 6,
+    col: 10,
+    row: 9,
     region: 'village',
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -128,8 +131,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The east end: a house (the ruins lie east, closed for now).
   {
-    col: 6,
-    row: 6,
+    col: 12,
+    row: 9,
     region: 'village',
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -146,8 +149,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // West meadow: two robots.
   {
-    col: 3,
-    row: 7,
+    col: 6,
+    row: 11,
     region: 'village',
     enemies: [
       { kind: 'robot', col: 10, row: 4 },
@@ -168,8 +171,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The start: the village gate, where Walker waits.
   {
-    col: 4,
-    row: 7,
+    col: 8,
+    row: 11,
     region: 'village',
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -186,8 +189,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // East meadow.
   {
-    col: 5,
-    row: 7,
+    col: 10,
+    row: 11,
     region: 'village',
     enemies: [
       { kind: 'robot', col: 16, row: 3 },
@@ -208,8 +211,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Far east meadow.
   {
-    col: 6,
-    row: 7,
+    col: 12,
+    row: 11,
     region: 'village',
     enemies: [{ kind: 'bird', col: 16, row: 6 }],
     lines: [
@@ -227,8 +230,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The south-east corner (the ruins lie north, closed for now).
   {
-    col: 7,
-    row: 7,
+    col: 14,
+    row: 11,
     region: 'village',
     enemies: [
       { kind: 'robot', col: 12, row: 6 },
@@ -250,7 +253,7 @@ const ROOMS: readonly RoomDef[] = [
   // The northern forest, below the mountains.
   {
     col: 0,
-    row: 1,
+    row: 2,
     enemies: [
       { kind: 'bird', col: 6, row: 2 },
       { kind: 'robot', col: 16, row: 6 },
@@ -270,8 +273,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The northern forest.
   {
-    col: 1,
-    row: 1,
+    col: 2,
+    row: 2,
     enemies: [
       { kind: 'robot', col: 3, row: 4 },
       { kind: 'wolf', col: 14, row: 5 },
@@ -292,7 +295,7 @@ const ROOMS: readonly RoomDef[] = [
   // Witchwood's clearing: the sealed archway of dungeon 6 (it opens in M6).
   {
     col: 0,
-    row: 2,
+    row: 3,
     enemies: [
       { kind: 'robot', col: 13, row: 2 },
       { kind: 'wolf', col: 6, row: 5 },
@@ -312,8 +315,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The deep forest.
   {
-    col: 1,
-    row: 2,
+    col: 2,
+    row: 3,
     enemies: [
       { kind: 'wolf', col: 13, row: 4 },
       { kind: 'bird', col: 3, row: 7 },
@@ -333,8 +336,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The deep forest.
   {
-    col: 2,
-    row: 2,
+    col: 4,
+    row: 3,
     enemies: [
       { kind: 'bird', col: 15, row: 3 },
       { kind: 'robot', col: 3, row: 6 },
@@ -354,8 +357,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The forest edge, north of the vault grounds.
   {
-    col: 3,
-    row: 2,
+    col: 6,
+    row: 3,
     enemies: [
       { kind: 'robot', col: 16, row: 6 },
       { kind: 'wolf', col: 3, row: 4 },
@@ -376,7 +379,7 @@ const ROOMS: readonly RoomDef[] = [
   // A dead end in the forest (the marsh lies south, closed for now).
   {
     col: 0,
-    row: 3,
+    row: 5,
     enemies: [
       { kind: 'wolf', col: 14, row: 2 },
       { kind: 'bird', col: 3, row: 7 },
@@ -396,8 +399,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The forest, by the marsh (closed for now).
   {
-    col: 1,
-    row: 3,
+    col: 2,
+    row: 5,
     enemies: [
       { kind: 'bird', col: 15, row: 3 },
       { kind: 'robot', col: 4, row: 6 },
@@ -417,8 +420,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The forest, west of the vault grounds.
   {
-    col: 2,
-    row: 3,
+    col: 4,
+    row: 5,
     enemies: [
       { kind: 'robot', col: 4, row: 6 },
       { kind: 'wolf', col: 14, row: 2 },
@@ -438,8 +441,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The vault grounds, north-west: the sealed vault stands at the centre.
   {
-    col: 3,
-    row: 3,
+    col: 6,
+    row: 5,
     region: 'vault',
     enemies: [
       { kind: 'ghost', col: 3, row: 7 },
@@ -460,8 +463,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The vault grounds, north-east (the ruins lie east, closed for now).
   {
-    col: 4,
-    row: 3,
+    col: 8,
+    row: 5,
     region: 'vault',
     enemies: [
       { kind: 'ghost', col: 4, row: 2 },
@@ -482,8 +485,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The forest, by the vault grounds (the marsh lies south and west, closed for now).
   {
-    col: 2,
-    row: 4,
+    col: 4,
+    row: 6,
     enemies: [
       { kind: 'wolf', col: 14, row: 6 },
       { kind: 'bird', col: 4, row: 2 },
@@ -503,8 +506,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The vault grounds, south-west: the vault's door (sealed until M7.1).
   {
-    col: 3,
-    row: 4,
+    col: 6,
+    row: 6,
     region: 'vault',
     enemies: [{ kind: 'ghost', col: 14, row: 7 }],
     lines: [
@@ -522,8 +525,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The vault grounds, south-east: south to Hollow Oak.
   {
-    col: 4,
-    row: 4,
+    col: 8,
+    row: 6,
     region: 'vault',
     enemies: [{ kind: 'ghost', col: 15, row: 2 }],
     lines: [
@@ -542,7 +545,7 @@ const ROOMS: readonly RoomDef[] = [
   // The marsh, under the forest.
   {
     col: 0,
-    row: 4,
+    row: 6,
     region: 'marsh',
     enemies: [
       { kind: 'ghost', col: 5, row: 3 },
@@ -563,8 +566,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The marsh, up to the forest.
   {
-    col: 1,
-    row: 4,
+    col: 2,
+    row: 6,
     region: 'marsh',
     enemies: [
       { kind: 'eye', col: 16, row: 3 },
@@ -587,7 +590,7 @@ const ROOMS: readonly RoomDef[] = [
   // The marsh.
   {
     col: 0,
-    row: 5,
+    row: 8,
     region: 'marsh',
     enemies: [
       { kind: 'eye', col: 7, row: 3 },
@@ -609,8 +612,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Bog Grotto: the archway of dungeon 2 (it opens with one shard).
   {
-    col: 1,
-    row: 5,
+    col: 2,
+    row: 8,
     region: 'marsh',
     exits: [
       {
@@ -640,8 +643,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The marsh, east to Hollow Oak.
   {
-    col: 2,
-    row: 5,
+    col: 4,
+    row: 8,
     region: 'marsh',
     enemies: [
       { kind: 'eye', col: 15, row: 6 },
@@ -664,7 +667,7 @@ const ROOMS: readonly RoomDef[] = [
   // The marsh.
   {
     col: 0,
-    row: 6,
+    row: 9,
     region: 'marsh',
     enemies: [
       { kind: 'ghost', col: 3, row: 6 },
@@ -685,8 +688,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The heart of the marsh.
   {
-    col: 1,
-    row: 6,
+    col: 2,
+    row: 9,
     region: 'marsh',
     enemies: [
       { kind: 'eye', col: 6, row: 7 },
@@ -708,8 +711,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The marsh (the village lies east, behind its houses).
   {
-    col: 2,
-    row: 6,
+    col: 4,
+    row: 9,
     region: 'marsh',
     enemies: [
       { kind: 'ghost', col: 13, row: 7 },
@@ -731,7 +734,7 @@ const ROOMS: readonly RoomDef[] = [
   // The south-west corner of the marsh.
   {
     col: 0,
-    row: 7,
+    row: 11,
     region: 'marsh',
     enemies: [
       { kind: 'eye', col: 11, row: 6 },
@@ -753,8 +756,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The marsh.
   {
-    col: 1,
-    row: 7,
+    col: 2,
+    row: 11,
     region: 'marsh',
     enemies: [
       { kind: 'toad', col: 5, row: 5 },
@@ -775,8 +778,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The marsh, east to the meadows.
   {
-    col: 2,
-    row: 7,
+    col: 4,
+    row: 11,
     region: 'marsh',
     enemies: [
       { kind: 'eye', col: 8, row: 7 },
@@ -798,8 +801,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins, by the forest and the vault grounds.
   {
-    col: 4,
-    row: 2,
+    col: 8,
+    row: 3,
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 14, row: 7 },
@@ -821,8 +824,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins, under the mountains.
   {
-    col: 5,
-    row: 2,
+    col: 10,
+    row: 3,
     region: 'ruins',
     enemies: [
       { kind: 'mushroom', col: 13, row: 2 },
@@ -844,8 +847,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins, under the mountains.
   {
-    col: 6,
-    row: 2,
+    col: 12,
+    row: 3,
     region: 'ruins',
     enemies: [
       { kind: 'eye', col: 15, row: 2 },
@@ -867,8 +870,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The north-east corner of the ruins.
   {
-    col: 7,
-    row: 2,
+    col: 14,
+    row: 3,
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 11, row: 3 },
@@ -890,8 +893,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins, east of the vault grounds.
   {
-    col: 5,
-    row: 3,
+    col: 10,
+    row: 5,
     region: 'ruins',
     enemies: [
       { kind: 'eye', col: 3, row: 3 },
@@ -913,8 +916,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Crimson Manor: the sealed archway of dungeon 7 (it opens in M6).
   {
-    col: 6,
-    row: 3,
+    col: 12,
+    row: 5,
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 15, row: 6 },
@@ -936,8 +939,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins.
   {
-    col: 7,
-    row: 3,
+    col: 14,
+    row: 5,
     region: 'ruins',
     enemies: [
       { kind: 'mushroom', col: 12, row: 7 },
@@ -959,8 +962,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Sunken Crypt: the archway of dungeon 3 (it opens with two shards).
   {
-    col: 5,
-    row: 4,
+    col: 10,
+    row: 6,
     region: 'ruins',
     exits: [
       {
@@ -991,8 +994,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The heart of the ruins.
   {
-    col: 6,
-    row: 4,
+    col: 12,
+    row: 6,
     region: 'ruins',
     enemies: [
       { kind: 'mushroom', col: 4, row: 6 },
@@ -1014,8 +1017,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins.
   {
-    col: 7,
-    row: 4,
+    col: 14,
+    row: 6,
     region: 'ruins',
     enemies: [
       { kind: 'eye', col: 11, row: 7 },
@@ -1037,8 +1040,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins, north of the village green.
   {
-    col: 5,
-    row: 5,
+    col: 10,
+    row: 8,
     region: 'ruins',
     enemies: [
       { kind: 'mushroom', col: 12, row: 3 },
@@ -1060,8 +1063,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins.
   {
-    col: 6,
-    row: 5,
+    col: 12,
+    row: 8,
     region: 'ruins',
     enemies: [
       { kind: 'eye', col: 16, row: 3 },
@@ -1083,8 +1086,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins.
   {
-    col: 7,
-    row: 5,
+    col: 14,
+    row: 8,
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 6, row: 7 },
@@ -1106,8 +1109,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The ruins, down to the south-east meadow.
   {
-    col: 7,
-    row: 6,
+    col: 14,
+    row: 9,
     region: 'ruins',
     enemies: [
       { kind: 'mushroom', col: 9, row: 3 },
@@ -1152,7 +1155,7 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The mountains, down to the northern forest.
   {
-    col: 1,
+    col: 2,
     row: 0,
     region: 'mountains',
     enemies: [
@@ -1175,7 +1178,7 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Thunder Spire: the sealed archway of dungeon 5 (it opens in M6).
   {
-    col: 2,
+    col: 4,
     row: 0,
     region: 'mountains',
     enemies: [
@@ -1198,7 +1201,7 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The high pass.
   {
-    col: 3,
+    col: 6,
     row: 0,
     region: 'mountains',
     enemies: [
@@ -1221,7 +1224,7 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The high pass.
   {
-    col: 4,
+    col: 8,
     row: 0,
     region: 'mountains',
     enemies: [
@@ -1244,7 +1247,7 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The high pass, east to the volcano.
   {
-    col: 5,
+    col: 10,
     row: 0,
     region: 'mountains',
     enemies: [
@@ -1267,7 +1270,7 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The volcano edge.
   {
-    col: 6,
+    col: 12,
     row: 0,
     region: 'volcano',
     enemies: [
@@ -1290,7 +1293,7 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Dragon's Maw: the sealed cave of dungeon 8 (it opens in M6).
   {
-    col: 7,
+    col: 14,
     row: 0,
     region: 'volcano',
     enemies: [
@@ -1313,8 +1316,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The mountains, above the forest.
   {
-    col: 2,
-    row: 1,
+    col: 4,
+    row: 2,
     region: 'mountains',
     enemies: [
       { kind: 'wolf', col: 11, row: 3 },
@@ -1336,8 +1339,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // Stonecrag Mine: the cave of dungeon 4 (it opens with three shards).
   {
-    col: 3,
-    row: 1,
+    col: 6,
+    row: 2,
     region: 'mountains',
     exits: [
       {
@@ -1365,8 +1368,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The mountains, above the ruins.
   {
-    col: 4,
-    row: 1,
+    col: 8,
+    row: 2,
     region: 'mountains',
     enemies: [
       { kind: 'toad', col: 4, row: 7 },
@@ -1388,8 +1391,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The mountains, above the ruins.
   {
-    col: 5,
-    row: 1,
+    col: 10,
+    row: 2,
     region: 'mountains',
     enemies: [
       { kind: 'wolf', col: 8, row: 7 },
@@ -1411,8 +1414,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The mountains, down to the ruins.
   {
-    col: 6,
-    row: 1,
+    col: 12,
+    row: 2,
     region: 'mountains',
     enemies: [
       { kind: 'eye', col: 11, row: 2 },
@@ -1434,8 +1437,8 @@ const ROOMS: readonly RoomDef[] = [
   },
   // The volcano edge, above the ruins.
   {
-    col: 7,
-    row: 1,
+    col: 14,
+    row: 2,
     region: 'volcano',
     enemies: [
       { kind: 'eye', col: 3, row: 3 },
@@ -1458,7 +1461,7 @@ const ROOMS: readonly RoomDef[] = [
 ];
 
 /** The rooms, with the doorways down to the secret caves (src/world/caves.ts) added. */
-export const OVERWORLD: readonly RoomDef[] = ROOMS.map((room) => {
+export const OVERWORLD: readonly RoomDef[] = [...ROOMS, ...WILDS].map((room) => {
   const doors = caveDoors(room.col, room.row);
   return doors.length > 0 ? { ...room, exits: [...(room.exits ?? []), ...doors] } : room;
 });

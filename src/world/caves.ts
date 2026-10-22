@@ -24,28 +24,28 @@ export interface SecretCave {
 export const SECRET_CAVES: readonly SecretCave[] = [
   // Under a stone in the east meadow.
   {
-    room: { col: 5, row: 7 },
+    room: { col: 10, row: 11 },
     hole: { col: 14, row: 6 },
     landing: { col: 14, row: 7 },
     chests: [{ kind: 'gems', amount: 20 }],
   },
   // Behind a false wall in the deep forest.
   {
-    room: { col: 1, row: 2 },
+    room: { col: 2, row: 3 },
     hole: { col: 2, row: 2 },
     landing: { col: 4, row: 2 },
     chests: [{ kind: 'potion', potion: 'health' }],
   },
   // Under a stone in the marsh.
   {
-    room: { col: 0, row: 6 },
+    room: { col: 0, row: 9 },
     hole: { col: 5, row: 7 },
     landing: { col: 6, row: 7 },
     chests: [{ kind: 'gems', amount: 30 }],
   },
   // Behind a false wall in the ruins: a heart container.
   {
-    room: { col: 7, row: 4 },
+    room: { col: 14, row: 6 },
     hole: { col: 17, row: 3 },
     landing: { col: 15, row: 3 },
     chests: [{ kind: 'heart' }],
@@ -59,7 +59,7 @@ export const SECRET_CAVES: readonly SecretCave[] = [
   },
   // Behind a false wall at the forest's dead end.
   {
-    room: { col: 0, row: 3 },
+    room: { col: 0, row: 5 },
     hole: { col: 1, row: 4 },
     landing: { col: 3, row: 4 },
     chests: [
@@ -69,14 +69,14 @@ export const SECRET_CAVES: readonly SecretCave[] = [
   },
   // Under a stone in the ruins by the forest.
   {
-    room: { col: 4, row: 2 },
+    room: { col: 8, row: 3 },
     hole: { col: 8, row: 7 },
     landing: { col: 8, row: 6 },
     chests: [{ kind: 'potion', potion: 'health' }],
   },
   // Behind thorns in the heart of the marsh (Fireball): a heart container.
   {
-    room: { col: 1, row: 6 },
+    room: { col: 2, row: 9 },
     hole: { col: 2, row: 7 },
     landing: { col: 4, row: 7 },
     chests: [{ kind: 'heart' }],
@@ -84,7 +84,7 @@ export const SECRET_CAVES: readonly SecretCave[] = [
   },
   // Behind thorns in the forest west of the vault grounds (Fireball).
   {
-    room: { col: 2, row: 3 },
+    room: { col: 4, row: 5 },
     hole: { col: 0, row: 7 },
     landing: { col: 2, row: 7 },
     chests: [{ kind: 'gems', amount: 30 }],
@@ -92,7 +92,7 @@ export const SECRET_CAVES: readonly SecretCave[] = [
   },
   // Under a boulder in the far east meadow (Axe).
   {
-    room: { col: 6, row: 7 },
+    room: { col: 12, row: 11 },
     hole: { col: 9, row: 8 },
     landing: { col: 8, row: 7 },
     chests: [{ kind: 'gems', amount: 50 }],
@@ -100,7 +100,7 @@ export const SECRET_CAVES: readonly SecretCave[] = [
   },
   // Behind rubble in the high pass (Axe): a heart container.
   {
-    room: { col: 5, row: 0 },
+    room: { col: 10, row: 0 },
     hole: { col: 1, row: 2 },
     landing: { col: 3, row: 2 },
     chests: [{ kind: 'heart' }],
@@ -108,7 +108,7 @@ export const SECRET_CAVES: readonly SecretCave[] = [
   },
   // Behind rubble above the ruins (Axe).
   {
-    room: { col: 6, row: 1 },
+    room: { col: 12, row: 2 },
     hole: { col: 18, row: 2 },
     landing: { col: 16, row: 2 },
     chests: [

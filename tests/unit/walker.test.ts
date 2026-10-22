@@ -71,9 +71,9 @@ describe('Walker after dungeon 1', () => {
     const here = (map: string, col: number, row: number, opened: string[] = []) =>
       walkerHere(WALKER_VISITS, map, { col, row }, { opened, keys: {} })?.id ?? null;
     expect(here('dungeon1', 1, 3)).toBe('dungeon1');
-    expect(here('overworld', 3, 5)).toBeNull();
-    expect(here('overworld', 3, 5, ['dungeon1/shard'])).toBe('dungeon1-done');
-    expect(here('overworld', 3, 5, ['dungeon1/shard', 'walker/dungeon1-done'])).toBeNull();
+    expect(here('overworld', 6, 8)).toBeNull();
+    expect(here('overworld', 6, 8, ['dungeon1/shard'])).toBe('dungeon1-done');
+    expect(here('overworld', 6, 8, ['dungeon1/shard', 'walker/dungeon1-done'])).toBeNull();
   });
 });
 
@@ -82,9 +82,9 @@ describe('Walker at dungeons 2 to 4 (M5.5)', () => {
     walkerHere(WALKER_VISITS, map, { col, row }, { opened, keys: {} })?.id ?? null;
 
   it.each([
-    [2, 'dungeon2', { col: 1, row: 5 }],
-    [3, 'dungeon3', { col: 5, row: 4 }],
-    [4, 'dungeon4', { col: 3, row: 1 }],
+    [2, 'dungeon2', { col: 2, row: 8 }],
+    [3, 'dungeon3', { col: 10, row: 6 }],
+    [4, 'dungeon4', { col: 6, row: 2 }],
   ] as const)(
     'waits at dungeon %i’s entrance, and outside it once its shard is found',
     (_n, map, outside) => {

@@ -25,7 +25,7 @@ It is aimed at young teens (cartoon fantasy, no blood, enemies vanish in a puff 
 |---|---|
 | Camera | Top-down, flip-screen rooms like the NES Zelda: the view slides to the next room when Jarrett walks off the edge |
 | Display | 320×180 at native pixel size (16:9): a 20-pixel status bar over a 20×10-tile room of 16-pixel tiles. Scaled up by whole numbers on desktop (ADR-D02) |
-| World | An **overworld of about 8×8 rooms** across five regions (village and meadows, forest, marsh, mountains, ruins), plus caves and secret rooms |
+| World | An **overworld 16 rooms wide and 12 tall** (192 rooms; 8×8 until the owner doubled it, 2026-10-22) across five regions (village and meadows, forest, marsh, mountains, ruins), plus caves and secret rooms |
 | Dungeons | **8 dungeons**, growing from about 6 rooms (dungeon 1) to about 14 (dungeon 8). Each has small keys and locked doors, a chest with a new item, a boss behind a boss door, and a shard of the Star of Power |
 | Finale | The **Shadow Vault**, opened by all 8 shards: a short final dungeon, the final boss, Princess Kira's rescue, and an ending screen with the play time |
 | Player health | Hearts, starting at 3. Each boss leaves a **heart container** (+1 heart), and three more hide in secret caves: 14 at the end |

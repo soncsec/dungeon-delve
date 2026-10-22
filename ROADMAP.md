@@ -133,7 +133,7 @@
 - [x] M5.5 Walker's lines at dungeons 2–4 and on the overworld: a hint at each entrance (the boss, and what the dungeon's item does), and outside each once its shard is found (the way on; choosing spells; secrets the Axe opens). On a phone he names the touch buttons, not the keys
 - [x] M5.6 No enemy looks stuck in a tree or a rock (owner 2026-10-22): walking enemies keep out from under the art of trees, tree tops, houses and archways, and start clear of them; fliers are drawn over trees, rocks and walls; a drop lands where Jarrett can reach and see it
 - [ ] M5.7 Holding up a find (owner 2026-10-22): from a chest, or a boss's heart container and shard, Jarrett turns to face you with the find over his head while a success tune plays, and the game waits a moment
-- [ ] M5.8 A bigger overworld (owner 2026-10-22): 16 screens wide by 12 tall (from 8×8), the regions grown and the dungeons, village and secret caves spread out across it, in several PRs (before Thunder Spire)
+- [x] M5.8 A bigger overworld (owner 2026-10-22): 16 screens wide by 12 tall (from 8×8). The first 64 rooms spread out (dungeons, village, caves and Walker with them), and 128 new rooms between them in each region's style, made by `tools/map/grow_overworld.py` and edited by hand from then on
 
 **Acceptance criteria (each dungeon):** owner play-test; reachability test passes; the boss has its own attack pattern.
 

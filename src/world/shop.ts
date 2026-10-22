@@ -23,7 +23,7 @@ export const SHOP: readonly RoomDef[] = [
         // Out onto the west street, on the path beside the house's steps.
         to: {
           map: 'overworld',
-          room: { col: 3, row: 6 },
+          room: { col: 6, row: 9 },
           feet: { x: 104, y: 142 },
           facing: 'down',
         },
