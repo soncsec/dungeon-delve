@@ -1,7 +1,7 @@
 /**
  * Dungeon 8, Dragon's Maw (PROJECT.md §3c): seven caverns under the volcano's edge.
  *
- *                [lair]                       the Dragon (M6.4c)
+ *                [lair]                       the Dragon
  *                [throne hall]                locked door up (needs key 2)
  *   [west vent]  [forge]        [east vent]   west: key 2 behind sparks; forge: the Star Blade,
  *                                             caged by an eye statue; east: a Health Potion behind a switch
@@ -17,10 +17,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_8_START = { col: 1, row: 3 } as const;
 
 export const DUNGEON_8: readonly RoomDef[] = [
-  // The lair: the Dragon (M6.4c).
+  // The lair: the Dragon.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'dragon', col: 10, row: 4 },
     lines: [
       '####################',
       '####################',

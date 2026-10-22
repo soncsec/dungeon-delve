@@ -13,6 +13,9 @@
  * The Vampire glides after Jarrett, draining him (and healing itself) on
  * touch; now and then it bursts into a ring of dark shots, vanishes, and
  * re-forms elsewhere (sooner when fierce).
+ * The Dragon prowls the top of its lair, facing Jarrett; it rears, then sweeps
+ * its fire breath across him one burst at a time, and lashes its tail at him
+ * when he comes close.
  * Below half health a boss turns fiercer: more shots, more often. A hit (by
  * id, so each lands once) costs it health; at zero it is beaten.
  */
@@ -21,7 +24,8 @@ import type { Point } from './movement';
 import type { Rng } from './rng';
 import type { ShotKind, Vec } from './enemies';
 
-export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur' | 'witch' | 'vampire';
+export type BossKind =
+  'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur' | 'witch' | 'vampire' | 'dragon';
 
 /** How a boss moves. */
 export type BossMoves =
@@ -85,6 +89,21 @@ export type BossMoves =
       inLine: number;
       restMs: number;
       arena: { x: number; y: number; w: number; h: number };
+    }
+  /**
+   * Prowling its lair (the Dragon): it paces along towards Jarrett's side at
+   * `speed`, facing him, its feet inside `arena`. When its timer runs out it
+   * rears (`windUpMs`), then breathes: the mood's shots, one every `gapMs`,
+   * swept across him from one side of the spread to the other. With Jarrett
+   * within `tail.reach` px of its body, it lashes its tail for `tail.ms`,
+   * hurting from `tail.hurtFromMs` on; then its tail rests `tail.restMs`.
+   */
+  | {
+      style: 'prowl';
+      speed: number;
+      gapMs: number;
+      tail: { reach: number; ms: number; hurtFromMs: number; restMs: number; damage: number };
+      arena: { x: number; y: number; w: number; h: number };
     };
 
 export interface BossStats {
@@ -118,6 +137,8 @@ export interface BossStats {
   shotKind?: ShotKind;
   /** A touch drains Jarrett and heals it this much (the Vampire). */
   drain?: number;
+  /** Where its shots start, from its feet, for art facing left (the Dragon's mouth); its middle if not said. */
+  mouth?: { ahead: number; up: number };
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -151,6 +172,10 @@ export interface Boss {
   stayMs: number;
   goneMs: number;
   decoys: Point[];
+  /** A breather's breath under way: its aim, the shots sent, the time to the next, and which side it sweeps from. */
+  breath: { aim: Vec; sent: number; inMs: number; side: 1 | -1 } | null;
+  /** A tail lash under way: the time into it (ms). */
+  lash: { ms: number } | null;
 }
 
 export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): Boss {
@@ -176,6 +201,8 @@ export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): B
           : 0,
     goneMs: 0,
     decoys: [],
+    breath: null,
+    lash: null,
   };
 }
 
@@ -232,6 +259,7 @@ export function stepBoss(
   if (m.style === 'gallop') return stepGalloper(b, dtMs, hero, s, m, rng);
   if (m.style === 'blink') return stepBlinker(b, dtMs, hero, s, m, rng);
   if (m.style === 'swarm') return stepSwarmer(b, dtMs, hero, s, m, rng);
+  if (m.style === 'prowl') return stepProwler(b, dtMs, hero, s, m, rng);
   const mood = isFierce(b, s) ? s.fierce : s.calm;
   let x = b.pos.x;
   let y = b.pos.y;
@@ -474,6 +502,97 @@ function stepSwarmer(
   return { boss: { ...b, pos, heading, stayMs, flashMs }, shots: [], storm: false };
 }
 
+type ProwlMoves = Extract<BossMoves, { style: 'prowl' }>;
+
+/** Whether `p` is within `reach` px of its body. */
+export function nearBody(b: Boss, s: BossStats, p: Point, reach: number): boolean {
+  const body = bossBody(b, s);
+  const dx = Math.max(body.x - p.x, 0, p.x - (body.x + body.w));
+  const dy = Math.max(body.y - p.y, 0, p.y - (body.y + body.h));
+  return Math.hypot(dx, dy) <= reach;
+}
+
+/**
+ * A prowler: a lash runs its course, then the tail rests; a breath sends its
+ * shots one by one; rearing ends in a breath aimed at Jarrett; otherwise it
+ * lashes if he is close (and its tail rested), rears if its timer is up, or
+ * paces along towards his side.
+ */
+function stepProwler(
+  b: Boss,
+  dtMs: number,
+  hero: Point,
+  s: BossStats,
+  m: ProwlMoves,
+  rng: Rng,
+): { boss: Boss; shots: Vec[]; storm: boolean } {
+  const flashMs = Math.max(0, b.flashMs - dtMs);
+  const restMs = Math.max(0, b.restMs - dtMs);
+  const mood = isFierce(b, s) ? s.fierce : s.calm;
+  const still = { boss: { ...b, flashMs, restMs }, shots: [] as Vec[], storm: false };
+  if (b.lash) {
+    const ms = b.lash.ms + dtMs;
+    if (ms < m.tail.ms) return { ...still, boss: { ...still.boss, lash: { ms } } };
+    return { ...still, boss: { ...still.boss, lash: null, restMs: m.tail.restMs } };
+  }
+  if (b.breath) {
+    const dirs = spread(b.breath.aim, mood.shots, mood.spreadDeg);
+    const shots: Vec[] = [];
+    let { sent, inMs } = b.breath;
+    inMs -= dtMs;
+    while (inMs <= 0 && sent < dirs.length) {
+      shots.push(dirs[b.breath.side > 0 ? sent : dirs.length - 1 - sent] as Vec);
+      sent += 1;
+      inMs += m.gapMs;
+    }
+    if (sent < dirs.length) {
+      return { ...still, boss: { ...still.boss, breath: { ...b.breath, sent, inMs } }, shots };
+    }
+    const shootInMs = rng.int(mood.everyMs.min, mood.everyMs.max);
+    return { ...still, boss: { ...still.boss, breath: null, shootInMs }, shots };
+  }
+  const shootInMs = b.shootInMs - dtMs;
+  if (b.phase === 'crouch') {
+    // Rearing (the warning): then the breath, aimed where he is now.
+    if (shootInMs > 0) return { ...still, boss: { ...still.boss, shootInMs } };
+    const aim = aimAt(bossShotOrigin(b, s), hero);
+    const breath = { aim, sent: 0, inMs: 0, side: rng.pick([1, -1] as const) };
+    return { ...still, boss: { ...still.boss, phase: 'sit', shootInMs: 0, breath } };
+  }
+  if (restMs <= 0 && nearBody(b, s, hero, m.tail.reach)) {
+    return { ...still, boss: { ...still.boss, lash: { ms: 0 } } };
+  }
+  if (shootInMs <= 0) {
+    return { ...still, boss: { ...still.boss, phase: 'crouch', shootInMs: s.windUpMs ?? 0 } };
+  }
+  // Pacing along towards his side, facing him.
+  const dx = hero.x - b.pos.x;
+  const step = Math.min(Math.abs(dx), (m.speed * dtMs) / 1000);
+  const pos = within({ x: b.pos.x + Math.sign(dx) * step, y: b.pos.y }, m.arena);
+  const heading = dx < 0 ? -1 : dx > 0 ? 1 : b.heading;
+  return { ...still, boss: { ...still.boss, pos, heading, shootInMs } };
+}
+
+/** Whether it is breathing fire (a breath under way). */
+export function isBreathing(b: Boss): boolean {
+  return b.breath !== null;
+}
+
+/** Whether it is lashing its tail. */
+export function isLashing(b: Boss): boolean {
+  return b.lash !== null;
+}
+
+/**
+ * The half hearts its lashing tail costs Jarrett, standing at `hero`: once the
+ * lash is swinging, if he is still within its reach (all round its body); else 0.
+ */
+export function lashHurts(b: Boss, s: BossStats, hero: Point): number {
+  const m = s.moves;
+  if (m.style !== 'prowl' || !b.lash || b.lash.ms < m.tail.hurtFromMs) return 0;
+  return nearBody(b, s, hero, m.tail.reach) ? m.tail.damage : 0;
+}
+
 /** A touch that hurt Jarrett heals a draining boss (the Vampire), up to its full health. */
 export function drainHeal(b: Boss, s: BossStats): Boss {
   if (!s.drain) return b;
@@ -610,7 +729,8 @@ export function bossBody(b: Boss, s: BossStats): { x: number; y: number; w: numb
   };
 }
 
-/** Where its shots start: the middle of its body. */
+/** Where its shots start: its mouth, on the side it faces, or else the middle of its body. */
 export function bossShotOrigin(b: Boss, s: BossStats): Point {
+  if (s.mouth) return { x: b.pos.x + b.heading * s.mouth.ahead, y: b.pos.y - s.mouth.up };
   return { x: b.pos.x, y: b.pos.y - s.box.height / 2 };
 }

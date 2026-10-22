@@ -33,6 +33,9 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/bosses/centaur.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/centaur.png`
 - `assets/bosses/witch.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/witch.png`
 - `assets/bosses/vampire.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/vampire.png`
+- `assets/bosses/dragon.png` — `Gothicvania/Characters/Grotto-escape-2-boss-dragon/spritesheets/idle.png`
+- `assets/bosses/dragon-breath.png` — `Gothicvania/Characters/Grotto-escape-2-boss-dragon/spritesheets/breath.png`
+- `assets/bosses/dragon-tail.png` — `Gothicvania/Characters/Grotto-escape-2-boss-dragon/spritesheets/tail.png`
 
 ### Tiles
 

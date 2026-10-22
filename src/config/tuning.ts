@@ -454,6 +454,27 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     calm: { shots: 8, spreadDeg: 45, everyMs: { min: 3600, max: 4400 } },
     fierce: { shots: 12, spreadDeg: 30, everyMs: { min: 2200, max: 2800 } },
   },
+  // Dungeon 8: the Dragon (owner 2026-10-22: fire breath and tail). It prowls the top of its lair
+  // facing Jarrett; it rears, then sweeps its fire across him (the Ward, or the Iron Shield from the
+  // front, stops it), and close by, its tail lashes all round it. Fierce: more fire, more often.
+  // Any weapon hurts it: six blows of the Star Blade.
+  dragon: {
+    health: 18,
+    contactDamage: 2,
+    box: { halfWidth: 30, height: 34 },
+    moves: {
+      style: 'prowl',
+      speed: 16,
+      gapMs: 90,
+      tail: { reach: 28, ms: 700, hurtFromMs: 350, restMs: 1200, damage: 2 },
+      arena: { x: 72, y: 80, w: 176, h: 0 },
+    },
+    windUpMs: 600,
+    shotKind: 'fire',
+    mouth: { ahead: 32, up: 26 },
+    calm: { shots: 5, spreadDeg: 14, everyMs: { min: 2600, max: 3400 } },
+    fierce: { shots: 8, spreadDeg: 11, everyMs: { min: 1500, max: 2100 } },
+  },
 };
 
 /**
