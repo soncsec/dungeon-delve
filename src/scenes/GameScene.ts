@@ -62,7 +62,7 @@ import { markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
 import { WALKER_VISITS } from '../world/walker';
 import { SHOPKEEPER_CELL } from '../world/shop';
 import type { Purse } from '../logic/shop';
-import { rollDrop, type Drop } from '../logic/drops';
+import { dropSpot, rollDrop, type Drop } from '../logic/drops';
 import { NO_CLEARED, defeat as defeatInRoom, enterRoom, type Cleared } from '../logic/respawn';
 import {
   canThrow,
@@ -159,6 +159,7 @@ import {
   THORN_TINT,
   SWITCH_DIM,
   mixTint,
+  coveredCells,
   dungeonArt,
   propSheet,
   roomArt,
@@ -403,7 +404,13 @@ interface Pickup {
 const BODY = { halfWidth: 5, height: 20 } as const;
 
 /** Depth layers: ground, then props and the hero sorted by their feet, then tree tops, then the HUD. */
-const DEPTH = { ground: 0, sorted: 10, over: 1_000_000, hud: 2_000_000 } as const;
+const DEPTH = {
+  ground: 0,
+  sorted: 10,
+  over: 1_000_000,
+  flying: 1_100_000,
+  hud: 2_000_000,
+} as const;
 
 const ROOM_W = ROOM_COLS * TILE;
 const ROOM_H = ROOM_ROWS * TILE;
@@ -479,6 +486,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private cleared: Cleared = NO_CLEARED;
   /** The swing that last clinked off rubble or a boulder (one clink a swing). */
   private clinked = -1;
+  /** Test hook only: what the next defeated enemy drops, instead of the roll. */
+  private forcedDrop: Drop | null = null;
   /** Test hook only: cells changed by testSetCell. */
   private testEdits: {
     map: MapId;
@@ -507,6 +516,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private shotsFired = 0;
   private pickups: Pickup[] = [];
   private enemyPool!: SpritePool;
+  /** The current room's cells hidden under its art: walking enemies keep out, and drops too. */
+  private covered: ReadonlySet<string> = new Set();
   private pickupPool!: SpritePool;
   private fxPool!: SpritePool;
   private hud!: Hud;
@@ -1365,10 +1376,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   private stepEnemies(deltaMs: number): void {
     const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
-    // Everyone stays in the room; walkers are also stopped by walls and trees.
+    // Everyone stays in the room; walkers are also stopped by walls and trees, and keep
+    // out from under tree tops and the like, so none looks lost inside a tree.
     const flySolid = (cx: number, cy: number): boolean => this.outsideRoom(cx, cy);
     const walkSolid = (cx: number, cy: number): boolean =>
-      flySolid(cx, cy) || (room ? isSolid(room, cx, cy) : true);
+      flySolid(cx, cy) || (room ? isSolid(room, cx, cy) : true) || this.covered.has(`${cx},${cy}`);
     for (const live of this.enemies) {
       if (this.enemiesHold && live.e.knockMs <= 0) continue;
       const step = stepEnemy(live.e, deltaMs, ENEMIES[live.e.kind], {
@@ -1404,7 +1416,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       sprite.setTint(STUN_TINT);
     } else sprite.clearTint();
     const o = this.origin(this.room.col, this.room.row);
-    sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(DEPTH.sorted + o.y + e.pos.y);
+    // Fliers are drawn over trees, rocks and walls, as they fly over them.
+    const depth = ENEMIES[e.kind].flies ? DEPTH.flying : DEPTH.sorted;
+    sprite.setPosition(o.x + e.pos.x, o.y + e.pos.y).setDepth(depth + o.y + e.pos.y);
   }
 
   /**
@@ -1786,8 +1800,21 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.sfx.play('defeat');
     const { x, y } = live.e.pos;
     this.effect('puff', x, y - ENEMIES[live.e.kind].box.height / 2);
-    const drop = rollDrop(this.rng, DROPS);
-    if (drop) this.addPickup(drop, live.e.pos);
+    const drop = this.forcedDrop ?? rollDrop(this.rng, DROPS);
+    this.forcedDrop = null;
+    if (drop) this.addPickup(drop, this.dropAt(live.e.pos));
+  }
+
+  /** Where a drop lands: where the enemy fell, or the nearest spot Jarrett can reach and see. */
+  private dropAt(fell: Point): Point {
+    const { col, row } = this.room;
+    const cells = this.world.rooms.get(roomKey(col, row))?.cells;
+    return dropSpot(
+      fell,
+      this.pos,
+      (cx, cy) => !this.solidAt(col, row, cx, cy),
+      (cx, cy) => !this.covered.has(`${cx},${cy}`) && cells?.[cy]?.[cx]?.exit !== true,
+    );
   }
 
   private addPickup(
@@ -2230,6 +2257,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
    * Test hook only: change one cell of the current room's text (e.g. put a thorn
    * bush there) and redraw it, so tests can try things not yet placed in the world.
    */
+  /** Test hook only: the next defeated enemy drops this (instead of the random roll). */
+  testNextDrop(drop: Drop): void {
+    this.forcedDrop = drop;
+  }
+
   testSetCell(cx: number, cy: number, ch: string): void {
     // Earlier changes on this map are kept: each builds on the last.
     const edits = [
@@ -2371,6 +2403,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const art = dungeon
       ? dungeonArt(room, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)))
       : roomArt(room, region, (x, y) => isOpened(this.progress, fixtureId(this.mapId, key, x, y)));
+    if (col === this.room.col && row === this.room.row) this.covered = coveredCells(art);
     const sheet = dungeon ? 'dungeon' : 'forest';
     const drawn: Phaser.GameObjects.GameObject[] = [];
     // Each object's own tint, kept under a map or region tint (a thorn bush, a dim switch).

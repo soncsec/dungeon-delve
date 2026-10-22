@@ -29,7 +29,7 @@ const ROOMS: readonly RoomDef[] = [
     ],
     enemies: [
       { kind: 'robot', col: 3, row: 3 },
-      { kind: 'wolf', col: 16, row: 7 },
+      { kind: 'wolf', col: 15, row: 6 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -253,7 +253,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 1,
     enemies: [
       { kind: 'bird', col: 6, row: 2 },
-      { kind: 'robot', col: 16, row: 7 },
+      { kind: 'robot', col: 16, row: 6 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -273,8 +273,8 @@ const ROOMS: readonly RoomDef[] = [
     col: 1,
     row: 1,
     enemies: [
-      { kind: 'robot', col: 3, row: 3 },
-      { kind: 'wolf', col: 16, row: 7 },
+      { kind: 'robot', col: 3, row: 4 },
+      { kind: 'wolf', col: 14, row: 5 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -295,7 +295,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 2,
     enemies: [
       { kind: 'robot', col: 13, row: 2 },
-      { kind: 'wolf', col: 3, row: 7 },
+      { kind: 'wolf', col: 6, row: 5 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -315,7 +315,7 @@ const ROOMS: readonly RoomDef[] = [
     col: 1,
     row: 2,
     enemies: [
-      { kind: 'wolf', col: 13, row: 3 },
+      { kind: 'wolf', col: 13, row: 4 },
       { kind: 'bird', col: 3, row: 7 },
     ],
     lines: [
@@ -337,7 +337,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 2,
     enemies: [
       { kind: 'bird', col: 15, row: 3 },
-      { kind: 'robot', col: 3, row: 7 },
+      { kind: 'robot', col: 3, row: 6 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -358,7 +358,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 2,
     enemies: [
       { kind: 'robot', col: 16, row: 6 },
-      { kind: 'wolf', col: 3, row: 2 },
+      { kind: 'wolf', col: 3, row: 4 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -400,7 +400,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 3,
     enemies: [
       { kind: 'bird', col: 15, row: 3 },
-      { kind: 'robot', col: 4, row: 7 },
+      { kind: 'robot', col: 4, row: 6 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -421,7 +421,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 3,
     enemies: [
       { kind: 'robot', col: 4, row: 6 },
-      { kind: 'wolf', col: 15, row: 2 },
+      { kind: 'wolf', col: 14, row: 2 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -485,7 +485,7 @@ const ROOMS: readonly RoomDef[] = [
     col: 2,
     row: 4,
     enemies: [
-      { kind: 'wolf', col: 15, row: 6 },
+      { kind: 'wolf', col: 14, row: 6 },
       { kind: 'bird', col: 4, row: 2 },
     ],
     lines: [
@@ -546,7 +546,7 @@ const ROOMS: readonly RoomDef[] = [
     region: 'marsh',
     enemies: [
       { kind: 'ghost', col: 5, row: 3 },
-      { kind: 'snake', col: 16, row: 7 },
+      { kind: 'snake', col: 16, row: 6 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -592,7 +592,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 7, row: 3 },
       { kind: 'ghost', col: 16, row: 7 },
-      { kind: 'toad', col: 3, row: 7 },
+      { kind: 'toad', col: 9, row: 6 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -691,7 +691,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 6, row: 7 },
       { kind: 'ghost', col: 16, row: 2 },
-      { kind: 'toad', col: 4, row: 2 },
+      { kind: 'toad', col: 5, row: 2 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -757,7 +757,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 7,
     region: 'marsh',
     enemies: [
-      { kind: 'toad', col: 4, row: 7 },
+      { kind: 'toad', col: 5, row: 5 },
       { kind: 'eye', col: 16, row: 2 },
     ],
     lines: [
@@ -781,7 +781,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 8, row: 7 },
       { kind: 'ghost', col: 16, row: 2 },
-      { kind: 'toad', col: 3, row: 2 },
+      { kind: 'toad', col: 4, row: 2 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -803,7 +803,7 @@ const ROOMS: readonly RoomDef[] = [
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 14, row: 7 },
-      { kind: 'mushroom', col: 3, row: 2 },
+      { kind: 'mushroom', col: 4, row: 3 },
       { kind: 'eye', col: 11, row: 2 },
     ],
     lines: [
@@ -850,7 +850,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 15, row: 2 },
       { kind: 'ghost', col: 3, row: 7 },
-      { kind: 'mushroom', col: 7, row: 2 },
+      { kind: 'mushroom', col: 10, row: 3 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -872,7 +872,7 @@ const ROOMS: readonly RoomDef[] = [
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 11, row: 3 },
-      { kind: 'mushroom', col: 3, row: 6 },
+      { kind: 'mushroom', col: 4, row: 3 },
       { kind: 'eye', col: 16, row: 7 },
     ],
     lines: [
@@ -896,7 +896,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 3, row: 3 },
       { kind: 'ghost', col: 16, row: 7 },
-      { kind: 'mushroom', col: 11, row: 2 },
+      { kind: 'mushroom', col: 11, row: 4 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -918,7 +918,7 @@ const ROOMS: readonly RoomDef[] = [
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 15, row: 6 },
-      { kind: 'mushroom', col: 3, row: 2 },
+      { kind: 'mushroom', col: 9, row: 4 },
       { kind: 'eye', col: 7, row: 7 },
     ],
     lines: [
@@ -973,7 +973,7 @@ const ROOMS: readonly RoomDef[] = [
     ],
     enemies: [
       { kind: 'ghost', col: 6, row: 6 },
-      { kind: 'mushroom', col: 16, row: 2 },
+      { kind: 'mushroom', col: 14, row: 2 },
       { kind: 'eye', col: 3, row: 2 },
     ],
     lines: [
@@ -995,7 +995,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 4,
     region: 'ruins',
     enemies: [
-      { kind: 'mushroom', col: 3, row: 7 },
+      { kind: 'mushroom', col: 4, row: 6 },
       { kind: 'eye', col: 16, row: 2 },
       { kind: 'ghost', col: 11, row: 6 },
     ],
@@ -1020,7 +1020,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 11, row: 7 },
       { kind: 'ghost', col: 3, row: 2 },
-      { kind: 'mushroom', col: 16, row: 2 },
+      { kind: 'mushroom', col: 14, row: 2 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -1041,7 +1041,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 5,
     region: 'ruins',
     enemies: [
-      { kind: 'mushroom', col: 14, row: 3 },
+      { kind: 'mushroom', col: 12, row: 3 },
       { kind: 'eye', col: 3, row: 7 },
       { kind: 'ghost', col: 6, row: 2 },
     ],
@@ -1066,7 +1066,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 16, row: 3 },
       { kind: 'ghost', col: 3, row: 7 },
-      { kind: 'mushroom', col: 8, row: 2 },
+      { kind: 'mushroom', col: 9, row: 3 },
     ],
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
@@ -1088,7 +1088,7 @@ const ROOMS: readonly RoomDef[] = [
     region: 'ruins',
     enemies: [
       { kind: 'ghost', col: 6, row: 7 },
-      { kind: 'mushroom', col: 15, row: 2 },
+      { kind: 'mushroom', col: 10, row: 4 },
       { kind: 'eye', col: 8, row: 2 },
     ],
     lines: [
@@ -1110,7 +1110,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 6,
     region: 'ruins',
     enemies: [
-      { kind: 'mushroom', col: 8, row: 2 },
+      { kind: 'mushroom', col: 9, row: 3 },
       { kind: 'eye', col: 16, row: 7 },
       { kind: 'ghost', col: 4, row: 7 },
     ],
@@ -1133,7 +1133,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 0,
     region: 'mountains',
     enemies: [
-      { kind: 'wolf', col: 4, row: 2 },
+      { kind: 'wolf', col: 5, row: 2 },
       { kind: 'eye', col: 16, row: 7 },
       { kind: 'toad', col: 12, row: 2 },
     ],
@@ -1158,7 +1158,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 13, row: 2 },
       { kind: 'bird', col: 3, row: 7 },
-      { kind: 'wolf', col: 16, row: 7 },
+      { kind: 'wolf', col: 16, row: 5 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -1179,8 +1179,8 @@ const ROOMS: readonly RoomDef[] = [
     row: 0,
     region: 'mountains',
     enemies: [
-      { kind: 'toad', col: 16, row: 3 },
-      { kind: 'wolf', col: 4, row: 7 },
+      { kind: 'toad', col: 16, row: 4 },
+      { kind: 'wolf', col: 5, row: 7 },
       { kind: 'eye', col: 7, row: 2 },
     ],
     lines: [
@@ -1202,7 +1202,7 @@ const ROOMS: readonly RoomDef[] = [
     row: 0,
     region: 'mountains',
     enemies: [
-      { kind: 'wolf', col: 15, row: 3 },
+      { kind: 'wolf', col: 15, row: 2 },
       { kind: 'eye', col: 3, row: 7 },
       { kind: 'bird', col: 7, row: 2 },
     ],
@@ -1227,7 +1227,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 14, row: 6 },
       { kind: 'bird', col: 3, row: 2 },
-      { kind: 'wolf', col: 7, row: 7 },
+      { kind: 'wolf', col: 7, row: 6 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -1249,7 +1249,7 @@ const ROOMS: readonly RoomDef[] = [
     region: 'mountains',
     enemies: [
       { kind: 'bird', col: 7, row: 7 },
-      { kind: 'wolf', col: 16, row: 2 },
+      { kind: 'wolf', col: 15, row: 2 },
       { kind: 'eye', col: 5, row: 2 },
     ],
     lines: [
@@ -1348,7 +1348,7 @@ const ROOMS: readonly RoomDef[] = [
     enemies: [
       { kind: 'eye', col: 12, row: 6 },
       { kind: 'bird', col: 4, row: 2 },
-      { kind: 'wolf', col: 15, row: 2 },
+      { kind: 'wolf', col: 14, row: 2 },
     ],
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
@@ -1370,7 +1370,7 @@ const ROOMS: readonly RoomDef[] = [
     region: 'mountains',
     enemies: [
       { kind: 'toad', col: 4, row: 7 },
-      { kind: 'wolf', col: 15, row: 2 },
+      { kind: 'wolf', col: 14, row: 2 },
       { kind: 'eye', col: 7, row: 2 },
     ],
     lines: [

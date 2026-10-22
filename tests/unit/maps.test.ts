@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { buildWorld, joinProblems, roomKey } from '../../src/logic/world';
-import { TILE } from '../../src/config/tuning';
-import { CRYPT_TINT, MARSH_TINT, MINE_TINT } from '../../src/logic/tiles';
+import { ENEMIES, TILE } from '../../src/config/tuning';
+import { isSolid } from '../../src/logic/room';
+import {
+  CRYPT_TINT,
+  MARSH_TINT,
+  MINE_TINT,
+  coveredCells,
+  dungeonArt,
+  roomArt,
+} from '../../src/logic/tiles';
 import { DUNGEON_MAPS, MAPS, type MapId } from '../../src/world/maps';
 
 describe('maps', () => {
@@ -9,6 +17,41 @@ describe('maps', () => {
     const world = buildWorld(map.rooms);
     expect(joinProblems(world)).toEqual([]);
     expect(world.rooms.has(roomKey(map.start.col, map.start.row))).toBe(true);
+  });
+
+  it('every walking enemy starts on open ground, clear of walls, props and the art over them', () => {
+    const problems: string[] = [];
+    for (const [id, map] of Object.entries(MAPS)) {
+      const world = buildWorld(map.rooms);
+      for (const def of map.rooms) {
+        const key = roomKey(def.col, def.row);
+        const room = world.rooms.get(key);
+        if (!room) continue;
+        // Drawn as the game draws it: stone in dungeons, indoors and the vault grounds.
+        const region = world.regions.get(key) ?? 'forest';
+        const stone = map.theme !== 'forest' || region === 'vault';
+        const covered = coveredCells(stone ? dungeonArt(room) : roomArt(room, region));
+        // (Fliers cross trees and walls, and are drawn above them.)
+        for (const e of (def.enemies ?? []).filter((x) => !ENEMIES[x.kind].flies)) {
+          // Its body box, with its feet at the bottom middle of its cell (as the game puts it).
+          const { halfWidth, height } = ENEMIES[e.kind].box;
+          const x = e.col * TILE + TILE / 2;
+          const y = (e.row + 1) * TILE - 1;
+          const x0 = Math.floor((x - halfWidth) / TILE);
+          const x1 = Math.floor((x + halfWidth - 1e-6) / TILE);
+          const y0 = Math.floor((y - height) / TILE);
+          const y1 = Math.floor(y / TILE);
+          for (let cy = y0; cy <= y1; cy++) {
+            for (let cx = x0; cx <= x1; cx++) {
+              if (isSolid(room, cx, cy) || covered.has(`${cx},${cy}`)) {
+                problems.push(`${id} ${key}: ${e.kind} at ${e.col},${e.row} touches ${cx},${cy}`);
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(problems).toEqual([]);
   });
 
   it('every dungeon number names a dungeon map', () => {
