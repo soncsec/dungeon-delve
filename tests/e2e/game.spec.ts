@@ -1423,22 +1423,27 @@ test('Thunder Spire’s archway in the mountains opens once Jarrett holds four s
   expect(watched.errors).toEqual([]);
 });
 
-/** Chooses a spell in the bag: the spell slot (third), Space until it shows `name`. */
-async function chooseSpell(page: Page, name: string): Promise<void> {
+/** Chooses an item in the bag: down to its slot, then Space until the slot shows `name`. */
+async function chooseItem(page: Page, slot: 'near' | 'spell', name: string): Promise<void> {
   const inv = () => page.evaluate(() => window.__game?.inventory());
+  const index = slot === 'near' ? 0 : 2;
   await page.keyboard.press('Tab');
   await expect.poll(async () => (await inv())?.cursor).toBe(0);
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await expect.poll(async () => (await inv())?.cursor).toBe(2);
-  for (let i = 0; i < 4 && (await inv())?.slots['spell'] !== name; i++) {
-    const before = (await inv())?.slots['spell'];
+  for (let i = 0; i < index; i++) await page.keyboard.press('ArrowDown');
+  await expect.poll(async () => (await inv())?.cursor).toBe(index);
+  for (let i = 0; i < 4 && (await inv())?.slots[slot] !== name; i++) {
+    const before = (await inv())?.slots[slot];
     await page.keyboard.press('Space');
-    await expect.poll(async () => (await inv())?.slots['spell']).not.toBe(before);
+    await expect.poll(async () => (await inv())?.slots[slot]).not.toBe(before);
   }
-  expect((await inv())?.slots['spell']).toBe(name);
+  expect((await inv())?.slots[slot]).toBe(name);
   await page.keyboard.press('Escape');
   await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+}
+
+/** Chooses a spell in the bag (the third slot). */
+async function chooseSpell(page: Page, name: string): Promise<void> {
+  await chooseItem(page, 'spell', name);
 }
 
 test('Thunder Spire’s prize: the Ward, caged past thorns and a crystal switch', async ({
@@ -1600,6 +1605,93 @@ test('the beaten Centaur leaves a heart container and Thunder Spire’s shard', 
   await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
   const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
   expect(kinds).toEqual(['heart-container', 'shard']);
+  expect(watched.errors).toEqual([]);
+});
+
+/** Dungeon 1's hub, emptied and held, with the Steel Sword in hand. */
+async function steelInHub(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => window.__game?.giveItem('steel-sword'));
+  await chooseItem(page, 'near', 'Steel Sword');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the hub
+    window.__game?.clearEnemies();
+  });
+}
+
+test('the Steel Sword hits twice as hard: one blow beats a robot', async ({ page }) => {
+  const watched = watchPage(page);
+  await steelInHub(page);
+  await page.evaluate(() => {
+    window.__game?.placeHero(160, 94, 'down');
+    window.__game?.spawnEnemy('robot', 160, 112); // its body just under the blade
+  });
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).defeated).toBe(1);
+  expect((await snapshot(page)).swings).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the Steel Sword bats a shot back the way Jarrett faces, into an enemy', async ({ page }) => {
+  const watched = watchPage(page);
+  await steelInHub(page);
+  // A robot up the room, and a shot (held still) just in front of him, facing up.
+  await page.evaluate(() => {
+    window.__game?.placeHero(160, 110, 'up');
+    window.__game?.spawnEnemy('robot', 160, 50);
+    window.__game?.fireEnemyShot(160, 80, 0, 1);
+  });
+  await swingOnce(page);
+  const s = await snapshot(page);
+  expect(s.batted).toBe(1);
+  expect(s.sounds.bat).toBe(1);
+  expect(s.enemyShots).toEqual([]);
+  // His now: it flies up into the robot (one hit of two).
+  await expect.poll(async () => (await snapshot(page)).enemies[0]?.health).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('an eye statue fires orbs; one batted back into it shuts it, and its gates open', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await steelInHub(page);
+  // An eye in the north wall (column 4), and a gate across the way north (columns 9-10).
+  await page.evaluate(() => {
+    window.__game?.setCell(4, 1, 'y');
+    window.__game?.setCell(9, 1, 'g');
+    window.__game?.setCell(10, 1, 'g');
+    window.__game?.placeHero(160, 120, 'up');
+    window.__game?.holdEnemies(false);
+    window.__game?.enemiesShootNow();
+  });
+  // It fires straight down; held still once it is out.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const shots = window.__game?.snapshot()?.enemyShots ?? [];
+          if (shots.length > 0) window.__game?.holdEnemies(true);
+          return shots.length;
+        }),
+      { intervals: [20] },
+    )
+    .toBe(1);
+  const orb = (await snapshot(page)).enemyShots[0] ?? { x: 0, y: 0 };
+  expect(orb.x).toBe(72);
+  // Under it, facing up, it just above his head: bat it back up into the eye.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 28, 'up'), orb);
+  await swingOnce(page);
+  expect((await snapshot(page)).batted).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon1/1,2/4,1');
+  expect((await snapshot(page)).sounds.switch).toBe(1);
+  // The gate is open: north he goes.
+  await page.evaluate(() => window.__game?.placeHero(160, 46, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 1 && room.row === 1;
+  });
   expect(watched.errors).toEqual([]);
 });
 
