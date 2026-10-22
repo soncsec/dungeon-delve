@@ -1521,6 +1521,103 @@ test('the beaten Giant Frog leaves a heart container and Bog Grotto’s shard', 
   expect(watched.errors).toEqual([]);
 });
 
+/** Dungeon 1's hub, emptied, with the Ward in hand (Thunder Spire's prize) and full mana. */
+async function wardInHub(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.giveItem('ward');
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the hub
+    window.__game?.clearEnemies();
+    window.__game?.holdEnemies(false); // the room is empty; shots must fly
+    window.__game?.setMana(100);
+  });
+}
+
+test('the Ward: a bubble that blocks every hit for a few seconds, cast once at a time', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await wardInHub(page);
+  await page.evaluate(() => window.__game?.placeHero(160, 94, 'up'));
+  // Cast, and at once again while it is up: the second does nothing.
+  await page.keyboard.press('c');
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  // A shot from just behind, which the shield can't stop: the bubble does.
+  await page.evaluate(() => window.__game?.fireEnemyShot(160, 112, 0, -1));
+  await expect.poll(async () => (await snapshot(page)).blocked).toBe(1);
+  const up = await snapshot(page);
+  expect(up.health.points).toBe(up.health.max);
+  expect(up.casts).toBe(1);
+  expect(up.sounds.ward).toBe(1);
+  // One cast's mana spent (40 of 100; it may have begun to refill since), not two.
+  expect(up.mana.current).toBeGreaterThanOrEqual(60);
+  expect(up.mana.current).toBeLessThan(100);
+  // It drops after its time, and then a shot from behind hurts.
+  await expect.poll(async () => (await snapshot(page)).warded, { timeout: 10_000 }).toBe(false);
+  await page.evaluate(() => window.__game?.fireEnemyShot(160, 112, 0, -1));
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(up.health.max - 1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('a spark barrier zaps Jarrett back; inside the Ward he walks through it', async ({ page }) => {
+  const watched = watchPage(page);
+  await wardInHub(page);
+  // A barrier across the way north (columns 9-10, row 1).
+  await page.evaluate(() => {
+    window.__game?.setCell(9, 1, 'e');
+    window.__game?.setCell(10, 1, 'e');
+    window.__game?.placeHero(160, 60, 'up');
+  });
+  // Without the Ward, walking into it zaps him (half a heart) and throws him back.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).zaps).toBe(1);
+  await page.keyboard.up('ArrowUp');
+  const zapped = await snapshot(page);
+  expect(zapped.health.points).toBe(zapped.health.max - 1);
+  expect(zapped.sounds.spark).toBe(1);
+  expect(zapped.room).toEqual({ col: 1, row: 2 });
+  expect(zapped.player.y).toBeGreaterThanOrEqual(32);
+  // Inside the Ward, he walks through and on north.
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).sliding, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).room).toEqual({ col: 1, row: 1 });
+  expect((await snapshot(page)).zaps).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('if the Ward drops while Jarrett stands in a spark barrier, it zaps him and he walks out', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await wardInHub(page);
+  await page.evaluate(() => {
+    window.__game?.setCell(9, 5, 'e');
+    window.__game?.setCell(10, 5, 'e');
+    window.__game?.placeHero(160, 60, 'down');
+  });
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  // In the middle of the barrier (row 5), standing still.
+  await page.evaluate(() => window.__game?.placeHero(160, 90, 'down'));
+  await expect.poll(async () => (await snapshot(page)).warded, { timeout: 10_000 }).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).zaps).toBe(1);
+  // Thrown back the way he faced (up), out of the barrier, or free to walk out of it.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(74);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).health.points).toBe((await snapshot(page)).health.max - 1);
+  expect(watched.errors).toEqual([]);
+});
+
 /**
  * Into Sunken Crypt's boss room from the tomb hall (a key given), with Lightning in hand:
  * given, then chosen in the bag, since the Fireball holds the spell slot.

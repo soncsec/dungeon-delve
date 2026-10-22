@@ -136,6 +136,17 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('effects', 'bolt', 48, 32, 4, 1, [anim('fly', range(0, 4), 14)]),
   // The flying eye's shot.
   sheet('effects', 'enemy-shot', 16, 16, 2, 1, [anim('fly', range(0, 2), 8)]),
+  // The Ward: a bubble that shimmers while it is up, then breaks up as it drops.
+  sheet('effects', 'ward', 51, 47, 8, 1, [
+    anim('up', range(0, 4), 8),
+    anim('break', range(4, 4), 10, false),
+  ]),
+  // A spark barrier: tiles cut from the pack's waveform shot (tools/art/spark_barrier.py).
+  // Each frame is a strip two tiles wide, so a cell plays its left or right half.
+  sheet('effects', 'spark', 16, 16, 8, 1, [
+    anim('left', [0, 2, 4, 6], 10),
+    anim('right', [1, 3, 5, 7], 10),
+  ]),
 
   // Pickups: spinning gems (money) and the dungeon-objects sheet (hearts, potions, chests).
   sheet(

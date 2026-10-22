@@ -375,3 +375,18 @@ describe('crystal switches and gates (Lightning)', () => {
     expect(gatesOpen(r, (x, y) => x === 9 && y === 9)).toBe(false); // a gate isn't a switch
   });
 });
+
+describe('spark barriers (the Ward)', () => {
+  // A barrier across the way south at columns 9-10.
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 0 ? '####################' : y === 9 ? '#########ee#########' : '#..................#',
+    ),
+  );
+
+  it('parses a barrier as a blocking way through', () => {
+    expect(cellAt(r, 9, 9)).toMatchObject({ solid: true, wall: false, fixture: 'spark' });
+    expect(isPassage(r, 9, 9)).toBe(true);
+    expect(edgeOpenings(r, 'south').filter(Boolean)).toHaveLength(2);
+  });
+});
