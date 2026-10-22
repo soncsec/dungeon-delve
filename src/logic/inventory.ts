@@ -46,6 +46,7 @@ export const EARNED_BY_DUNGEON: Readonly<Record<number, readonly ItemId[]>> = {
   5: ['ward'],
   6: ['steel-sword'],
   7: ['triple-daggers'],
+  8: ['star-blade'],
 };
 
 /**

@@ -4,6 +4,7 @@ import {
   CRYPT_TINT,
   MANOR_TINT,
   MARSH_TINT,
+  MAW_TINT,
   MINE_TINT,
   SPIRE_TINT,
   WOOD_TINT,
@@ -15,6 +16,7 @@ import { DUNGEON_4, DUNGEON_4_START } from './dungeon4';
 import { DUNGEON_5, DUNGEON_5_START } from './dungeon5';
 import { DUNGEON_6, DUNGEON_6_START } from './dungeon6';
 import { DUNGEON_7, DUNGEON_7_START } from './dungeon7';
+import { DUNGEON_8, DUNGEON_8_START } from './dungeon8';
 import { OVERWORLD, START_ROOM } from './overworld';
 import { SHOP, SHOP_START } from './shop';
 import { CAVES, CAVES_START } from './caves';
@@ -28,6 +30,7 @@ export type MapId =
   | 'dungeon5'
   | 'dungeon6'
   | 'dungeon7'
+  | 'dungeon8'
   | 'shop'
   | 'caves';
 /** How a map looks: outdoors, a dungeon, or indoors (drawn like a dungeon, without its small keys). */
@@ -88,6 +91,13 @@ export const MAPS: Readonly<Record<MapId, GameMap>> = {
     rooms: DUNGEON_7,
     tint: MANOR_TINT,
   },
+  dungeon8: {
+    name: "Dragon's Maw",
+    theme: 'dungeon',
+    start: DUNGEON_8_START,
+    rooms: DUNGEON_8,
+    tint: MAW_TINT,
+  },
   shop: { name: 'Shop', theme: 'indoors', start: SHOP_START, rooms: SHOP },
   caves: { name: 'Secret cave', theme: 'indoors', start: CAVES_START, rooms: CAVES },
 };
@@ -101,4 +111,5 @@ export const DUNGEON_MAPS: Readonly<Record<number, MapId>> = {
   5: 'dungeon5',
   6: 'dungeon6',
   7: 'dungeon7',
+  8: 'dungeon8',
 };

@@ -2042,6 +2042,107 @@ test('the beaten Vampire leaves a heart container and Crimson Manor’s shard', 
   expect(watched.errors).toEqual([]);
 });
 
+test('Dragon’s Maw’s cave on the volcano edge opens once Jarrett holds seven shards', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(14, 0);
+    window.__game?.clearEnemies();
+    for (const n of [1, 2, 3, 4, 5, 6]) window.__game?.takeShard(n);
+  });
+  // With six shards, he stands in the cave's mouth and nothing happens.
+  await page.evaluate(() => window.__game?.placeHero(168, 70, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(48);
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  // The seventh, and the way opens.
+  await page.evaluate(() => {
+    window.__game?.takeShard(7);
+    window.__game?.placeHero(168, 70, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const s = await snapshot(page);
+  expect(s.map).toBe('dungeon8');
+  expect(s.room).toEqual({ col: 1, row: 3 });
+  expect(s.enteredAt).toEqual({ x: 160, y: 140 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('Dragon’s Maw’s prize: the Star Blade, caged until the forge’s eye is shut', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=8'); // with the Steel Sword, among the rest
+  await chooseItem(page, 'near', 'Steel Sword');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the forge
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(224, 80, 'down'); // above the cage's gate (columns 13–14, row 6)
+  });
+  // The gate holds him back: his feet stop at its top edge (row 6 starts at y 96).
+  await page.keyboard.down('ArrowDown');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(96);
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowDown');
+  expect((await snapshot(page)).player.y).toBe(96);
+  // The eye (column 13, row 1) fires straight down; held still once its orb is out.
+  await page.evaluate(() => {
+    window.__game?.placeHero(160, 120, 'up');
+    window.__game?.holdEnemies(false);
+    window.__game?.enemiesShootNow();
+  });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const shots = window.__game?.snapshot()?.enemyShots ?? [];
+          if (shots.length > 0) window.__game?.holdEnemies(true);
+          return shots.length;
+        }),
+      { intervals: [20] },
+    )
+    .toBe(1);
+  const orb = (await snapshot(page)).enemyShots[0] ?? { x: 0, y: 0 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 28, 'up'), orb);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon8/1,2/13,1');
+  // The gate is open: down into the cage, to the chest (column 14, row 7).
+  await page.evaluate(() => window.__game?.placeHero(224, 80, 'down'));
+  await holdUntil(page, 'ArrowDown', async () => (await snapshot(page)).player.y > 104);
+  await page.evaluate(() => window.__game?.bump(14, 7));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon8/1,2/14,7');
+  // The Star Blade drops beside him, or right under him if he stands close: either way he
+  // takes it and holds it up, with the finding tune.
+  await expect
+    .poll(async () => {
+      const s = await snapshot(page);
+      const blade = s.pickups.find((p) => p.kind === 'item');
+      if (blade) await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), blade);
+      return s.sounds.found;
+    })
+    .toBe(1);
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  expect((await snapshot(page)).pickups).toEqual([]);
+  // In his hand: the bag's near slot shows it.
+  await page.keyboard.press('Tab');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.inventory()))?.slots['near'])
+    .toBe('Star Blade');
+  await page.keyboard.press('Escape');
+  expect(watched.errors).toEqual([]);
+});
+
 test('the Star Blade sends a beam at full hearts, and none with a heart missing', async ({
   page,
 }) => {

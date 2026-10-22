@@ -146,6 +146,8 @@ export const MINE_TINT = 0xd0a880;
 /** Crimson Manor: the dungeon stone under a deep, old-blood red. */
 export const MANOR_TINT = 0xd89098;
 
+/** Dragon's Maw: the dungeon stone under a hot, ember red. */
+export const MAW_TINT = 0xf08a6a;
 /** Witchwood Tower: the dungeon stone under a mossy, forest green. */
 export const WOOD_TINT = 0x9cc890;
 
