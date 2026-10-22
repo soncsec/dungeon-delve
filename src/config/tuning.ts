@@ -388,8 +388,8 @@ export const ENEMY_SHOTS = {
  */
 export const HOLD_UP = {
   ms: 1500,
-  /** The find's bottom sits this far above his feet, just over his head (px). */
-  lift: 28,
+  /** The find's middle sits this far above his feet, just over his head (px; he is about 27 tall). */
+  lift: 36,
 } as const;
 
 /** What a defeated enemy drops, in whole percent (the rest drops nothing). */

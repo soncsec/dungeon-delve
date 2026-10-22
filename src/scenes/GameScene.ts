@@ -2000,7 +2000,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const o = this.origin(this.room.col, this.room.row);
     // Over his head, in front of everything round him (tree tops too).
     sprite
-      .setOrigin(0.5, 1)
+      .setOrigin(0.5, 0.5)
       .setPosition(o.x + this.pos.x, o.y + this.pos.y - HOLD_UP.lift)
       .setDepth(DEPTH.over + 1);
   }
