@@ -12,6 +12,7 @@ import {
   HEALTH,
   HERO,
   HUD,
+  HOLD_UP,
   HUD_HEIGHT,
   MANA,
   ROOM_COLS,
@@ -62,7 +63,16 @@ import { markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
 import { WALKER_VISITS } from '../world/walker';
 import { SHOPKEEPER_CELL } from '../world/shop';
 import type { Purse } from '../logic/shop';
-import { rollDrop, type Drop } from '../logic/drops';
+import { rollDrop } from '../logic/drops';
+import {
+  NO_HOLD,
+  findTune,
+  holdsUp,
+  isHolding,
+  startHold,
+  type Hold,
+  type PickupKind,
+} from '../logic/finds';
 import { NO_CLEARED, defeat as defeatInRoom, enterRoom, type Cleared } from '../logic/respawn';
 import {
   canThrow,
@@ -245,6 +255,8 @@ export interface GameSnapshot {
   shotsFired: number;
   blocked: number;
   pickups: { kind: PickupKind; x: number; y: number }[];
+  /** True while he holds up a find (the game waits). */
+  holding: boolean;
   /** Small keys held on this map, and the ids of opened doors and chests. */
   keys: number;
   opened: string[];
@@ -326,16 +338,7 @@ interface LiveEnemy {
   slot?: number;
 }
 
-/** Things on the ground: drops, and potions. */
-export type PickupKind =
-  | Drop
-  | 'health-potion'
-  | 'mana-brew'
-  | 'key'
-  | 'item'
-  | 'heart-container'
-  | 'shard'
-  | 'mana-crystal';
+export type { PickupKind } from '../logic/finds';
 
 interface LiveBoss {
   b: Boss;
@@ -397,6 +400,8 @@ interface Pickup {
   item: ItemId | null;
   /** For a heart container: its progress id, recorded when taken. */
   reward?: string;
+  /** It came out of a chest (so he holds it up when he takes it). */
+  fromChest: boolean;
 }
 
 /** Jarrett's body, for touching enemies and pickups: 10 px wide, 20 px tall above his feet. */
@@ -506,6 +511,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private blocked = 0;
   private shotsFired = 0;
   private pickups: Pickup[] = [];
+  /** Holding up a find: until when, and its sprite over his head. */
+  private hold: Hold = NO_HOLD;
+  private heldUp: Phaser.GameObjects.Sprite | null = null;
   private enemyPool!: SpritePool;
   private pickupPool!: SpritePool;
   private fxPool!: SpritePool;
@@ -577,6 +585,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.blocked = 0;
     this.shotsFired = 0;
     this.pickups = [];
+    this.hold = NO_HOLD;
+    this.heldUp = null;
     this.enemiesHold = false;
     this.mode = 'near';
     this.shots = [];
@@ -666,6 +676,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
     if (this.sliding || this.falling || this.travelling) return;
+    // Holding up a find: the game waits (presses meanwhile are dropped).
+    if (this.heldUp) {
+      if (isHolding(this.hold, time)) return;
+      this.endHold();
+    }
     if (this.talk) {
       // While talking, the attack key turns the page; nothing else moves.
       if (presses.some((c) => ATTACK_KEYS.has(c))) this.turnPage();
@@ -908,16 +923,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** What falls out of a chest (`chestId` marks its key as picked up, once it is). */
   private dropContents(c: ChestContents, at: Point, chestId: string): void {
-    if (c.kind === 'key') this.addPickup('key', at, 1, null, takenId(chestId));
-    else if (c.kind === 'gems') this.addPickup('gem', at, c.amount);
-    else if (c.kind === 'item') this.addPickup('item', at, 1, c.item);
+    if (c.kind === 'key') this.addPickup('key', at, 1, null, takenId(chestId), true);
+    else if (c.kind === 'gems') this.addPickup('gem', at, c.amount, null, undefined, true);
+    else if (c.kind === 'item') this.addPickup('item', at, 1, c.item, undefined, true);
     else if (c.kind === 'heart') {
       // Each cave's heart has its own id, so the save keeps every one.
       const key = roomKey(this.room.col, this.room.row);
-      this.addPickup('heart-container', at, 1, null, chestHeartId(this.mapId, key));
+      this.addPickup('heart-container', at, 1, null, chestHeartId(this.mapId, key), true);
     } else if (c.kind === 'crystal') {
-      this.addPickup('mana-crystal', at, 1, null, rewardId(this.mapId, 'crystal'));
-    } else this.addPickup(c.potion === 'health' ? 'health-potion' : 'mana-brew', at);
+      this.addPickup('mana-crystal', at, 1, null, rewardId(this.mapId, 'crystal'), true);
+    } else {
+      const potion = c.potion === 'health' ? 'health-potion' : 'mana-brew';
+      this.addPickup(potion, at, 1, null, undefined, true);
+    }
   }
 
   /** A prize left in an opened chest (he left the room without it) waits there again. */
@@ -1796,6 +1814,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     amount = 1,
     item: ItemId | null = null,
     reward?: string,
+    fromChest = false,
   ): void {
     const icon = item ? ITEM_ICON[item] : undefined;
     const sprite =
@@ -1829,6 +1848,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       amount,
       item,
       ...(reward ? { reward } : {}),
+      fromChest,
     });
   }
 
@@ -1877,10 +1897,38 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         if (!got.taken) continue;
         this.potions = got.potions;
       }
-      this.sfx.play(sound);
       this.pickups = this.pickups.filter((x) => x !== p);
-      this.pickupPool.give(p.sprite);
+      if (holdsUp(p.kind, p.fromChest)) {
+        this.sfx.play(findTune(p.kind));
+        this.holdUp(p.sprite);
+      } else {
+        this.sfx.play(sound);
+        this.pickupPool.give(p.sprite);
+      }
     }
+  }
+
+  /** He turns to face you with a find over his head, and the game waits a moment. */
+  private holdUp(sprite: Phaser.GameObjects.Sprite): void {
+    if (this.heldUp) this.pickupPool.give(this.heldUp);
+    this.hold = startHold(this.now, HOLD_UP.ms);
+    this.heldUp = sprite;
+    this.facing = 'down';
+    this.moving = false;
+    this.animate(false);
+    const o = this.origin(this.room.col, this.room.row);
+    // Over his head, in front of everything round him (tree tops too).
+    sprite
+      .setOrigin(0.5, 1)
+      .setPosition(o.x + this.pos.x, o.y + this.pos.y - HOLD_UP.lift)
+      .setDepth(DEPTH.over + 1);
+  }
+
+  /** The moment is over: the find goes away (it is in his bag) and he can move again. */
+  private endHold(): void {
+    if (this.heldUp) this.pickupPool.give(this.heldUp);
+    this.heldUp = null;
+    this.hold = NO_HOLD;
   }
 
   /** Touching an enemy hurts. */
@@ -2044,6 +2092,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     for (const live of this.enemies) this.enemyPool.give(live.sprite);
     for (const live of [...this.enemyShots]) this.dropEnemyShot(live);
     for (const p of this.pickups) this.pickupPool.give(p.sprite);
+    this.endHold();
     this.enemies = [];
     this.pickups = [];
     this.dropBoss();
@@ -2098,6 +2147,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       sounds: this.sfx.counts(),
       muted: this.muted,
       pickups: this.pickups.map((p) => ({ kind: p.kind, x: p.pos.x, y: p.pos.y })),
+      holding: this.heldUp !== null && isHolding(this.hold, this.now),
       keys: keysIn(this.progress, this.mapId),
       stones: this.stones.map((st) => ({ ...st })),
       opened: [...this.progress.opened],
