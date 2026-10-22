@@ -1176,11 +1176,20 @@ const ROOMS: readonly RoomDef[] = [
       'FFFFFFFFF..FFFFFFFFF',
     ],
   },
-  // Thunder Spire: the sealed archway of dungeon 5 (it opens in M6).
+  // Thunder Spire: the archway of dungeon 5 (it opens with four shards).
   {
     col: 4,
     row: 0,
     region: 'mountains',
+    exits: [
+      {
+        cells: [
+          { col: 9, row: 2 },
+          { col: 10, row: 2 },
+        ],
+        to: { map: 'dungeon5', room: { col: 1, row: 3 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     enemies: [
       { kind: 'toad', col: 16, row: 4 },
       { kind: 'wolf', col: 5, row: 7 },
@@ -1189,7 +1198,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFFFFFFFFFFFFF',
       'FFFFF...A.....FFFFFF',
-      'FFF...........R.FFFF',
+      'FFF......DD...R.FFFF',
       'FFF...............FF',
       '....................',
       '..........R.........',

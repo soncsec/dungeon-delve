@@ -143,6 +143,8 @@ export const VOLCANO_TINT = 0xffa486;
 export const CRYPT_TINT = 0xe8d0a0;
 /** Stonecrag Mine: the dungeon stone under a warm, earthy tint. */
 export const MINE_TINT = 0xd0a880;
+/** Thunder Spire: the dungeon stone under a cold, stormy blue. */
+export const SPIRE_TINT = 0xa8b8e8;
 
 /** Two tints at once, each channel multiplied: a thorn bush in a tinted room keeps its colour. */
 export function mixTint(a: number, b: number): number {

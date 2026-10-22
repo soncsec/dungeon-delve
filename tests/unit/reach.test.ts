@@ -5,6 +5,7 @@ import { DUNGEON_1, DUNGEON_1_START } from '../../src/world/dungeon1';
 import { DUNGEON_2, DUNGEON_2_START } from '../../src/world/dungeon2';
 import { DUNGEON_3, DUNGEON_3_START } from '../../src/world/dungeon3';
 import { DUNGEON_4, DUNGEON_4_START } from '../../src/world/dungeon4';
+import { DUNGEON_5, DUNGEON_5_START } from '../../src/world/dungeon5';
 import { SECRET_CAVES } from '../../src/world/caves';
 import { OVERWORLD, START_ROOM } from '../../src/world/overworld';
 
@@ -281,11 +282,57 @@ describe('the real maps', () => {
     expect(r.rooms).toEqual(['0,3', '1,3']);
   });
 
+  it('dungeon 5 can be finished with the Axe, Fireball and Lightning, and the Ward found in it', () => {
+    const world = buildWorld(DUNGEON_5);
+    const start = { ...DUNGEON_5_START, cx: 10, cy: 8 };
+    const r = explore(world, start, { axe: true, fireball: true, lightning: true });
+    expect(r.rooms).toEqual([...world.rooms.keys()].sort());
+    const chests = [...world.chests].flatMap(([key, list]) =>
+      list.map((c) => `${key}/${c.col},${c.row}`),
+    );
+    expect(r.chests).toEqual(chests.sort());
+    expect(r.doors).toEqual(['1,1/10,1', '1,1/9,1', '1,3/10,1', '1,3/9,1']);
+    // The west gallery's thorns and switch, the storeroom's rubble, and the spark barriers
+    // across the stair hall's way up and the east gallery's closet.
+    expect(r.broken).toEqual([
+      '0,2/10,1',
+      '0,2/10,2',
+      '0,3/5,5',
+      '1,2/10,1',
+      '1,2/9,1',
+      '2,2/13,5',
+    ]);
+    expect(r.exits).toEqual(['1,3/10,9', '1,3/9,9']);
+    expect(r.keys).toBe(0);
+  });
+
+  it('dungeon 5 needs its Ward: without it, key 2, the upper hall and the boss room stay shut', () => {
+    const noWard = DUNGEON_5.map((d) => ({
+      ...d,
+      chests: (d.chests ?? []).map((c) =>
+        c.contents.kind === 'item' ? { ...c, contents: { kind: 'gems' as const, amount: 1 } } : c,
+      ),
+    }));
+    const start = { ...DUNGEON_5_START, cx: 10, cy: 8 };
+    const r = explore(buildWorld(noWard), start, { axe: true, fireball: true, lightning: true });
+    expect(r.rooms).toEqual(['0,2', '0,3', '1,2', '1,3', '2,2']);
+    expect(r.chests).not.toContain('2,2/13,3');
+  });
+
+  it('dungeon 5 needs Lightning (the Ward is caged) and the Axe (key 1 is behind rubble)', () => {
+    const start = { ...DUNGEON_5_START, cx: 10, cy: 8 };
+    const noBolt = explore(buildWorld(DUNGEON_5), start, { axe: true, fireball: true });
+    expect(noBolt.chests).not.toContain('0,2/7,7');
+    expect(noBolt.rooms).not.toContain('1,1');
+    const noAxe = explore(buildWorld(DUNGEON_5), start, { fireball: true, lightning: true });
+    expect(noAxe.rooms).toEqual(['0,3', '1,3']);
+  });
+
   it('every overworld room, door and secret cave can be reached (some caves need the Axe or Fireball)', () => {
     const world = buildWorld(OVERWORLD);
     const r = explore(world, { ...START_ROOM, cx: 10, cy: 5 });
     expect(r.rooms).toEqual([...world.rooms.keys()].sort());
-    // Hollow Oak's, Bog Grotto's and Sunken Crypt's archways, Stonecrag Mine's cave, the shop's
+    // Hollow Oak's, Bog Grotto's, Sunken Crypt's and Thunder Spire's archways, Stonecrag Mine's cave, the shop's
     // door, and the holes down to the secret caves that need no item; the false walls in front
     // of some open on the way.
     const hole = (c: (typeof SECRET_CAVES)[number]) =>
@@ -293,6 +340,8 @@ describe('the real maps', () => {
     const doors = [
       '2,8/10,2',
       '2,8/9,2',
+      '4,0/10,2',
+      '4,0/9,2',
       '6,2/10,2',
       '6,8/10,2',
       '6,8/9,2',
