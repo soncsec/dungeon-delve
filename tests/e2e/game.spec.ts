@@ -3277,6 +3277,43 @@ test('with all 8 shards, Walker opens the Shadow Vault’s door, and Jarrett goe
   expect(watched.errors).toEqual([]);
 });
 
+test('in the Shadow Vault, Lightning opens the way to the east trial, whose stone slides aside', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=9'); // with every prize
+  await chooseSpell(page, 'Lightning');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+  });
+  // The gate east (column 18, rows 4–5) stops him at its edge.
+  await page.evaluate(() => window.__game?.placeHero(260, 78, 'right'));
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => (await snapshot(page)).player.x).toBe(283); // x 288 less his half-width
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowRight');
+  expect((await snapshot(page)).room).toEqual({ col: 1, row: 2 });
+  // A bolt up into the crystal switch (column 4, row 1) powers it, and the gate opens.
+  await page.evaluate(() => window.__game?.placeHero(72, 46, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('vault/1,2/4,1');
+  await page.evaluate(() => window.__game?.placeHero(260, 78, 'right'));
+  await holdUntil(page, 'ArrowRight', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 2 && room.row === 2;
+  });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  // In the east trial: the stone in the wall (column 7, row 4) slides aside, and he is through.
+  await page.evaluate(() => {
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(96, 78, 'right');
+  });
+  await holdUntil(page, 'ArrowRight', async () => (await snapshot(page)).player.x > 136);
+  expect((await snapshot(page)).room).toEqual({ col: 2, row: 2 });
+  expect(watched.errors).toEqual([]);
+});
+
 test('?dungeon=9 starts in the Shadow Vault, with every prize', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page, '?dungeon=9');
