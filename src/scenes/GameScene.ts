@@ -2838,6 +2838,20 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         (o as Phaser.GameObjects.Image).setTint(own === undefined ? tint : mixTint(own, tint));
       }
     }
+    // A watching eye statue glows: the orb it fires, pulsing in its pillar (in its own light).
+    room.cells.forEach((cells, y) =>
+      cells.forEach((cell, x) => {
+        if (cell.fixture !== 'eye' || isOpened(this.progress, fixtureId(this.mapId, key, x, y))) {
+          return;
+        }
+        drawn.push(
+          this.add
+            .sprite(o.x + (x + 0.5) * TILE, o.y + (y + 0.5) * TILE, 'enemy-shot', 0)
+            .setDepth(DEPTH.ground + 1)
+            .play(animKey('enemy-shot', 'fly')),
+        );
+      }),
+    );
     // Spark barriers crackle in their own light, over any tint. A run of them shows one
     // unbroken strip: each cell plays the half that joins its neighbour.
     for (const sp of sparksIn(room)) {
