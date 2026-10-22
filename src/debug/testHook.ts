@@ -20,11 +20,22 @@ export interface TestHook {
   scene(): string | null;
   snapshot(): GameSnapshot | null;
   /** What the title screen's menu shows, or null when it isn't running. */
-  title(): { screen: 'menu' | 'confirm'; options: string[]; cursor: number } | null;
+  title(): {
+    screen: 'menu' | 'confirm';
+    options: string[];
+    cursor: number;
+    fastest: string | null;
+  } | null;
   /** The asset group the preview scene shows, or null when it isn't running. */
   previewGroup(): string | null;
   /** What the ending shows, or null when it isn't running. */
-  ending(): { time: string; ready: boolean; cards: number } | null;
+  ending(): {
+    time: string;
+    ready: boolean;
+    cards: number;
+    best: string | null;
+    newBest: boolean;
+  } | null;
   /** Texture keys that failed to load or are missing. */
   missingTextures(): string[];
   /** Put the hero's feet at a room position (room pixels), optionally facing a way. */

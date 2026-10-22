@@ -3497,6 +3497,102 @@ test('beating the Demon opens Kira’s cell; her rescue ends the game, with the 
   expect(watched.errors).toEqual([]);
 });
 
+/**
+ * In the Sorcerer's hall: beats him (by the test hooks, with any sword) and then the
+ * Demon he becomes, so the gates of Kira's cell open.
+ */
+async function beatTheFinalBoss(page: Page): Promise<void> {
+  const hit = async () => {
+    const b = (await snapshot(page)).boss ?? { x: 0, y: 0, kind: '' };
+    const gap = b.kind === 'demon' ? 27 : 20;
+    await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'right'), {
+      x: b.x - gap,
+      y: b.y - 8,
+    });
+    await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+    await swingOnce(page);
+  };
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(13);
+    window.__game?.breakBossShield();
+  });
+  await hit(); // even the Wooden Sword's 1 brings him to half
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('demon');
+  await page.evaluate(() => window.__game?.setBossHealth(1));
+  await hit();
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+}
+
+/**
+ * Starts a talk with whoever waits here (Walker, or Kira) and turns all its pages at
+ * once (the finishTalk hook); the paging itself is tested on its own.
+ */
+async function talkThrough(page: Page): Promise<void> {
+  const w = (await snapshot(page)).walker ?? { x: 0, y: 0 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), w);
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).talking).not.toBeNull();
+  await page.evaluate(() => window.__game?.finishTalk());
+}
+
+test('a whole run with no skip sets the fastest time, and the title shows it', async ({ page }) => {
+  const watched = watchPage(page);
+  // A new game; all 8 shards (by the test hook); Walker opens the vault door.
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) window.__game?.takeShard(n);
+    window.__game?.goToRoom(6, 6);
+    window.__game?.clearEnemies();
+  });
+  await talkThrough(page);
+  await page.evaluate(() => window.__game?.placeHero(240, 90, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  expect((await snapshot(page)).cheated).toBe(false);
+  // Up to the Sorcerer's hall, through him and the Demon, and Kira is free.
+  await page.evaluate(() => window.__game?.goToRoom(1, 1));
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('sorcerer');
+  await beatTheFinalBoss(page);
+  await talkThrough(page); // Kira, and her rescue
+  await expect.poll(() => sceneNow(page)).toBe('Ending');
+  const ending = await page.evaluate(() => window.__game?.ending());
+  expect(ending?.newBest).toBe(true);
+  expect(ending?.best).toBe(ending?.time);
+  // Back at the title: the fastest time.
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.ending()))?.ready)
+    .toBe(true);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page)).toBe('Title');
+  const title = await page.evaluate(() => window.__game?.title());
+  expect(title?.fastest).toBe(ending?.time);
+  expect(watched.errors).toEqual([]);
+});
+
+test('a play-test run (?dungeon=n) never sets the fastest time', async ({ page }) => {
+  const watched = watchPage(page);
+  await page.goto('./');
+  await page.evaluate(() => localStorage.setItem('dungeon-delve:fastest', '3600000'));
+  await openGame(page, '?dungeon=9');
+  await page.evaluate(() => window.__game?.goToRoom(1, 1));
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('sorcerer');
+  await beatTheFinalBoss(page);
+  await talkThrough(page); // Kira, and her rescue
+  await expect.poll(() => sceneNow(page)).toBe('Ending');
+  const ending = await page.evaluate(() => window.__game?.ending());
+  expect(ending?.newBest).toBe(false);
+  expect(ending?.best).toBe('1:00:00');
+  expect(await page.evaluate(() => localStorage.getItem('dungeon-delve:fastest'))).toBe('3600000');
+  expect(watched.errors).toEqual([]);
+});
+
 test('?dungeon=9 starts in the Shadow Vault, with every prize', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page, '?dungeon=9');

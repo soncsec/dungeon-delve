@@ -3,10 +3,15 @@ import { ENDING, GAME_HEIGHT, GAME_WIDTH, HERO, HUD } from '../config/tuning';
 import { KeyInput } from '../input/keyboard';
 import { formatPlayTime } from '../logic/title';
 
-/** What the ending needs from the game: how long the quest took, and whether it was a play-test run. */
+/**
+ * What the ending needs from the game: how long the quest took, whether it was
+ * a play-test run, and the fastest finish (this one, if it is a new best).
+ */
 export interface EndingData {
   playMs: number;
   cheated: boolean;
+  best: number | null;
+  newBest: boolean;
 }
 
 /** The credits, a card at a time beneath the three of them. */
@@ -30,6 +35,8 @@ const BACK_KEYS = new Set(['Enter', 'Space', 'KeyJ']);
 export class EndingScene extends Phaser.Scene {
   private keys!: KeyInput;
   private playTime = '';
+  private best: string | null = null;
+  private newBest = false;
   private card = 0;
   private ready = false;
 
@@ -62,9 +69,19 @@ export class EndingScene extends Phaser.Scene {
     this.add
       .text(mid, ENDING.timeY, `YOUR TIME  ${this.playTime}`, { ...TEXT, color: GOLD })
       .setOrigin(0.5, 0);
-    if (data.cheated) {
+    this.best = data.best === null ? null : formatPlayTime(data.best);
+    this.newBest = data.newBest;
+    // Under the time: a play-test run doesn't count; else a new best, or the best so far.
+    const note = data.cheated
+      ? { text: '(A PLAY-TEST RUN)', color: DIM }
+      : data.newBest
+        ? { text: 'A NEW BEST TIME!', color: GOLD }
+        : this.best
+          ? { text: `BEST  ${this.best}`, color: DIM }
+          : null;
+    if (note) {
       this.add
-        .text(mid, ENDING.timeY + 10, '(A PLAY-TEST RUN)', { ...TEXT, color: DIM })
+        .text(mid, ENDING.timeY + 10, note.text, { ...TEXT, color: note.color })
         .setOrigin(0.5, 0);
     }
     const credit = this.add
@@ -104,7 +121,19 @@ export class EndingScene extends Phaser.Scene {
   }
 
   /** Test hook only: what the ending shows. */
-  shows(): { time: string; ready: boolean; cards: number } {
-    return { time: this.playTime, ready: this.ready, cards: this.card };
+  shows(): {
+    time: string;
+    ready: boolean;
+    cards: number;
+    best: string | null;
+    newBest: boolean;
+  } {
+    return {
+      time: this.playTime,
+      ready: this.ready,
+      cards: this.card,
+      best: this.best,
+      newBest: this.newBest,
+    };
   }
 }

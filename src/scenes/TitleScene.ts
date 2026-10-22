@@ -13,6 +13,7 @@ import {
   type TitleOption,
   type TitleState,
 } from '../logic/title';
+import { readFastest } from '../storage/fastestStore';
 import { clearSave, readSave } from '../storage/saveStore';
 import type { GameStart } from './GameScene';
 
@@ -45,6 +46,7 @@ const DIM = '#7f8ea3';
 export class TitleScene extends Phaser.Scene {
   private keys!: KeyInput;
   private save: SaveGame | null = null;
+  private fastest: number | null = null;
   private state: TitleState = TITLE_START;
   private items: Phaser.GameObjects.Text[] = [];
   private dynamic: Phaser.GameObjects.GameObject[] = [];
@@ -55,6 +57,7 @@ export class TitleScene extends Phaser.Scene {
 
   create(): void {
     this.save = readSave();
+    this.fastest = readFastest();
     this.state = TITLE_START;
     this.keys = new KeyInput(new Set(Object.keys(KEYS)));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.keys.destroy());
@@ -139,6 +142,17 @@ export class TitleScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
     }
+    // The fastest finish so far (owner 2026-10-20: instead of a high score).
+    if (this.fastest !== null) {
+      this.dynamic.push(
+        this.add
+          .text(GAME_WIDTH / 2, GAME_HEIGHT - 28, `FASTEST  ${formatPlayTime(this.fastest)}`, {
+            ...TEXT,
+            color: GOLD,
+          })
+          .setOrigin(0.5),
+      );
+    }
     this.dynamic.push(
       this.add
         .text(GAME_WIDTH / 2, GAME_HEIGHT - 14, 'ARROWS CHOOSE   ENTER START', {
@@ -150,11 +164,17 @@ export class TitleScene extends Phaser.Scene {
   }
 
   /** Test hook only: what the menu shows. */
-  shows(): { screen: TitleState['screen']; options: string[]; cursor: number } {
+  shows(): {
+    screen: TitleState['screen'];
+    options: string[];
+    cursor: number;
+    fastest: string | null;
+  } {
     return {
       screen: this.state.screen,
       options: this.items.map((t) => t.text.replace(/^(> | {2})/, '')),
       cursor: this.state.cursor,
+      fastest: this.fastest === null ? null : formatPlayTime(this.fastest),
     };
   }
 }
