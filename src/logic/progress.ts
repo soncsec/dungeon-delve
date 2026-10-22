@@ -142,15 +142,20 @@ export function markSeen(p: Progress, id: string): Progress {
 
 /**
  * Shards are the keys to the dungeons (owner 2026-10-21): dungeon n's entrance
- * opens once Jarrett holds n−1 shards. Other maps need none.
+ * opens once Jarrett holds n−1 shards; the Shadow Vault, the ninth, all 8.
+ * Other maps need none.
  */
 export function shardsToEnter(map: string): number {
   const n = dungeonNumber(map);
   return n === null ? 0 : Math.max(0, n - 1);
 }
 
-/** A dungeon map's number (`dungeon2` is 2), or null for any other map. */
+/** The Shadow Vault counts as the ninth dungeon: it needs all 8 shards, and a ?dungeon=9 run starts there with every prize. */
+export const VAULT_NUMBER = 9;
+
+/** A dungeon map's number (`dungeon2` is 2; the vault, 9), or null for any other map. */
 export function dungeonNumber(map: string): number | null {
+  if (map === 'vault') return VAULT_NUMBER;
   const n = /^dungeon(\d+)$/.exec(map)?.[1];
   return n === undefined ? null : Number(n);
 }
