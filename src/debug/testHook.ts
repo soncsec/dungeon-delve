@@ -38,6 +38,8 @@ export interface TestHook {
   holdEnemies(hold: boolean): void;
   /** Every enemy's shooting timer runs out now: each one that shoots (or puffs) does so at its next step. */
   enemiesShootNow(): void;
+  /** The next defeated enemy drops this, instead of the random roll. */
+  nextDrop(drop: 'gem' | 'heart'): void;
   /** Set the mana level. */
   setMana(current: number): void;
   /** Change one cell of the current room's text, e.g. to try a thorn bush (t) not yet placed. */
@@ -132,6 +134,7 @@ export function installTestHook(game: Phaser.Game): void {
     fireEnemyShot: (x, y, dx, dy) => gameScene(game).testFireEnemyShot(x, y, dx, dy),
     holdEnemies: (hold) => gameScene(game).testHoldEnemies(hold),
     enemiesShootNow: () => gameScene(game).testEnemiesShootNow(),
+    nextDrop: (drop) => gameScene(game).testNextDrop(drop),
     setMana: (current) => gameScene(game).testSetMana(current),
     setBossHealth: (health) => gameScene(game).testSetBossHealth(health),
     setCell: (x, y, ch) => gameScene(game).testSetCell(x, y, ch),

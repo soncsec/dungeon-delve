@@ -23,6 +23,7 @@ import {
   mixTint,
   propSheet,
   roomArt,
+  coveredCells,
   TOWN_COLUMNS,
   TOWN_FRAMES,
 } from '../../src/logic/tiles';
@@ -576,5 +577,60 @@ describe('rubble in a dungeon', () => {
       (t) => t.sheet === 'mountain',
     );
     expect(smashed).toHaveLength(1);
+  });
+});
+
+describe('coveredCells: where the art hides the ground', () => {
+  const OPEN = '....................';
+  const at = (rows: Record<number, string>) =>
+    parseRoom(Array.from({ length: 10 }, (_, y) => rows[y] ?? OPEN));
+  const sorted = (cells: ReadonlySet<string>) =>
+    [...cells].sort((a, b) => {
+      const [ax = 0, ay = 0] = a.split(',').map(Number);
+      const [bx = 0, by = 0] = b.split(',').map(Number);
+      return ay - by || ax - bx;
+    });
+
+  it('a pine hides the 3×3 cells round its trunk: its canopy and branches', () => {
+    const covered = coveredCells(roomArt(at({ 5: '.....T..............' })));
+    expect(sorted(covered)).toEqual([
+      '4,3',
+      '5,3',
+      '6,3',
+      '4,4',
+      '5,4',
+      '6,4',
+      '4,5',
+      '5,5',
+      '6,5',
+    ]);
+  });
+
+  it('a rock hides only its own cell; a boulder its 2×2', () => {
+    expect(sorted(coveredCells(roomArt(at({ 5: '.....r..............' }))))).toEqual(['5,5']);
+    expect(sorted(coveredCells(roomArt(at({ 5: '.....R..............' }))))).toEqual([
+      '5,5',
+      '6,5',
+      '5,6',
+      '6,6',
+    ]);
+  });
+
+  it('tree tops hang over the row above a forest wall', () => {
+    const covered = coveredCells(
+      roomArt(at({ 8: 'FFF.................', 9: 'FFF.................' })),
+    );
+    expect(sorted(covered)).toEqual(['0,7', '1,7', '2,7']);
+  });
+
+  it('art at the edge of the room is cut to the room', () => {
+    const covered = coveredCells(roomArt(at({ 1: 'T...................' })));
+    expect(sorted(covered)).toEqual(['0,0', '1,0', '0,1', '1,1']);
+  });
+
+  it('open ground with nothing on it is not covered; a smashed boulder hides nothing', () => {
+    expect(coveredCells(roomArt(at({}))).size).toBe(0);
+    const r = at({ 5: '.....R..............' });
+    expect(coveredCells(roomArt(r, 'forest', () => true)).size).toBe(0);
   });
 });

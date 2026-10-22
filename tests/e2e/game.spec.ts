@@ -675,6 +675,58 @@ test('the toad sits, then hops at Jarrett', async ({ page }) => {
   expect(watched.errors).toEqual([]);
 });
 
+/** The hub emptied (see emptyHub), with a pine whose trunk is at cell (10,5): its art hides cells 9-11 × 3-5. */
+async function hubWithPine(page: Page): Promise<void> {
+  await emptyHub(page);
+  await page.evaluate(() => window.__game?.setCell(10, 5, 'T'));
+}
+
+test('a walking enemy keeps out from under a tree: a toad hopping at Jarrett stops at its branches', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await hubWithPine(page);
+  // Jarrett above the tree, the toad below it, both in column 10: it hops straight at him.
+  await page.evaluate(() => {
+    window.__game?.placeHero(168, 40, 'down');
+    window.__game?.spawnEnemy('toad', 168, 127); // row 7, the bottom row of floor
+  });
+  let highest = 999;
+  let hopped = false;
+  const deadline = Date.now() + 4_000;
+  while (Date.now() < deadline) {
+    const t = (await snapshot(page)).enemies[0];
+    if (t) {
+      highest = Math.min(highest, t.y);
+      hopped ||= t.charging;
+    }
+  }
+  expect(hopped).toBe(true);
+  expect(highest).toBeLessThan(120); // it came up towards him...
+  expect(highest).toBeGreaterThanOrEqual(110); // ...but its body never went in under the tree (row 5 ends at y 96)
+  expect(watched.errors).toEqual([]);
+});
+
+test('an enemy beaten over a tree leaves its drop on open ground nearby, not in the tree', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await hubWithPine(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.spawnEnemy('bird', 168, 95); // over the trunk
+    window.__game?.nextDrop('gem');
+    window.__game?.placeHero(192, 95, 'left'); // beside the tree, facing it
+  });
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).defeated).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).pickups.length).toBe(1);
+  const gem = (await snapshot(page)).pickups[0];
+  // The nearest open cell he can reach: the one just below the trunk, (10,6).
+  expect(gem).toEqual({ kind: 'gem', x: 168, y: 111 });
+  expect(watched.errors).toEqual([]);
+});
+
 test('the flying eye shoots at Jarrett, and a shot costs half a heart', async ({ page }) => {
   await openGame(page);
   const start = await snapshot(page);
@@ -690,7 +742,8 @@ test('the flying eye shoots at Jarrett, and a shot costs half a heart', async ({
 test('the wolf charges when Jarrett is in line with it', async ({ page }) => {
   await openGame(page);
   const start = await snapshot(page);
-  await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('wolf', x + 100, y), start.player);
+  // To his left, on open grass (to his right is under a pine's branches, where walkers can't go).
+  await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('wolf', x - 100, y), start.player);
   await expect.poll(async () => (await snapshot(page)).enemies[0]?.charging).toBe(true);
   // It rushes at him, far faster than it walks.
   await expect.poll(async () => (await snapshot(page)).health.points).toBeLessThan(6);

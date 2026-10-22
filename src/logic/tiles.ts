@@ -6,7 +6,7 @@
  * left, right and bottom pieces on the wall's edges, and tree tops drawn
  * just above its top edge.
  */
-import { TILE } from '../config/tuning';
+import { ROOM_COLS, ROOM_ROWS, TILE } from '../config/tuning';
 import { gatesOpen, isForest, isWall, type Ground, type PropKind, type Room } from './room';
 
 /** Columns in the forest sheet (432 px / 16). */
@@ -264,6 +264,30 @@ export function forestFrame(room: Room, x: number, y: number): number {
 export function propDraw(prop: PropKind, x: number, y: number): PropDraw {
   const a = PROP_ANCHOR[prop];
   return { prop, x: x * TILE + a.dx, y: y * TILE + a.dy };
+}
+
+/**
+ * The cells of a room that its art hides: under a prop's picture (a tree's
+ * canopy and branches, a house's roof, an archway) or under the tree tops that
+ * hang over the row above a forest wall. Enemies that walk keep out of them,
+ * and nothing is dropped in them, so neither looks lost inside a tree.
+ * As `x,y` cell keys; the prop's own solid cells are in it too.
+ */
+export function coveredCells(art: RoomArt): ReadonlySet<string> {
+  const cells = new Set<string>();
+  const cover = (left: number, top: number, right: number, bottom: number): void => {
+    const x0 = Math.max(0, Math.floor(left / TILE));
+    const x1 = Math.min(ROOM_COLS - 1, Math.ceil(right / TILE) - 1);
+    const y0 = Math.max(0, Math.floor(top / TILE));
+    const y1 = Math.min(ROOM_ROWS - 1, Math.ceil(bottom / TILE) - 1);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) cells.add(`${x},${y}`);
+  };
+  for (const p of art.props) {
+    const { w, h } = PROP_REGIONS[p.prop];
+    cover(p.x - w / 2, p.y - h, p.x + w / 2, p.y);
+  }
+  for (const t of art.over) cover(t.x, t.y, t.x + TILE, t.y + TILE);
+  return cells;
 }
 
 /** The same scatter as the dungeon's cracks: about one grass cell in nine looks a little different. */
