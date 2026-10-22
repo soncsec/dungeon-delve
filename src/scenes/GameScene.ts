@@ -8,6 +8,8 @@ import {
   GAME_WIDTH,
   FIREBALL,
   LIGHTNING,
+  WARD,
+  SPARK,
   DROPS,
   HEALTH,
   HERO,
@@ -85,6 +87,16 @@ import {
   spend,
   type Mana,
 } from '../logic/mana';
+import {
+  NO_WARD,
+  isBreaking,
+  isWarded,
+  raiseWard,
+  sparksIn,
+  sparksLetThrough,
+  standsInSparks,
+  type Ward,
+} from '../logic/ward';
 import { addPotion, usePotion, type PotionKind, type Potions } from '../logic/potions';
 import type { Axis, Point } from '../logic/movement';
 import {
@@ -141,7 +153,7 @@ import {
   type ShotKind as EnemyShotKind,
 } from '../logic/enemies';
 import { fireShot, shotBox, stepShot, type EnemyShot } from '../logic/enemyShots';
-import { PROP_FOOTPRINT, isSolid, sealCells, type Dir } from '../logic/room';
+import { PROP_FOOTPRINT, isSolid, sealCells, type Dir, type Fixture } from '../logic/room';
 import {
   centre,
   facingVector,
@@ -260,8 +272,11 @@ export interface GameSnapshot {
   /** Lightning bolts in the air. */
   bolts: { x: number; y: number; dir: Facing }[];
   mana: { current: number; max: number };
-  /** Fireballs cast so far. */
+  /** Spells cast so far. */
   casts: number;
+  /** True while the Ward is up; how many times a spark barrier has zapped him. */
+  warded: boolean;
+  zaps: number;
   potions: Potions;
   /** True while a Mana Brew is speeding up mana. */
   manaBoosted: boolean;
@@ -529,6 +544,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private shotIds = 0;
   private thrown = 0;
   private casts = 0;
+  /** The Ward: when it drops, its bubble, and spark barriers' zaps so far. */
+  private ward: Ward = NO_WARD;
+  private wardBubble!: Phaser.GameObjects.Sprite;
+  private zaps = 0;
   private mana: Mana = fullMana(MANA.max);
   private lastCastAt: number | null = null;
   private potions: Potions = { ...POTIONS.start };
@@ -595,6 +614,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.shotIds = 0;
     this.thrown = 0;
     this.casts = 0;
+    this.ward = NO_WARD;
+    this.zaps = 0;
     this.mana = fullMana(maxMana(MANA.max, MANA.crystalBonus, manaCrystals(this.progress)));
     this.lastCastAt = null;
     this.potions = save ? { ...save.potions } : { ...POTIONS.start };
@@ -626,6 +647,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
     this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
     this.hero = this.add.sprite(0, 0, 'jarrett', 0).setOrigin(0.5, HERO.feetY / HERO.frameHeight);
+    this.wardBubble = this.add
+      .sprite(0, 0, 'ward', 0)
+      .setOrigin(WARD.bubbleOrigin.x, WARD.bubbleOrigin.y)
+      .setAlpha(WARD.bubbleAlpha)
+      .setVisible(false);
     this.placeSprite();
 
     this.keys = new KeyInput(KEYS);
@@ -674,6 +700,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   override update(time: number, deltaMs: number): void {
     this.now = time;
     this.playMs += deltaMs;
+    this.showWard(time);
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
     if (this.sliding || this.falling || this.travelling) return;
@@ -719,6 +746,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     } else if (cast && this.heroKnockMs <= 0) {
       const spell = this.inv.equipped.spell;
       if (spell === 'fireball' || spell === 'lightning') this.tryCast(spell, time);
+      if (spell === 'ward') this.tryWard(time);
     }
     const swinging = isSwinging(this.swing, time, SWORD.durationMs);
     if (swinging) this.swordHits();
@@ -738,6 +766,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.walk(deltaMs);
     }
 
+    this.zapInSparks(time);
     this.touchEnemies(time);
     this.collectPickups();
     // Blink while invulnerable.
@@ -773,8 +802,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.facing = facingFor(axis, this.facing);
     const before = this.pos;
     const { col, row } = this.room;
+    const through = this.sparksOpen();
     this.pos = moveHero(this.pos, axis, (HERO.speed * deltaMs) / 1000, HERO.box, (cx, cy) =>
-      this.solidAt(col, row, cx, cy),
+      this.solidAt(col, row, cx, cy, through),
     );
     this.moving = this.pos.x !== before.x || this.pos.y !== before.y;
     this.animate(axis.x !== 0 || axis.y !== 0);
@@ -838,10 +868,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.lean = NO_LEAN;
   }
 
-  /** Walls, props, and doors and chests not yet opened, reaching into the rooms next door. */
-  private solidAt(col: number, row: number, cx: number, cy: number): boolean {
+  /**
+   * Walls, props, and doors and chests not yet opened, reaching into the rooms
+   * next door. With `sparksOpen`, this room's spark barriers let him through
+   * (the Ward is up, or he is already in one).
+   */
+  private solidAt(col: number, row: number, cx: number, cy: number, sparksOpen = false): boolean {
     if (stoneAt(this.stones, cx, cy) >= 0) return true;
     const here = col === this.room.col && row === this.room.row;
+    if (here && sparksOpen && this.fixtureHere(cx, cy) === 'spark') return false;
     if (here && this.sealed.some((c) => c.x === cx && c.y === cy)) return true;
     const w = this.walker?.visit.cell;
     if (here && w && w.col === cx && w.row === cy) return true;
@@ -851,6 +886,17 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     return solidInWorld(this.world, col, row, cx, cy, (key, x, y) =>
       isOpened(this.progress, fixtureId(this.mapId, key, x, y)),
     );
+  }
+
+  /** Whether spark barriers let him through now: inside the Ward, or already in one. */
+  private sparksOpen(): boolean {
+    return sparksLetThrough(isWarded(this.ward, this.now), this.inSparks());
+  }
+
+  /** The fixture in a cell of the current room, if any. */
+  private fixtureHere(cx: number, cy: number): Fixture | null {
+    const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
+    return room?.cells[cy]?.[cx]?.fixture ?? null;
   }
 
   /** Brings the status bar up to date (it redraws only what changed). */
@@ -881,6 +927,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const room = this.world.rooms.get(key);
     const fixture = room?.cells[cy]?.[cx]?.fixture;
     if (!fixture) return;
+    if (fixture === 'spark') {
+      this.zap({ x: (cx + 0.5) * TILE, y: (cy + 0.5) * TILE }, this.now);
+      return;
+    }
     const id = fixtureId(this.mapId, key, cx, cy);
     if (isOpened(this.progress, id)) return;
     if (fixture === 'door') {
@@ -963,7 +1013,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       facingVector(this.heroKnockDir),
       (HEALTH.knockback.speed * ms) / 1000,
       HERO.box,
-      (cx, cy) => this.outsideRoom(cx, cy) || this.solidAt(col, row, cx, cy),
+      (cx, cy) => this.outsideRoom(cx, cy) || this.solidAt(col, row, cx, cy, this.sparksOpen()),
     );
     this.moving = false;
   }
@@ -1633,7 +1683,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       const hit = overlaps(shotBox(live.s, t), this.heroBody());
       if (hit) {
         const shieldUp = this.inv.equipped.shield !== null && !this.handsBusy(now);
-        if (shieldUp && shieldBlocks(this.facing, live.s.dir, false, SHIELD.coverCos)) {
+        // The Ward stops shots from every side; the shield, from the front.
+        if (
+          isWarded(this.ward, now) ||
+          (shieldUp && shieldBlocks(this.facing, live.s.dir, false, SHIELD.coverCos))
+        ) {
           this.blocked += 1;
           this.sfx.play('block');
           this.effect('hit', live.s.pos.x, live.s.pos.y);
@@ -1926,7 +1980,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Damage, a push away from `source`, and a moment of invulnerability (ignored while invulnerable). */
   private hurtHero(halfHearts: number, source: Point, now: number): void {
-    if (isInvulnerable(this.health, now)) return;
+    // Inside the Ward, nothing hurts him.
+    if (isWarded(this.ward, now) || isInvulnerable(this.health, now)) return;
     this.health = takeDamage(this.health, halfHearts, now, HEALTH.invulnerableMs);
     this.sfx.play('hurt');
     this.heroKnockMs = HEALTH.knockback.ms;
@@ -1979,6 +2034,59 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.lastCastAt = now;
     this.throwUntil = now + t.castPauseMs;
     this.shoot(kind);
+  }
+
+  /** Raises the Ward, if there's enough mana and it isn't already up. */
+  private tryWard(now: number): void {
+    if (isWarded(this.ward, now)) return;
+    if (!canCast(this.mana, WARD.cost)) {
+      this.sfx.play('noMana');
+      return;
+    }
+    this.mana = spend(this.mana, WARD.cost, now);
+    this.casts += 1;
+    this.sfx.play('ward');
+    this.throwUntil = now + WARD.castPauseMs;
+    this.animate(false);
+    this.ward = raiseWard(now, WARD.ms);
+    this.wardBubble.setVisible(true).play(animKey('ward', 'up'));
+  }
+
+  /** The bubble shimmers while the Ward is up, breaks up near its end, and is gone after. */
+  private showWard(now: number): void {
+    if (!isWarded(this.ward, now)) {
+      this.wardBubble.setVisible(false).stop();
+      return;
+    }
+    const breakKey = animKey('ward', 'break');
+    if (
+      isBreaking(this.ward, now, WARD.breakMs) &&
+      this.wardBubble.anims.currentAnim?.key !== breakKey
+    ) {
+      this.wardBubble.play(breakKey);
+    }
+  }
+
+  /** Standing in a spark barrier without the Ward (it dropped while he was in one): it zaps him. */
+  private zapInSparks(now: number): void {
+    if (isWarded(this.ward, now) || !this.inSparks()) return;
+    // It throws him back the way he came.
+    const ahead = facingVector(this.facing);
+    this.zap({ x: this.pos.x + ahead.x, y: this.pos.y + ahead.y }, now);
+  }
+
+  /** A spark barrier zaps him: half a heart, and it throws him back from `from`. */
+  private zap(from: Point, now: number): void {
+    if (isWarded(this.ward, now) || isInvulnerable(this.health, now)) return;
+    this.zaps += 1;
+    this.sfx.play('spark');
+    this.hurtHero(SPARK.damage, from, now);
+  }
+
+  /** Whether his feet are in a spark barrier in this room. */
+  private inSparks(): boolean {
+    const room = this.world.rooms.get(roomKey(this.room.col, this.room.row));
+    return room ? standsInSparks(room, this.pos, HERO.box) : false;
   }
 
   private shoot(kind: ShotKind): void {
@@ -2135,6 +2243,8 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       bolts: this.shotsOf('bolt'),
       mana: { current: this.mana.current, max: this.mana.max },
       casts: this.casts,
+      warded: isWarded(this.ward, this.now),
+      zaps: this.zaps,
       potions: { ...this.potions },
       manaBoosted: isBoosted(this.mana, this.now),
       thrown: this.thrown,
@@ -2388,6 +2498,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const o = this.origin(this.room.col, this.room.row);
     this.hero.setPosition(o.x + this.pos.x, o.y + this.pos.y);
     this.hero.setDepth(DEPTH.sorted + o.y + this.pos.y);
+    // The Ward's bubble sits round his body, just in front of him.
+    this.wardBubble.setPosition(o.x + this.pos.x, o.y + this.pos.y - WARD.bubbleLift);
+    this.wardBubble.setDepth(DEPTH.sorted + o.y + this.pos.y + 0.5);
   }
 
   /** Draws a room at its place in the world; returns everything drawn, to remove later. */
@@ -2463,6 +2576,22 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         const own = ownTint.get(o);
         (o as Phaser.GameObjects.Image).setTint(own === undefined ? tint : mixTint(own, tint));
       }
+    }
+    // Spark barriers crackle in their own light, over any tint. A run of them shows one
+    // unbroken strip: each cell plays the half that joins its neighbour.
+    for (const sp of sparksIn(room)) {
+      const down = sp.axis === 'down';
+      const before = down
+        ? room.cells[sp.y - 1]?.[sp.x]?.fixture
+        : room.cells[sp.y]?.[sp.x - 1]?.fixture;
+      const half = before === 'spark' ? 'right' : 'left';
+      drawn.push(
+        this.add
+          .sprite(o.x + (sp.x + 0.5) * TILE, o.y + (sp.y + 0.5) * TILE, 'spark', 0)
+          .setAngle(down ? 90 : 0)
+          .setDepth(DEPTH.sorted + o.y + (sp.y + 1) * TILE)
+          .play(animKey('spark', half)),
+      );
     }
     return drawn;
   }
