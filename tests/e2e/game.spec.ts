@@ -766,6 +766,42 @@ test('a walking enemy keeps out from under a tree: a toad hopping at Jarrett sto
   expect(watched.errors).toEqual([]);
 });
 
+test('an enemy put under a tree by hand walks out at its own pace, never jumping', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await hubWithPine(page);
+  // Inside the pine's branches above its trunk (cells 10-11 × 3-4), where no enemy starts in
+  // the game; a snap to a cell line from there is 8-14 px. Each
+  // frame it may move no further than its walking speed allows for that frame's game time.
+  const worst = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const g = window.__game;
+        g?.spawnEnemy('robot', 176, 72);
+        let last = g?.snapshot();
+        let over = 0;
+        let frames = 0;
+        const tick = () => {
+          const s = g?.snapshot();
+          const a = last?.enemies[0];
+          const b = s?.enemies[0];
+          if (s && last && a && b) {
+            const allowed = (30 * (s.playMs - last.playMs)) / 1000 + 0.5; // robot speed 30 px/s
+            over = Math.max(over, Math.hypot(b.x - a.x, b.y - a.y) - allowed);
+          }
+          last = s;
+          frames += 1;
+          if (frames < 40) requestAnimationFrame(tick);
+          else resolve(over);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  expect(worst).toBeLessThanOrEqual(0);
+  expect(watched.errors).toEqual([]);
+});
+
 test('an enemy beaten over a tree leaves its drop on open ground nearby, not in the tree', async ({
   page,
 }) => {
