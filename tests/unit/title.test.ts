@@ -8,23 +8,39 @@ import {
 } from '../../src/logic/title';
 
 describe('title menu', () => {
-  it('offers CONTINUE only when there is a save', () => {
-    expect(titleOptions(true)).toEqual(['continue', 'new']);
-    expect(titleOptions(false)).toEqual(['new']);
+  it('offers CONTINUE only when there is a save; CONTROLS always, last', () => {
+    expect(titleOptions(true)).toEqual(['continue', 'new', 'controls']);
+    expect(titleOptions(false)).toEqual(['new', 'controls']);
   });
 
   it('without a save, choosing starts a new game at once', () => {
     expect(titleStep(TITLE_START, 'choose', false)).toEqual({ state: TITLE_START, start: 'new' });
-    // Up and down have one option to wrap round.
-    expect(titleStep(TITLE_START, 'down', false).state.cursor).toBe(0);
+    // Up and down wrap round the two options.
+    expect(titleStep(TITLE_START, 'down', false).state.cursor).toBe(1);
+    expect(titleStep({ screen: 'menu', cursor: 1 }, 'down', false).state.cursor).toBe(0);
   });
 
   it('with a save, CONTINUE is first, and the cursor wraps', () => {
     expect(titleStep(TITLE_START, 'choose', true).start).toBe('continue');
     const down = titleStep(TITLE_START, 'down', true).state;
     expect(down.cursor).toBe(1);
-    expect(titleStep(down, 'down', true).state.cursor).toBe(0);
-    expect(titleStep(TITLE_START, 'up', true).state.cursor).toBe(1);
+    expect(titleStep(down, 'down', true).state.cursor).toBe(2);
+    expect(titleStep({ screen: 'menu', cursor: 2 }, 'down', true).state.cursor).toBe(0);
+    expect(titleStep(TITLE_START, 'up', true).state.cursor).toBe(2);
+  });
+
+  it('CONTROLS shows the controls; any choice or back returns to the menu, on CONTROLS', () => {
+    const shown = titleStep({ screen: 'menu', cursor: 1 }, 'choose', false);
+    expect(shown).toEqual({ state: { screen: 'controls', cursor: 0 }, start: null });
+    for (const input of ['choose', 'back'] as const) {
+      expect(titleStep(shown.state, input, false)).toEqual({
+        state: { screen: 'menu', cursor: 1 },
+        start: null,
+      });
+      expect(titleStep(shown.state, input, true).state).toEqual({ screen: 'menu', cursor: 2 });
+    }
+    // Up and down do nothing there.
+    expect(titleStep(shown.state, 'down', false)).toEqual({ state: shown.state, start: null });
   });
 
   it('back does nothing on the menu', () => {
