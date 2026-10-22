@@ -647,11 +647,12 @@ test('the snake spits venom along a line at Jarrett, then coils', async ({ page 
 test('the mushroom puffs a ring of spores that drift a little way', async ({ page }) => {
   const watched = watchPage(page);
   await emptyHub(page);
-  await page.evaluate(() => window.__game?.spawnEnemy('mushroom', 240, 60));
-  // Its first puff comes 2.6 to 3.6 s (game time) after it appears, like the eye's first shot.
-  await expect
-    .poll(async () => (await snapshot(page)).shotsFired, { timeout: 10_000 })
-    .toBeGreaterThan(0);
+  // Its first puff would come 2.6 to 3.6 s (game time) after it appears: bring it on now.
+  await page.evaluate(() => {
+    window.__game?.spawnEnemy('mushroom', 240, 60);
+    window.__game?.enemiesShootNow();
+  });
+  await expect.poll(async () => (await snapshot(page)).shotsFired).toBeGreaterThan(0);
   // One puff is six spores, all at once.
   expect((await snapshot(page)).shotsFired).toBe(6);
   // Spores go only a short way, then are gone.
