@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Grows the overworld from 8x8 screens to 16 wide by 12 tall (owner 2026-10-22).
 
-The 64 hand-made screens move apart: old column c goes to 2c, and old rows
-0-7 go to rows 0, 2, 3, 5, 6, 8, 9, 11. The 128 screens between them are
-made here, each in the style of its region, with its doorways matching its
-neighbours'. The output is plain room text in src/world/wilds.ts, made once
-and then edited by hand like any other room; run this again only to start
-over. Standard library only; seeded, so it makes the same rooms every time.
+The 64 hand-made screens in src/world/overworld.ts were spread apart (old
+column c to 2c, old rows 0-7 to rows 0, 2, 3, 5, 6, 8, 9, 11). This makes the
+128 screens between them, each in the style of its region, with its doorways
+matching its neighbours'. The output is plain room text in src/world/wilds.ts,
+made once and then edited by hand like any other room: running this again
+starts the wilds over (hand edits are lost). Standard library only; seeded,
+so it makes the same rooms every time. (Given the old 8x8 file, it spreads
+the rooms itself first.)
 
     python3 tools/map/grow_overworld.py            # writes src/world/wilds.ts
-    python3 tools/map/grow_overworld.py --moves    # prints the old-to-new room map
 """
 import random
 import re
@@ -165,6 +166,11 @@ class Room:
             self.lanes |= {(x, y) for x in (0, 1, 2) for y in (3, 4, 5, 6)}
         if e["e"]:
             self.lanes |= {(x, y) for x in (17, 18, 19) for y in (3, 4, 5, 6)}
+        # And nothing solid on the straight ways across, from each doorway to the middle and on.
+        if e["w"] or e["e"]:
+            self.lanes |= {(x, y) for x in range(COLS) for y in (4, 5)}
+        if e["n"] or e["s"]:
+            self.lanes |= {(x, y) for x in (9, 10) for y in range(ROWS)}
 
     def open_cells(self):
         return [(x, y) for y in range(ROWS) for x in range(COLS) if self.g[y][x] in ".pq,\""]
@@ -253,10 +259,13 @@ class Room:
         for _ in range(rng.randint(2, 4)):
             for _ in range(30):
                 w, h = rng.choice([(2, 2), (2, 2), (3, 2), (1, 2)])
-                x, y = rng.randint(3, COLS - 3 - w), rng.randint(3, ROWS - 3 - h)
+                x, y = rng.randint(2, COLS - 2 - w), rng.randint(2, ROWS - 2 - h)
                 cells = {(x + i, y + j) for i in range(w) for j in range(h)}
                 ring = {(cx + dx, cy + dy) for cx, cy in cells for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
-                if cells & self.lanes or any(self.at(cx, cy) != "." for cx, cy in ring):
+                # Clear of other pillars (it may stand against the outer wall).
+                if cells & self.lanes or any(self.at(cx, cy) == "#" for cx, cy in cells) or any(
+                    self.at(cx, cy) == "#" and 2 <= cx < COLS - 2 and 2 <= cy < ROWS - 2 for cx, cy in ring
+                ):
                     continue
                 before = [row[:] for row in self.g]
                 for cx, cy in cells:
@@ -386,11 +395,8 @@ def make_room(rng, region, edges, town):
 def main():
     text = open(SOURCE).read()
     old_list = parse_old(text)
-    old = {(r["col"] * 2, ROW_OF[r["row"]]): r for r in old_list}
-    if "--moves" in sys.argv:
-        for r in old_list:
-            print(r["col"], r["row"], "->", r["col"] * 2, ROW_OF[r["row"]])
-        return
+    spread = all(r["col"] < 8 and r["row"] < 8 for r in old_list)
+    old = {((r["col"] * 2, ROW_OF[r["row"]]) if spread else (r["col"], r["row"])): r for r in old_list}
     rng = random.Random(SEED)
     spots = [(c, r) for r in range(TALL) for c in range(WIDE) if (c, r) not in old]
     regions = {s: region_for(*s, old) for s in spots}

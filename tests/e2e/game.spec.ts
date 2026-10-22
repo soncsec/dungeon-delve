@@ -127,7 +127,7 @@ test('arrow keys move the player and it stays on screen', async ({ page }) => {
   await page.waitForTimeout(2000); // long enough to reach the edge
   await page.keyboard.up('ArrowLeft');
   const left = await snapshot(page);
-  expect(left.room).toEqual({ col: 4, row: 7 });
+  expect(left.room).toEqual({ col: 8, row: 11 });
   expect(left.player.x).toBeGreaterThan(0);
   expect(left.player.y).toBe(start.y);
 });
@@ -191,12 +191,12 @@ test('Jarrett faces the way he walks, and walls stop him', async ({ page }) => {
 
 test('walking through a gap slides to the next room, and back', async ({ page }) => {
   await openGame(page);
-  expect((await snapshot(page)).room).toEqual({ col: 4, row: 7 });
+  expect((await snapshot(page)).room).toEqual({ col: 8, row: 11 });
   // The start room's west gap is at rows 4–5; Jarrett starts in row 5.
   await page.keyboard.down('ArrowLeft');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 3, row: 7 });
+    .toEqual({ col: 7, row: 11 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   const arrived = (await snapshot(page)).enteredAt;
@@ -208,7 +208,7 @@ test('walking through a gap slides to the next room, and back', async ({ page })
   await page.keyboard.down('ArrowRight');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 4, row: 7 });
+    .toEqual({ col: 8, row: 11 });
   await page.keyboard.up('ArrowRight');
 });
 
@@ -346,7 +346,7 @@ test('the M1 loop: walk to the next room and defeat one of its robots', async ({
   await page.keyboard.down('ArrowLeft');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 3, row: 7 });
+    .toEqual({ col: 7, row: 11 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   expect((await snapshot(page)).enemies).toHaveLength(2);
@@ -829,7 +829,7 @@ test('out of hearts, Jarrett falls and is back in the start room, losing 10% of 
   await page.keyboard.down('ArrowLeft');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 3, row: 7 });
+    .toEqual({ col: 7, row: 11 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   await page.evaluate(() => window.__game?.clearEnemies());
@@ -843,7 +843,7 @@ test('out of hearts, Jarrett falls and is back in the start room, losing 10% of 
   await expect.poll(async () => (await snapshot(page)).falls, { timeout: 10_000 }).toBe(1);
   const s = await snapshot(page);
   expect(s.falling).toBe(false);
-  expect(s.room).toEqual({ col: 4, row: 7 });
+  expect(s.room).toEqual({ col: 8, row: 11 });
   expect(s.health).toEqual({ points: 6, max: 6 });
   expect(s.gems).toBe(23); // 25 − 10% rounded down
   expect(s.potions).toEqual({ health: 1, mana: 1 });
@@ -992,7 +992,7 @@ test('out of dungeon 1 through its doorway, and back in through the archway', as
   await travel('ArrowDown');
   const outside = await snapshot(page);
   expect(outside.map).toBe('overworld');
-  expect(outside.room).toEqual({ col: 3, row: 5 });
+  expect(outside.room).toEqual({ col: 6, row: 8 });
   expect(outside.enteredAt).toEqual({ x: 160, y: 78 }); // just below the archway
   expect(outside.facing).toBe('down');
 
@@ -1011,7 +1011,7 @@ test('Bog Grotto’s archway in the marsh opens once Jarrett holds a shard', asy
   const watched = watchPage(page);
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
-  await page.evaluate(() => window.__game?.goToRoom(1, 5));
+  await page.evaluate(() => window.__game?.goToRoom(2, 8));
   await page.evaluate(() => window.__game?.clearEnemies());
   // Up into the archway's opening with no shard: he reaches the doorway's row (it ends
   // at y 48) and stands in it a while, and nothing happens. (Waiting for him to get there,
@@ -1146,7 +1146,7 @@ test('Sunken Crypt’s archway in the ruins opens once Jarrett holds two shards'
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   await page.evaluate(() => {
     window.__game?.holdEnemies(true);
-    window.__game?.goToRoom(5, 4);
+    window.__game?.goToRoom(10, 6);
     window.__game?.clearEnemies();
   });
   // With one shard, he stands in the crypt's doorway and nothing happens.
@@ -1223,7 +1223,7 @@ test('Stonecrag Mine’s cave in the mountains opens once Jarrett holds three sh
   await openGame(page);
   await page.evaluate(() => {
     window.__game?.holdEnemies(true);
-    window.__game?.goToRoom(3, 1);
+    window.__game?.goToRoom(6, 2);
     window.__game?.clearEnemies();
     window.__game?.takeShard(1);
     window.__game?.takeShard(2);
@@ -2194,7 +2194,7 @@ test('Walker gives a hint at each dungeon’s entrance, and waits outside once i
   await page.evaluate(() => {
     window.__game?.holdEnemies(true);
     window.__game?.takeShard(3);
-    window.__game?.goToRoom(5, 4);
+    window.__game?.goToRoom(10, 6);
     window.__game?.clearEnemies();
   });
   expect((await snapshot(page)).walker).toEqual({ x: 200, y: 63 });
@@ -2210,11 +2210,11 @@ test('a new game starts at the village gate; a house’s walls stop Jarrett', as
   const watched = watchPage(page);
   await openGame(page);
   let s = await snapshot(page);
-  expect(s.room).toEqual({ col: 4, row: 7 });
+  expect(s.room).toEqual({ col: 8, row: 11 });
   expect(s.region).toBe('village');
   // The west street: a house whose walls fill columns 3–7, rows 5–7. Its steps (column 5,
   // below the door) lead into the shop, so walk up into the wall beside them, at column 4.
-  await page.evaluate(() => window.__game?.goToRoom(3, 6));
+  await page.evaluate(() => window.__game?.goToRoom(6, 9));
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.placeHero(72, 142, 'up'));
   await page.keyboard.down('ArrowUp');
@@ -2234,19 +2234,19 @@ test('north of Hollow Oak lie the vault grounds, and the vault door stays shut',
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
   // From the forest room east of the archway, up through its north gap.
-  await page.evaluate(() => window.__game?.goToRoom(4, 5));
+  await page.evaluate(() => window.__game?.goToRoom(8, 8));
   await page.evaluate(() => window.__game?.clearEnemies());
   await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 4, row: 4 });
+    .toEqual({ col: 8, row: 7 });
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   expect((await snapshot(page)).region).toBe('vault');
 
   // The vault's door, in the room to the west: columns 14–15 of its south face (row 3).
-  await page.evaluate(() => window.__game?.goToRoom(3, 4));
+  await page.evaluate(() => window.__game?.goToRoom(6, 6));
   await page.evaluate(() => window.__game?.placeHero(240, 90, 'up'));
   await page.keyboard.down('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).player.y).toBe(70); // row 4's top + his 6-px feet box
@@ -2263,7 +2263,7 @@ test('west of the meadows lies the marsh, whose ponds stop Jarrett', async ({ pa
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
   // From the west meadow, out through its west gap (rows 4–5).
-  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  await page.evaluate(() => window.__game?.goToRoom(6, 11));
   await page.evaluate(() => window.__game?.clearEnemies());
   // goToRoom puts him at the room's start cell, which can be next to a robot: let any knockback end.
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
@@ -2271,13 +2271,13 @@ test('west of the meadows lies the marsh, whose ponds stop Jarrett', async ({ pa
   await page.keyboard.down('ArrowLeft');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 2, row: 7 });
+    .toEqual({ col: 5, row: 11 });
   await page.keyboard.up('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   expect((await snapshot(page)).region).toBe('marsh');
 
   // A pond in the north-west of the marsh fills columns 7–10, rows 4–6: walk up into it.
-  await page.evaluate(() => window.__game?.goToRoom(0, 4));
+  await page.evaluate(() => window.__game?.goToRoom(0, 6));
   await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(136, 126, 'up'));
@@ -2295,15 +2295,22 @@ test('east of the vault grounds lie the ruins, whose broken walls stop Jarrett',
   const watched = watchPage(page);
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
-  // From the vault grounds' south-east room, out through its new east gap (rows 4–5).
-  await page.evaluate(() => window.__game?.goToRoom(4, 4));
+  // From the vault grounds' south-east room, east through the grounds' edge (rows 4–5).
+  await page.evaluate(() => window.__game?.goToRoom(8, 6));
   await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(260, 94, 'right'));
   await page.keyboard.down('ArrowRight');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 5, row: 4 });
+    .toEqual({ col: 9, row: 6 });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  expect((await snapshot(page)).region).toBe('vault');
+  // On across it (its ghosts cleared, so none is in his way), into the ruins.
+  await page.evaluate(() => window.__game?.clearEnemies());
+  await expect
+    .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
+    .toEqual({ col: 10, row: 6 });
   await page.keyboard.up('ArrowRight');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   expect((await snapshot(page)).region).toBe('ruins');
@@ -2325,14 +2332,14 @@ test('north of the forest rise the mountains; the mine cave is sealed rock', asy
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
   // From the forest edge north of the vault grounds, up through its new north gap.
-  await page.evaluate(() => window.__game?.goToRoom(3, 2));
+  await page.evaluate(() => window.__game?.goToRoom(6, 3));
   await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).room, { timeout: 15_000 })
-    .toEqual({ col: 3, row: 1 });
+    .toEqual({ col: 6, row: 2 });
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
   expect((await snapshot(page)).region).toBe('mountains');
@@ -2348,7 +2355,7 @@ test('north of the forest rise the mountains; the mine cave is sealed rock', asy
   expect((await snapshot(page)).player.y).toBe(70);
 
   // The far north-east is the volcano edge.
-  await page.evaluate(() => window.__game?.goToRoom(7, 0));
+  await page.evaluate(() => window.__game?.goToRoom(14, 0));
   expect((await snapshot(page)).region).toBe('volcano');
   expect(watched.errors).toEqual([]);
 });
@@ -2361,7 +2368,7 @@ test('the village shop: in through the house door, buy from the shopkeeper, and 
   await page.evaluate(() => window.__game?.holdEnemies(true));
   await page.evaluate(() => window.__game?.setGems(100));
   // The west street's house: its steps (column 5, row 8) lead inside. Walk west along the path onto them.
-  await page.evaluate(() => window.__game?.goToRoom(3, 6));
+  await page.evaluate(() => window.__game?.goToRoom(6, 9));
   await page.evaluate(() => window.__game?.placeHero(136, 142, 'left'));
   await page.keyboard.down('ArrowLeft');
   await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('shop');
@@ -2420,7 +2427,7 @@ test('the village shop: in through the house door, buy from the shopkeeper, and 
   await expect.poll(async () => (await snapshot(page)).map, { timeout: 10_000 }).toBe('overworld');
   await page.keyboard.up('ArrowDown');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
-  expect((await snapshot(page)).room).toEqual({ col: 3, row: 6 });
+  expect((await snapshot(page)).room).toEqual({ col: 6, row: 9 });
   expect(watched.errors).toEqual([]);
 });
 
@@ -2438,16 +2445,16 @@ test('a false wall sounds hollow, opens on a second strike, and hides a secret c
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
   // The forest's dead end: a false wall at column 2, row 4, with a hole behind it.
-  await page.evaluate(() => window.__game?.goToRoom(0, 3));
+  await page.evaluate(() => window.__game?.goToRoom(0, 5));
   await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(56, 78, 'left'));
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).sounds.hollow).toBe(1);
-  expect((await snapshot(page)).opened).not.toContain('overworld/0,3/2,4');
+  expect((await snapshot(page)).opened).not.toContain('overworld/0,5/2,4');
   await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
   await page.keyboard.press('Space');
-  await expect.poll(async () => (await snapshot(page)).opened).toContain('overworld/0,3/2,4');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('overworld/0,5/2,4');
   expect((await snapshot(page)).sounds.crumble).toBe(1);
 
   // Through it and down the hole: a cave with two chests.
@@ -2468,14 +2475,14 @@ test('a false wall sounds hollow, opens on a second strike, and hides a secret c
   await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
   await holdUntil(page, 'ArrowDown', async () => (await snapshot(page)).map === 'overworld');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
-  expect((await snapshot(page)).room).toEqual({ col: 0, row: 3 });
+  expect((await snapshot(page)).room).toEqual({ col: 0, row: 5 });
   expect(watched.errors).toEqual([]);
 });
 
 test('a secret cave in the ruins holds a heart container, kept in the save', async ({ page }) => {
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
-  await page.evaluate(() => window.__game?.goToRoom(7, 4));
+  await page.evaluate(() => window.__game?.goToRoom(14, 6));
   await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   // The false wall at column 16, row 3, struck twice from the left.
@@ -2497,7 +2504,7 @@ test('a secret cave in the ruins holds a heart container, kept in the save', asy
   await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
   await holdUntil(page, 'ArrowDown', async () => (await snapshot(page)).map === 'overworld');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
-  await page.evaluate(() => window.__game?.goToRoom(4, 7));
+  await page.evaluate(() => window.__game?.goToRoom(8, 11));
   await reloadToTitle(page);
   await page.keyboard.press('Enter');
   await expect.poll(() => sceneNow(page)).toBe('Game');
@@ -2507,7 +2514,7 @@ test('a secret cave in the ruins holds a heart container, kept in the save', asy
 test('a stone in the east meadow hides a hole down to a cave', async ({ page }) => {
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
-  await page.evaluate(() => window.__game?.goToRoom(5, 7));
+  await page.evaluate(() => window.__game?.goToRoom(10, 11));
   await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   expect((await snapshot(page)).stones).toEqual([{ cx: 14, cy: 6 }]);
@@ -2545,7 +2552,12 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
   await page.keyboard.press('Space');
   await expect
     .poll(opened)
-    .toEqual(['overworld/4,7/4,6', 'overworld/4,7/5,6', 'overworld/4,7/4,7', 'overworld/4,7/5,7']);
+    .toEqual([
+      'overworld/8,11/4,6',
+      'overworld/8,11/5,6',
+      'overworld/8,11/4,7',
+      'overworld/8,11/5,7',
+    ]);
   expect((await snapshot(page)).sounds.crumble).toBe(1);
   // Where it stood, he walks on through.
   await page.keyboard.down('ArrowDown');
@@ -2557,13 +2569,13 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
   await page.evaluate(() => window.__game?.placeHero(160, 94, 'right'));
   await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
   await page.keyboard.press('Space');
-  await expect.poll(opened).toContain('overworld/4,7/11,5');
+  await expect.poll(opened).toContain('overworld/8,11/11,5');
 
   // A thorn bush, two cells to his left: a Fireball burns it.
   await page.evaluate(() => window.__game?.setCell(7, 5, 't'));
   await page.evaluate(() => window.__game?.placeHero(160, 94, 'left'));
   await page.keyboard.press('c');
-  await expect.poll(opened).toContain('overworld/4,7/7,5');
+  await expect.poll(opened).toContain('overworld/8,11/7,5');
   expect((await snapshot(page)).sounds.burn).toBe(1);
   expect(watched.errors).toEqual([]);
 });
@@ -2574,12 +2586,12 @@ test('a Fireball burns the thorns in front of a secret cave in the forest', asyn
   await page.evaluate(() => window.__game?.giveItem('fireball')); // dungeon 2's prize
   await page.evaluate(() => window.__game?.holdEnemies(true));
   // West of the vault grounds: thorns at column 1, row 7, with a hole behind them.
-  await page.evaluate(() => window.__game?.goToRoom(2, 3));
+  await page.evaluate(() => window.__game?.goToRoom(4, 5));
   await page.evaluate(() => window.__game?.clearEnemies());
   await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(44, 126, 'left'));
   await page.keyboard.press('c');
-  await expect.poll(async () => (await snapshot(page)).opened).toContain('overworld/2,3/1,7');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('overworld/4,5/1,7');
   await holdUntil(page, 'ArrowLeft', async () => (await snapshot(page)).map === 'caves');
   await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
   const gems = (await snapshot(page)).gems;
@@ -2609,23 +2621,23 @@ test('overworld enemies come back after four rooms away; dungeon enemies never',
   await page.evaluate(() => window.__game?.holdEnemies(true));
   const enemies = async () => (await snapshot(page)).enemies.length;
   // The west meadow's two robots: defeat one.
-  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  await page.evaluate(() => window.__game?.goToRoom(6, 11));
   expect(await enemies()).toBe(2);
   await defeatFirstEnemy(page);
   // One room away and back: still gone.
-  await page.evaluate(() => window.__game?.goToRoom(4, 7));
-  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  await page.evaluate(() => window.__game?.goToRoom(8, 11));
+  await page.evaluate(() => window.__game?.goToRoom(6, 11));
   expect(await enemies()).toBe(1);
   // Four rooms away (none of them this one) and back: both are back.
   for (const [c, r] of [
-    [4, 7],
-    [4, 6],
-    [3, 6],
-    [5, 6],
+    [8, 11],
+    [8, 9],
+    [6, 9],
+    [10, 9],
   ] as const) {
     await page.evaluate(({ c, r }) => window.__game?.goToRoom(c, r), { c, r });
   }
-  await page.evaluate(() => window.__game?.goToRoom(3, 7));
+  await page.evaluate(() => window.__game?.goToRoom(6, 11));
   expect(await enemies()).toBe(2);
 
   // In dungeon 1, a defeated enemy stays gone: through other rooms, and after saving and continuing.
