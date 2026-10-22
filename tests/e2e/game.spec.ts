@@ -1695,6 +1695,110 @@ test('an eye statue fires orbs; one batted back into it shuts it, and its gates 
   expect(watched.errors).toEqual([]);
 });
 
+test('Witchwood Tower’s archway in the forest opens once Jarrett holds five shards', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(0, 3);
+    window.__game?.clearEnemies();
+    for (const n of [1, 2, 3, 4]) window.__game?.takeShard(n);
+  });
+  // With four shards, he stands in the archway and nothing happens.
+  await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(48);
+  await page.waitForTimeout(500);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  // The fifth, and the way opens.
+  await page.evaluate(() => {
+    window.__game?.takeShard(5);
+    window.__game?.placeHero(160, 70, 'up');
+  });
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const s = await snapshot(page);
+  expect(s.map).toBe('dungeon6');
+  expect(s.room).toEqual({ col: 1, row: 3 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('Witchwood Tower’s prize: the Steel Sword, behind sparks the Ward gets him through', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=6'); // with the Ward, among the rest
+  await chooseSpell(page, 'Ward');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(0, 2); // the west hall
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(104, 110, 'up'); // below the closet's sparks (column 6, row 5)
+  });
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  await holdUntil(page, 'ArrowUp', async () => (await snapshot(page)).player.y < 74);
+  // In the closet, beside the chest (column 5, row 3): the Steel Sword, in hand at once.
+  await page.evaluate(() => window.__game?.bump(5, 3));
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon6/0,2/5,3');
+  const sword = (await snapshot(page)).pickups.find((p) => p.kind === 'item');
+  expect(sword).toBeDefined();
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), sword ?? { x: 0, y: 0 });
+  await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  // In his hand: the bag's near slot shows it.
+  await page.keyboard.press('Tab');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.inventory()))?.slots['near'])
+    .toBe('Steel Sword');
+  await page.keyboard.press('Escape');
+  expect(watched.errors).toEqual([]);
+});
+
+test('in Witchwood Tower, an orb batted back into the great stair’s eye opens the way up', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=6');
+  await page.evaluate(() => window.__game?.giveItem('steel-sword'));
+  await chooseItem(page, 'near', 'Steel Sword');
+  await page.evaluate(() => {
+    window.__game?.goToRoom(1, 2); // the great stair
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(160, 120, 'up');
+    window.__game?.enemiesShootNow();
+  });
+  // The eye (column 4, row 1) fires straight down; held still once it is out.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const shots = window.__game?.snapshot()?.enemyShots ?? [];
+          if (shots.length > 0) window.__game?.holdEnemies(true);
+          return shots.length;
+        }),
+      { intervals: [20] },
+    )
+    .toBe(1);
+  const orb = (await snapshot(page)).enemyShots[0] ?? { x: 0, y: 0 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 28, 'up'), orb);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon6/1,2/4,1');
+  await page.evaluate(() => window.__game?.placeHero(160, 46, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 1 && room.row === 1;
+  });
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {
