@@ -1,8 +1,8 @@
 /**
  * Can a map be finished? (engine-free, unit tested; ROADMAP M3.7). Explores
  * a map the way a player would, a cell at a time: walking, pushing stones,
- * opening every false wall and chest in reach (an Axe or Fireball found in
- * one is used from then on), and spending small keys on locked doors in
+ * opening every false wall and chest in reach (an item found in one, such
+ * as the Axe, is used from then on), and spending small keys on locked doors in
  * reach, until nothing new opens. If that reaches every room, chest and door,
  * there is a valid order to do it in.
  *
@@ -26,7 +26,7 @@ export interface Reach {
   chests: string[];
   doors: string[];
   hollows: string[];
-  /** Cracked walls, boulders and thorn bushes broken or burned, and crystal switches powered (with the items held). */
+  /** Cracked walls, boulders and thorn bushes broken or burned, crystal switches powered, and spark barriers warded through (with the items held). */
   broken: string[];
   /** Doorways to other maps reached, as `room/x,y`. */
   exits: string[];
@@ -36,11 +36,12 @@ export interface Reach {
   keys: number;
 }
 
-/** Items that open the way: the Axe (cracked walls, boulders), Fireball (thorn bushes), Lightning (crystal switches, and so their gates). */
+/** Items that open the way: the Axe (cracked walls, boulders), Fireball (thorn bushes), Lightning (crystal switches, and so their gates), Ward (spark barriers). */
 export interface ReachItems {
   axe?: boolean;
   fireball?: boolean;
   lightning?: boolean;
+  ward?: boolean;
 }
 
 /** Where the exploring starts: a room, and a cell in it. */
@@ -192,7 +193,8 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
         ([, f]) =>
           (held.axe && (f === 'cracked' || f === 'boulder')) ||
           (held.fireball && f === 'thorns') ||
-          (held.lightning && f === 'switch'),
+          (held.lightning && f === 'switch') ||
+          (held.ward && f === 'spark'),
       )
       .map(([c]) => c);
     for (const cell of breakable) {
@@ -211,7 +213,9 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
       const c = world.chests.get(key)?.find((ch) => ch.col === x && ch.row === y);
       if (c?.contents.kind === 'key') keys += 1;
       const item = c?.contents.kind === 'item' ? c.contents.item : null;
-      if (item === 'axe' || item === 'fireball' || item === 'lightning') held[item] = true;
+      if (item === 'axe' || item === 'fireball' || item === 'lightning' || item === 'ward') {
+        held[item] = true;
+      }
     }
     if (found.length > 0) continue;
     // Then a key on a door in reach.

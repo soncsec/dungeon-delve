@@ -131,12 +131,18 @@
   - [x] M5.3b The Ogre: it lumbers side to side, raises its club and slams down a ring of shockwaves (eight, then twelve); only the Axe gets through its hide; beaten, it leaves the fourth shard and a heart container
 - [x] M5.4 New enemy types for these regions: the snake (spits venom), the mushroom (puffs spores) and the toad (hops)
 - [x] M5.5 Walker's lines at dungeons 2–4 and on the overworld: a hint at each entrance (the boss, and what the dungeon's item does), and outside each once its shard is found (the way on; choosing spells; secrets the Axe opens). On a phone he names the touch buttons, not the keys
+- [x] M5.6 No enemy looks stuck in a tree or a rock (owner 2026-10-22): walking enemies keep out from under the art of trees, tree tops, houses and archways, and start clear of them; fliers are drawn over trees, rocks and walls; a drop lands where Jarrett can reach and see it
+- [ ] M5.7 Holding up a find (owner 2026-10-22): from a chest, or a boss's heart container and shard, Jarrett turns to face you with the find over his head while a success tune plays, and the game waits a moment
+- [ ] M5.8 A bigger overworld (owner 2026-10-22): 16 screens wide by 12 tall (from 8×8), the regions grown and the dungeons, village and secret caves spread out across it, in several PRs (before Thunder Spire)
 
 **Acceptance criteria (each dungeon):** owner play-test; reachability test passes; the boss has its own attack pattern.
 
 ## M6 — Dungeons 5–8
 
-- [ ] M6.1 Dungeon 5, Thunder Spire: Ward (moved from Crimson Manor: owner 2026-10-21), Centaur
+- [ ] M6.1 Dungeon 5, Thunder Spire: Ward (moved from Crimson Manor: owner 2026-10-21), Centaur, in three PRs:
+  - [x] M6.1a The Ward spell: a bubble (40 mana, 3 s) that blocks every hit, from every side, and can't be cast again while up; it breaks up as a warning just before it drops. Spark barriers (`e`, owner 2026-10-22): crackling energy that zaps Jarrett back (half a heart), but he walks through inside the Ward; the reachability test knows them
+  - [ ] M6.1b The Spire's rooms (the archway needs four shards): the Ward in a chest, spark barriers before the keys and the boss, and the earlier items' puzzles
+  - [ ] M6.1c The Centaur (owner 2026-10-22): it gallops at Jarrett when he is in line with it, and rears to call down lightning on marked spots (one under Jarrett), 0.8 s after the marks appear; below half health the storm covers most of the floor, so the Ward or the one safe gap saves him. Any weapon hurts it; beaten, it leaves the fifth shard and a heart container
 - [ ] M6.2 Dungeon 6, Witchwood Tower: Steel Sword, Witch (the mana upgrade moved to dungeon 3: owner 2026-10-21)
 - [ ] M6.3 Dungeon 7, Crimson Manor: Triple Daggers (owner 2026-10-21), Vampire
 - [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon

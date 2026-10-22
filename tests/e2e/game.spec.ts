@@ -647,11 +647,12 @@ test('the snake spits venom along a line at Jarrett, then coils', async ({ page 
 test('the mushroom puffs a ring of spores that drift a little way', async ({ page }) => {
   const watched = watchPage(page);
   await emptyHub(page);
-  await page.evaluate(() => window.__game?.spawnEnemy('mushroom', 240, 60));
-  // Its first puff comes 2.6 to 3.6 s (game time) after it appears, like the eye's first shot.
-  await expect
-    .poll(async () => (await snapshot(page)).shotsFired, { timeout: 10_000 })
-    .toBeGreaterThan(0);
+  // Its first puff would come 2.6 to 3.6 s (game time) after it appears: bring it on now.
+  await page.evaluate(() => {
+    window.__game?.spawnEnemy('mushroom', 240, 60);
+    window.__game?.enemiesShootNow();
+  });
+  await expect.poll(async () => (await snapshot(page)).shotsFired).toBeGreaterThan(0);
   // One puff is six spores, all at once.
   expect((await snapshot(page)).shotsFired).toBe(6);
   // Spores go only a short way, then are gone.
@@ -733,6 +734,58 @@ test('a heart container is held up too, wherever it lies; a dropped gem is not',
   expect(watched.errors).toEqual([]);
 });
 
+/** The hub emptied (see emptyHub), with a pine whose trunk is at cell (10,5): its art hides cells 9-11 × 3-5. */
+async function hubWithPine(page: Page): Promise<void> {
+  await emptyHub(page);
+  await page.evaluate(() => window.__game?.setCell(10, 5, 'T'));
+}
+
+test('a walking enemy keeps out from under a tree: a toad hopping at Jarrett stops at its branches', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await hubWithPine(page);
+  // Jarrett above the tree, the toad below it, both in column 10: it hops straight at him.
+  await page.evaluate(() => {
+    window.__game?.placeHero(168, 40, 'down');
+    window.__game?.spawnEnemy('toad', 168, 127); // row 7, the bottom row of floor
+  });
+  let highest = 999;
+  let hopped = false;
+  const deadline = Date.now() + 4_000;
+  while (Date.now() < deadline) {
+    const t = (await snapshot(page)).enemies[0];
+    if (t) {
+      highest = Math.min(highest, t.y);
+      hopped ||= t.charging;
+    }
+  }
+  expect(hopped).toBe(true);
+  expect(highest).toBeLessThan(120); // it came up towards him...
+  expect(highest).toBeGreaterThanOrEqual(110); // ...but its body never went in under the tree (row 5 ends at y 96)
+  expect(watched.errors).toEqual([]);
+});
+
+test('an enemy beaten over a tree leaves its drop on open ground nearby, not in the tree', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await hubWithPine(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.spawnEnemy('bird', 168, 95); // over the trunk
+    window.__game?.nextDrop('gem');
+    window.__game?.placeHero(192, 95, 'left'); // beside the tree, facing it
+  });
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).defeated).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).pickups.length).toBe(1);
+  const gem = (await snapshot(page)).pickups[0];
+  // The nearest open cell he can reach: the one just below the trunk, (10,6).
+  expect(gem).toEqual({ kind: 'gem', x: 168, y: 111 });
+  expect(watched.errors).toEqual([]);
+});
+
 test('the flying eye shoots at Jarrett, and a shot costs half a heart', async ({ page }) => {
   await openGame(page);
   const start = await snapshot(page);
@@ -748,7 +801,8 @@ test('the flying eye shoots at Jarrett, and a shot costs half a heart', async ({
 test('the wolf charges when Jarrett is in line with it', async ({ page }) => {
   await openGame(page);
   const start = await snapshot(page);
-  await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('wolf', x + 100, y), start.player);
+  // To his left, on open grass (to his right is under a pine's branches, where walkers can't go).
+  await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('wolf', x - 100, y), start.player);
   await expect.poll(async () => (await snapshot(page)).enemies[0]?.charging).toBe(true);
   // It rushes at him, far faster than it walks.
   await expect.poll(async () => (await snapshot(page)).health.points).toBeLessThan(6);
@@ -1578,6 +1632,103 @@ test('the beaten Giant Frog leaves a heart container and Bog Grotto’s shard', 
   expect(s.shards).toBe(1);
   expect(s.opened).toEqual(expect.arrayContaining(['dungeon2/1,0/boss', 'dungeon2/shard']));
   expect(s.sealed).toBe(false);
+  expect(watched.errors).toEqual([]);
+});
+
+/** Dungeon 1's hub, emptied, with the Ward in hand (Thunder Spire's prize) and full mana. */
+async function wardInHub(page: Page): Promise<void> {
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.giveItem('ward');
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the hub
+    window.__game?.clearEnemies();
+    window.__game?.holdEnemies(false); // the room is empty; shots must fly
+    window.__game?.setMana(100);
+  });
+}
+
+test('the Ward: a bubble that blocks every hit for a few seconds, cast once at a time', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await wardInHub(page);
+  await page.evaluate(() => window.__game?.placeHero(160, 94, 'up'));
+  // Cast, and at once again while it is up: the second does nothing.
+  await page.keyboard.press('c');
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  // A shot from just behind, which the shield can't stop: the bubble does.
+  await page.evaluate(() => window.__game?.fireEnemyShot(160, 112, 0, -1));
+  await expect.poll(async () => (await snapshot(page)).blocked).toBe(1);
+  const up = await snapshot(page);
+  expect(up.health.points).toBe(up.health.max);
+  expect(up.casts).toBe(1);
+  expect(up.sounds.ward).toBe(1);
+  // One cast's mana spent (40 of 100; it may have begun to refill since), not two.
+  expect(up.mana.current).toBeGreaterThanOrEqual(60);
+  expect(up.mana.current).toBeLessThan(100);
+  // It drops after its time, and then a shot from behind hurts.
+  await expect.poll(async () => (await snapshot(page)).warded, { timeout: 10_000 }).toBe(false);
+  await page.evaluate(() => window.__game?.fireEnemyShot(160, 112, 0, -1));
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(up.health.max - 1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('a spark barrier zaps Jarrett back; inside the Ward he walks through it', async ({ page }) => {
+  const watched = watchPage(page);
+  await wardInHub(page);
+  // A barrier across the way north (columns 9-10, row 1).
+  await page.evaluate(() => {
+    window.__game?.setCell(9, 1, 'e');
+    window.__game?.setCell(10, 1, 'e');
+    window.__game?.placeHero(160, 60, 'up');
+  });
+  // Without the Ward, walking into it zaps him (half a heart) and throws him back.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).zaps).toBe(1);
+  await page.keyboard.up('ArrowUp');
+  const zapped = await snapshot(page);
+  expect(zapped.health.points).toBe(zapped.health.max - 1);
+  expect(zapped.sounds.spark).toBe(1);
+  expect(zapped.room).toEqual({ col: 1, row: 2 });
+  expect(zapped.player.y).toBeGreaterThanOrEqual(32);
+  // Inside the Ward, he walks through and on north.
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).sliding, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).room).toEqual({ col: 1, row: 1 });
+  expect((await snapshot(page)).zaps).toBe(1);
+  expect(watched.errors).toEqual([]);
+});
+
+test('if the Ward drops while Jarrett stands in a spark barrier, it zaps him and he walks out', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await wardInHub(page);
+  await page.evaluate(() => {
+    window.__game?.setCell(9, 5, 'e');
+    window.__game?.setCell(10, 5, 'e');
+    window.__game?.placeHero(160, 60, 'down');
+  });
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  // In the middle of the barrier (row 5), standing still.
+  await page.evaluate(() => window.__game?.placeHero(160, 90, 'down'));
+  await expect.poll(async () => (await snapshot(page)).warded, { timeout: 10_000 }).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).zaps).toBe(1);
+  // Thrown back the way he faced (up), out of the barrier, or free to walk out of it.
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(74);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).health.points).toBe((await snapshot(page)).health.max - 1);
   expect(watched.errors).toEqual([]);
 });
 

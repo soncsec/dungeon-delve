@@ -114,6 +114,29 @@ export const LIGHTNING = {
   flickerMs: 120,
 } as const;
 
+/**
+ * The Ward spell (Thunder Spire's prize, owner 2026-10-21): a bubble round
+ * Jarrett that blocks all damage for a few seconds, and lets him walk through
+ * spark barriers. It can't be cast again while it is up.
+ */
+export const WARD = {
+  cost: 40,
+  /** How long it lasts (ms). */
+  ms: 3000,
+  /** For its last part it breaks up, as a warning that it is about to drop (ms). */
+  breakMs: 400,
+  castPauseMs: 200,
+  /** The bubble's middle sits this far above his feet, round his body (px). */
+  bubbleLift: 14,
+  /** Where the bubble's middle is in its 51×47 frame (it isn't the frame's middle), as origin fractions. */
+  bubbleOrigin: { x: 23.5 / 51, y: 26.5 / 47 },
+  /** Drawn see-through, so he shows inside it (the art flashes solid once a cycle). */
+  bubbleAlpha: 0.6,
+} as const;
+
+/** A spark barrier: touching one without the Ward zaps Jarrett (half hearts). */
+export const SPARK = { damage: 1 } as const;
+
 /** Jarrett's health, in half hearts (2 per heart). */
 export const HEALTH = {
   startHearts: 3,
@@ -426,6 +449,8 @@ export type SfxName =
   | 'burn'
   | 'zap'
   | 'switch'
+  | 'ward'
+  | 'spark'
   | 'found';
 
 /** Sound effects made in code (owner 2026-10-20; engine from Star Destroyer, no sound files). */
@@ -521,6 +546,17 @@ export const SFX: { volume: number; sounds: Readonly<Record<SfxName, SoundRecipe
       volume: 0.35,
       steps: [1, 1.5, 2],
     },
+    // The Ward going up: a soft shimmering rise; a spark barrier's zap: a harsh crackle.
+    ward: {
+      wave: 'sine',
+      seconds: 0.5,
+      from: 440,
+      to: 880,
+      attack: 0.02,
+      volume: 0.35,
+      steps: [1, 1.5, 2, 1.5, 2],
+    },
+    spark: { wave: 'noise', seconds: 0.25, from: 5000, to: 1500, attack: 0.002, volume: 0.35 },
     // A find held up: a bright rising jingle, its last note held (owner 2026-10-22).
     found: {
       wave: 'square',
