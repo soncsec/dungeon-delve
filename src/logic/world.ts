@@ -246,8 +246,11 @@ export function solidInWorld(
   const x = cx - dc * ROOM_COLS;
   const y = cy - dr * ROOM_ROWS;
   const fixture = cellAt(room, x, y)?.fixture;
-  // A gate opens once its room's crystal switch is powered.
-  if (fixture === 'gate') return !gatesOpen(room, (sx, sy) => opened(key, sx, sy));
+  // A gate opens once its room's crystal switch is powered (or eye shut), or on its own
+  // (a beaten boss opens its room's gates).
+  if (fixture === 'gate') {
+    return !opened(key, x, y) && !gatesOpen(room, (sx, sy) => opened(key, sx, sy));
+  }
   // An unlocked door or an opened chest no longer blocks.
   if (fixture && opened(key, x, y)) return false;
   return isSolid(room, x, y);

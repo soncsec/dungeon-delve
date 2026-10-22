@@ -545,6 +545,13 @@ describe('crystal switches and gates in a dungeon', () => {
     expect(dungeonFrame(r, 9, 9, true)).not.toBe(DUNGEON_FRAMES.gate);
   });
 
+  it('draws a gate opened on its own as open, with the switch still dim', () => {
+    const art = dungeonArt(r, (x, y) => x === 9 && y === 9);
+    expect(art.ground.find((t) => t.x === 144 && t.y === 144)?.frame).not.toBe(DUNGEON_FRAMES.gate);
+    expect(art.ground.find((t) => t.x === 160 && t.y === 144)?.frame).toBe(DUNGEON_FRAMES.gate);
+    expect(art.ground.filter((t) => t.dim)).toHaveLength(1);
+  });
+
   it('draws a switch dim until powered, and its gates open once it is', () => {
     const before = dungeonArt(r);
     expect(before.ground.filter((t) => t.dim)).toEqual([

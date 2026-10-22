@@ -18,6 +18,17 @@ export interface WalkerVisit {
   speech: readonly Paragraph[];
   /** Doors in his room that he opens, for good, when the talk is done (the Shadow Vault's). */
   opens?: readonly { col: number; row: number }[];
+  /** Who waits there: Walker, unless it is Princess Kira (her sprite, and her name over the text box). */
+  who?: 'walker' | 'kira';
+  /** A progress id before which the visit is there to see but can't be talked to (Kira, in her cell). */
+  speaksAfter?: string;
+  /** The talk ends the game (Kira's rescue): the ending follows. */
+  ends?: boolean;
+}
+
+/** Whether Jarrett can talk to the one waiting on this visit yet. */
+export function canTalk(v: WalkerVisit, p: Progress): boolean {
+  return v.speaksAfter === undefined || isOpened(p, v.speaksAfter);
 }
 
 /** The progress id recording that a visit's talk has happened. */

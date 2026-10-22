@@ -350,4 +350,10 @@ describe('gates in the world', () => {
     expect(solidInWorld(w, 0, 0, 3, 0, powered)).toBe(false); // the switch itself: opened
     expect(solidInWorld(w, 0, 0, 4, 0, powered)).toBe(true); // the wall beside it
   });
+
+  it('a gate opened on its own (a beaten boss opens its room’s) is open ground, the other still barred', () => {
+    const one = (key: string, x: number, y: number) => key === '0,0' && x === 9 && y === 9;
+    expect(solidInWorld(w, 0, 0, 9, 9, one)).toBe(false);
+    expect(solidInWorld(w, 0, 0, 10, 9, one)).toBe(true);
+  });
 });

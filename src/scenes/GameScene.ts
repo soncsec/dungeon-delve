@@ -43,6 +43,7 @@ import {
   TILE,
 } from '../config/tuning';
 import { ITEM_ICON } from '../assets/itemIcons';
+import type { EndingData } from './EndingScene';
 import { Sfx } from '../audio/Sfx';
 import type { SfxName } from '../config/tuning';
 import { Hud } from '../entities/Hud';
@@ -81,7 +82,7 @@ import { forDevice, paginate, type Page } from '../logic/dialogue';
 import { markStrikes, stepStrikes, stormPatches, strikeHits, type Strike } from '../logic/storm';
 import { isTouchDevice } from '../platform/touch';
 import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
-import { finishVisit, markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
+import { canTalk, finishVisit, markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
 import { WALKER_VISITS } from '../world/walker';
 import { SHOPKEEPER_CELL } from '../world/shop';
 import type { Purse } from '../logic/shop';
@@ -188,6 +189,7 @@ import { fireShot, shotBox, stepShot, type EnemyShot } from '../logic/enemyShots
 import {
   PROP_FOOTPRINT,
   eyeFacing,
+  fixturesIn,
   isSolid,
   sealCells,
   type Dir,
@@ -372,9 +374,10 @@ export interface GameSnapshot {
   cheated: boolean;
   /** The play time written by the latest save this session (null before one). */
   savedPlayMs: number | null;
-  /** Walker's feet, if he is in this room; and the talk under way, if any. */
+  /** Walker's feet (or Kira's), if one waits in this room, and who; and the talk under way, if any. */
   walker: Point | null;
-  talking: { page: number; pages: number; lines: string[] } | null;
+  walkerWho: 'walker' | 'kira' | null;
+  talking: { page: number; pages: number; lines: string[]; who: string } | null;
 }
 
 type ShotKind = 'dagger' | 'fireball' | 'bolt' | 'orb' | 'beam';
@@ -442,7 +445,18 @@ interface Talk {
   page: number;
   objects: Phaser.GameObjects.GameObject[];
   text: Phaser.GameObjects.Text;
+  /** The name over the box, and who speaks when a page doesn't say. */
+  name: Phaser.GameObjects.Text;
+  speaker: string;
+  /** Walker, come in a shimmer to speak in someone else's talk (Kira's rescue). */
+  guest: Phaser.GameObjects.Sprite | null;
 }
+
+/** The name over the text box for whoever waits on a visit. */
+const SPEAKERS: Readonly<Record<NonNullable<WalkerVisit['who']>, string>> = {
+  walker: 'WALKER',
+  kira: 'KIRA',
+};
 
 interface LiveEnemyShot {
   s: EnemyShot;
@@ -805,6 +819,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private saveAtSavePoint(): void {
     const start = MAPS[this.mapId].start;
     if (this.room.col !== start.col || this.room.row !== start.row) return;
+    this.writeGame();
+  }
+
+  /** Saves the game: this map (from its start room), and everything held and done. */
+  private writeGame(): void {
     writeSave({
       version: SAVE_VERSION,
       map: this.mapId,
@@ -1242,7 +1261,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     if (!visit) return;
     const feet = { x: visit.cell.col * TILE + TILE / 2, y: (visit.cell.row + 1) * TILE - 1 };
     const sprite = this.enemyPool
-      .take('walker', HERO.standFrame.down)
+      .take(visit.who ?? 'walker', HERO.standFrame.down)
       .setOrigin(0.5, HERO.feetY / HERO.frameHeight);
     const o = this.origin(this.room.col, this.room.row);
     sprite.setPosition(o.x + feet.x, o.y + feet.y).setDepth(DEPTH.sorted + o.y + feet.y);
@@ -1251,7 +1270,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Whether Jarrett is facing Walker, close enough to talk. */
   private walkerInReach(): boolean {
-    return this.walker !== null && this.inReach(this.walker.feet);
+    return (
+      this.walker !== null &&
+      canTalk(this.walker.visit, this.progress) &&
+      this.inReach(this.walker.feet)
+    );
   }
 
   /** Walker turns to Jarrett and starts talking; the game waits meanwhile. */
@@ -1275,8 +1298,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       .setStrokeStyle(1, 0xffd166)
       .setScrollFactor(0)
       .setDepth(DEPTH.hud - 3);
+    const speaker = SPEAKERS[live.visit.who ?? 'walker'];
     const name = this.add
-      .text(16, top - 4, ' WALKER ', {
+      .text(16, top - 4, ` ${speaker} `, {
         fontFamily: HUD.font,
         fontSize: '8px',
         color: '#ffd166',
@@ -1307,6 +1331,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       page: 0,
       objects: [box, name, text, more],
       text,
+      name,
+      speaker,
+      guest: null,
     };
     this.showPage();
   }
@@ -1317,6 +1344,19 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     const page = talk?.pages[talk.page];
     if (!talk || !page) return;
     talk.text.setText(page.lines.join('\n'));
+    talk.name.setText(` ${page.who ?? talk.speaker} `);
+    // Walker speaking in someone else's talk comes in a shimmer, beside them.
+    const live = this.walker;
+    if (page.who === SPEAKERS.walker && talk.speaker !== SPEAKERS.walker && !talk.guest && live) {
+      const at = { x: live.feet.x + TILE * 1.5, y: live.feet.y };
+      const o = this.origin(this.room.col, this.room.row);
+      talk.guest = this.enemyPool
+        .take('walker', HERO.standFrame.down)
+        .setOrigin(0.5, HERO.feetY / HERO.frameHeight)
+        .setPosition(o.x + at.x, o.y + at.y)
+        .setDepth(DEPTH.sorted + o.y + at.y);
+      this.effect('puff', at.x, at.y - BODY.height / 2);
+    }
     for (const item of page.give) this.inv = give(this.inv, item);
     this.sfx.play(page.give.length > 0 ? 'chest' : 'menu');
     // The game waits while he talks, so show a gift in the status bar now.
@@ -1333,6 +1373,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       return;
     }
     for (const o of talk.objects) o.destroy();
+    if (talk.guest) this.enemyPool.give(talk.guest);
     this.talk = null;
     const live = this.walker;
     if (!live) return;
@@ -1347,8 +1388,23 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.effect('puff', live.feet.x, live.feet.y - BODY.height / 2);
     this.enemyPool.give(live.sprite.setFlipX(false));
     this.walker = null;
+    // Kira's rescue ends the game.
+    if (live.visit.ends) {
+      this.finishGame();
+      return;
+    }
     // What he gave is kept: a save point saves now.
     this.saveAtSavePoint();
+  }
+
+  /**
+   * The quest is done (Kira is free): the game is saved as it stands, from the
+   * map's start, and the ending shows the time it took.
+   */
+  private finishGame(): void {
+    this.writeGame();
+    const ending: EndingData = { playMs: Math.round(this.playMs), cheated: this.cheated };
+    this.scene.start('Ending', ending);
   }
 
   /** A boss, with its health bar along the bottom of the room. */
@@ -1702,6 +1758,16 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     for (const shot of [...this.enemyShots]) this.dropEnemyShot(shot);
     this.dropBoss();
     this.unseal();
+    // Its room's gates open for good (the cell where the Sorcerer held Kira).
+    const room = this.world.rooms.get(key);
+    const gates = room ? fixturesIn(room).filter((f) => f.fixture === 'gate') : [];
+    for (const g of gates) {
+      this.progress = openChest(this.progress, fixtureId(this.mapId, key, g.x, g.y));
+    }
+    if (gates.length > 0) {
+      this.sfx.play('unlock');
+      this.redrawRoom();
+    }
     this.placeRewards();
   }
 
@@ -2790,11 +2856,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       cheated: this.cheated,
       savedPlayMs: this.savedPlayMs,
       walker: this.walker ? { ...this.walker.feet } : null,
+      walkerWho: this.walker ? (this.walker.visit.who ?? 'walker') : null,
       talking: this.talk
         ? {
             page: this.talk.page,
             pages: this.talk.pages.length,
             lines: [...(this.talk.pages[this.talk.page]?.lines ?? [])],
+            who: this.talk.pages[this.talk.page]?.who ?? this.talk.speaker,
           }
         : null,
     };

@@ -9,6 +9,7 @@ import { GameScene } from './scenes/GameScene';
 import { InventoryScene } from './scenes/InventoryScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { ShopScene } from './scenes/ShopScene';
+import { EndingScene } from './scenes/EndingScene';
 import { TitleScene } from './scenes/TitleScene';
 
 const zoomForWindow = (): number =>
@@ -41,7 +42,15 @@ export const game = new Phaser.Game({
         mode: Phaser.Scale.NONE,
         zoom: zoomForWindow(),
       },
-  scene: [PreloadScene, TitleScene, GameScene, InventoryScene, ShopScene, AssetPreviewScene],
+  scene: [
+    PreloadScene,
+    TitleScene,
+    GameScene,
+    InventoryScene,
+    ShopScene,
+    EndingScene,
+    AssetPreviewScene,
+  ],
 });
 
 // FIT follows the window by itself; the whole-number zoom is redone here.
