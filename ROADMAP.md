@@ -130,7 +130,7 @@
   - [x] M5.3a Seven tunnels under the mountains (in earthy stone; the cave needs three shards): the Axe behind thorns, rubble across the hub's way north and a boulder before key 2 (the Axe), key 1 caged behind a crystal switch (Lightning)
   - [ ] M5.3b The Ogre
 - [ ] M5.4 New enemy types for these regions
-- [ ] M5.5 Walker's lines at dungeons 2–4 and on the overworld
+- [x] M5.5 Walker's lines at dungeons 2–4 and on the overworld: a hint at each entrance (the boss, and what the dungeon's item does), and outside each once its shard is found (the way on; choosing spells; secrets the Axe opens). On a phone he names the touch buttons, not the keys
 
 **Acceptance criteria (each dungeon):** owner play-test; reachability test passes; the boss has its own attack pattern.
 
