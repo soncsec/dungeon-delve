@@ -1529,6 +1529,7 @@ async function wardInHub(page: Page): Promise<void> {
     window.__game?.holdEnemies(true);
     window.__game?.goToRoom(1, 2); // the hub
     window.__game?.clearEnemies();
+    window.__game?.holdEnemies(false); // the room is empty; shots must fly
     window.__game?.setMana(100);
   });
 }
@@ -1539,23 +1540,23 @@ test('the Ward: a bubble that blocks every hit for a few seconds, cast once at a
   const watched = watchPage(page);
   await wardInHub(page);
   await page.evaluate(() => window.__game?.placeHero(160, 94, 'up'));
+  // Cast, and at once again while it is up: the second does nothing.
+  await page.keyboard.press('c');
   await page.keyboard.press('c');
   await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
-  const up = await snapshot(page);
-  expect(up.casts).toBe(1);
-  expect(up.mana.current).toBe(60);
-  expect(up.sounds.ward).toBe(1);
-  // A shot from behind, which the shield can't stop: the bubble does.
-  await page.evaluate(() => window.__game?.fireEnemyShot(160, 140, 0, -1));
+  // A shot from just behind, which the shield can't stop: the bubble does.
+  await page.evaluate(() => window.__game?.fireEnemyShot(160, 112, 0, -1));
   await expect.poll(async () => (await snapshot(page)).blocked).toBe(1);
-  expect((await snapshot(page)).health.points).toBe(up.health.max);
-  // Cast again while it is up: nothing (no mana spent).
-  await page.keyboard.press('c');
-  await page.waitForTimeout(200);
-  expect((await snapshot(page)).casts).toBe(1);
+  const up = await snapshot(page);
+  expect(up.health.points).toBe(up.health.max);
+  expect(up.casts).toBe(1);
+  expect(up.sounds.ward).toBe(1);
+  // One cast's mana spent (40 of 100; it may have begun to refill since), not two.
+  expect(up.mana.current).toBeGreaterThanOrEqual(60);
+  expect(up.mana.current).toBeLessThan(100);
   // It drops after its time, and then a shot from behind hurts.
   await expect.poll(async () => (await snapshot(page)).warded, { timeout: 10_000 }).toBe(false);
-  await page.evaluate(() => window.__game?.fireEnemyShot(160, 140, 0, -1));
+  await page.evaluate(() => window.__game?.fireEnemyShot(160, 112, 0, -1));
   await expect.poll(async () => (await snapshot(page)).health.points).toBe(up.health.max - 1);
   expect(watched.errors).toEqual([]);
 });

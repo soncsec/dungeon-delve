@@ -127,7 +127,9 @@ export const WARD = {
   breakMs: 400,
   castPauseMs: 200,
   /** The bubble's middle sits this far above his feet, round his body (px). */
-  bubbleLift: 12,
+  bubbleLift: 14,
+  /** Where the bubble's middle is in its 51×47 frame (it isn't the frame's middle), as origin fractions. */
+  bubbleOrigin: { x: 23.5 / 51, y: 26.5 / 47 },
   /** Drawn see-through, so he shows inside it (the art flashes solid once a cycle). */
   bubbleAlpha: 0.6,
 } as const;

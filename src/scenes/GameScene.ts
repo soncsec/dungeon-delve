@@ -636,7 +636,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
     this.pos = { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift };
     this.hero = this.add.sprite(0, 0, 'jarrett', 0).setOrigin(0.5, HERO.feetY / HERO.frameHeight);
-    this.wardBubble = this.add.sprite(0, 0, 'ward', 0).setVisible(false).setAlpha(WARD.bubbleAlpha);
+    this.wardBubble = this.add
+      .sprite(0, 0, 'ward', 0)
+      .setOrigin(WARD.bubbleOrigin.x, WARD.bubbleOrigin.y)
+      .setAlpha(WARD.bubbleAlpha)
+      .setVisible(false);
     this.placeSprite();
 
     this.keys = new KeyInput(KEYS);
