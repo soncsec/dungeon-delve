@@ -37,6 +37,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/bosses/dragon-breath.png` — `Gothicvania/Characters/Grotto-escape-2-boss-dragon/spritesheets/breath.png`
 - `assets/bosses/dragon-tail.png` — `Gothicvania/Characters/Grotto-escape-2-boss-dragon/spritesheets/tail.png`
 - `assets/bosses/sorcerer.png` — `TinyRPG/Characters/Battle Sprites/Living Pack 1/Wizard/wizard-sheet.png`
+- `assets/bosses/demon.png` — `TinyRPG/Characters/Battle Sprites/Monster Pack Files/spritesheets/demon-sheet.png`, scaled to 80% by `tools/art/scale_demon.py` so it fits the room (owner decision 2026-10-22)
 
 ### Tiles
 

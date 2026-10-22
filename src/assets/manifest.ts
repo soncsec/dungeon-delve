@@ -120,6 +120,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('bosses', 'dragon', 144, 64, 6, 1, [anim('sway', range(0, 6), 8)]),
   // The Sorcerer (the Shadow Vault): 6 frames of 95×133, his hands aglow with magic.
   sheet('bosses', 'sorcerer', 95, 133, 6, 1, [anim('sway', range(0, 6), 7)]),
+  // The Demon, his true shape: 5 frames of 89×122, the pack's horned demon at 80% (tools/art/scale_demon.py).
+  sheet('bosses', 'demon', 89, 122, 5, 1, [anim('sway', range(0, 5), 6)]),
   sheet('bosses', 'dragon-breath', 144, 64, 7, 1, [
     anim('rear', range(0, 3), 5, false),
     anim('breathe', range(3, 4), 10),

@@ -65,6 +65,8 @@ import {
   isLashing,
   isShielded,
   breakShield,
+  becomes,
+  become,
   lashHurts,
   glancesOff,
   isFierce,
@@ -1655,7 +1657,31 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       this.beat(live);
       return;
     }
+    const next = becomes(live.b, stats);
+    if (next) {
+      this.showTrueShape(live, next);
+      return;
+    }
     this.sfx.play('hit');
+    this.drawBoss(live);
+  }
+
+  /**
+   * The boss shows its true shape (the Sorcerer, the Demon): it bursts into
+   * smoke, its shots fizzle, and the new one fights on with the health it had.
+   */
+  private showTrueShape(live: LiveBoss, kind: BossKind): void {
+    const was = BOSSES[live.b.kind];
+    const { x, y } = live.b.pos;
+    for (const k of [0.25, 0.5, 0.75]) this.effect('puff', x, y - was.box.height * k);
+    for (const shot of [...this.enemyShots]) this.dropEnemyShot(shot);
+    live.b = become(live.b, kind, BOSSES[kind], this.rng);
+    this.enemyPool.give(live.sprite.clearTint().setScale(1).setFlipX(false));
+    live.sprite = this.enemyPool.take(kind).setOrigin(0.5, 1).play(animKey(kind, 'sway'));
+    live.pose = animKey(kind, 'sway');
+    live.shield?.destroy();
+    live.shield = null;
+    this.sfx.play('rumble');
     this.drawBoss(live);
   }
 
@@ -2900,6 +2926,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   /** Test hook only: set the boss's health (it still needs a hit to be beaten). */
   testSetBossHealth(health: number): void {
     if (this.boss) this.boss.b = { ...this.boss.b, health: Math.max(1, health) };
+  }
+
+  /** Test hook only: break the boss's shield, as an orb batted back into it does. */
+  testBreakBossShield(): void {
+    if (this.shieldUp()) this.breakTheShield();
   }
 
   /** Test hook only: set the mana level. */
