@@ -1,7 +1,7 @@
 /**
  * Dungeon 7, Crimson Manor (PROJECT.md §3c): seven rooms of an old manor in the ruins.
  *
- *                 [hall of the Vampire]           the Vampire (M6.3c)
+ *                 [hall of the Vampire]           the Vampire
  *   [library]     [gallery]           [chapel]    library: key 2 caged by an eye; gallery: locked
  *                                                 door up (key 2); chapel: a Mana Brew behind a switch
  *   [west wing]   [foyer]             [east wing] west: key 1 behind sparks; foyer: the way in, and a
@@ -17,10 +17,11 @@ import type { RoomDef } from '../logic/world';
 export const DUNGEON_7_START = { col: 1, row: 2 } as const;
 
 export const DUNGEON_7: readonly RoomDef[] = [
-  // The hall of the Vampire (M6.3c).
+  // The hall of the Vampire.
   {
     col: 1,
     row: 0,
+    boss: { kind: 'vampire', col: 10, row: 4 },
     lines: [
       '####################',
       '####################',

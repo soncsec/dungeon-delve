@@ -1976,6 +1976,72 @@ test('Crimson Manor’s prize: the Triple Daggers, behind rubble the Axe smashes
   expect(watched.errors).toEqual([]);
 });
 
+/** Into Crimson Manor's top hall (by the test hook), Jarrett placed at once at `at`. */
+async function enterVampireRoom(page: Page, at: { x: number; y: number }): Promise<void> {
+  await openGame(page, '?dungeon=7');
+  await page.evaluate(({ x, y }) => {
+    window.__game?.goToRoom(1, 0);
+    window.__game?.placeHero(x, y, 'up');
+  }, at);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('vampire');
+}
+
+test('the Vampire’s touch drains Jarrett and heals it', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterVampireRoom(page, { x: 40, y: 126 });
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(6);
+  });
+  const boss = (await snapshot(page)).boss;
+  // Right against it.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), {
+    x: boss?.x ?? 0,
+    y: boss?.y ?? 0,
+  });
+  await expect.poll(async () => (await snapshot(page)).health.points).toBe(5);
+  expect((await snapshot(page)).boss?.health).toBe(7);
+  expect(watched.errors).toEqual([]);
+});
+
+test('the Vampire bursts into a ring of dark shots and re-forms somewhere else', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterVampireRoom(page, { x: 40, y: 126 });
+  const start = (await snapshot(page)).boss;
+  await page.evaluate(() => window.__game?.enemiesShootNow());
+  await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(8);
+  expect((await snapshot(page)).boss?.gone).toBe(true);
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.gone, { timeout: 10_000, intervals: [50] })
+    .toBe(false);
+  const back = (await snapshot(page)).boss;
+  expect({ x: back?.x, y: back?.y }).not.toEqual({ x: start?.x, y: start?.y });
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Vampire leaves a heart container and Crimson Manor’s shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await enterVampireRoom(page, { x: 40, y: 126 });
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+    window.__game?.setBossHealth(1);
+  });
+  const boss = (await snapshot(page)).boss;
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 28, y, 'right'), {
+    x: boss?.x ?? 0,
+    y: boss?.y ?? 0,
+  });
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
+  expect(kinds).toEqual(['heart-container', 'shard']);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {
