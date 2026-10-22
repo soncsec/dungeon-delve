@@ -1530,8 +1530,12 @@ test('the Centaur gallops at Jarrett when he is level with it', async ({ page })
   await expect
     .poll(async () => (await snapshot(page)).boss?.galloping, { intervals: [50] })
     .toBe(true);
-  // It rushes along the row at him: a full heart on touch.
-  await expect.poll(async () => (await snapshot(page)).health.points).toBe(4);
+  // It rushes along the row at him: a full heart on touch. (Looked at often, to catch that
+  // first touch: it may touch him again once his moment of safety is over.)
+  await expect
+    .poll(async () => (await snapshot(page)).health.points, { intervals: [20] })
+    .toBeLessThan(6);
+  expect((await snapshot(page)).health.points).toBe(4);
   expect(watched.errors).toEqual([]);
 });
 
