@@ -89,9 +89,9 @@ describe('maps', () => {
     const into = MAPS.overworld.rooms
       .filter((r) => (r.exits ?? []).some((e) => e.to.map === 'dungeon2'))
       .map((r) => `${r.col},${r.row}`);
-    expect(into).toEqual(['1,5']);
+    expect(into).toEqual(['2,8']);
     const out = MAPS.dungeon2.rooms.flatMap((r) => r.exits ?? []).map((e) => e.to);
-    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 1, row: 5 } })]);
+    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 2, row: 8 } })]);
     expect(DUNGEON_MAPS[2]).toBe('dungeon2');
   });
 
@@ -111,9 +111,9 @@ describe('maps', () => {
     const into = MAPS.overworld.rooms
       .filter((r) => (r.exits ?? []).some((e) => e.to.map === 'dungeon3'))
       .map((r) => `${r.col},${r.row}`);
-    expect(into).toEqual(['5,4']);
+    expect(into).toEqual(['10,6']);
     const out = MAPS.dungeon3.rooms.flatMap((r) => r.exits ?? []).map((e) => e.to);
-    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 5, row: 4 } })]);
+    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 10, row: 6 } })]);
     expect(DUNGEON_MAPS[3]).toBe('dungeon3');
   });
 
@@ -121,9 +121,9 @@ describe('maps', () => {
     const into = MAPS.overworld.rooms
       .filter((r) => (r.exits ?? []).some((e) => e.to.map === 'dungeon4'))
       .map((r) => `${r.col},${r.row}`);
-    expect(into).toEqual(['3,1']);
+    expect(into).toEqual(['6,2']);
     const out = MAPS.dungeon4.rooms.flatMap((r) => r.exits ?? []).map((e) => e.to);
-    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 3, row: 1 } })]);
+    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 6, row: 2 } })]);
     expect(DUNGEON_MAPS[4]).toBe('dungeon4');
   });
 });

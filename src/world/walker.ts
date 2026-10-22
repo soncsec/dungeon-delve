@@ -67,7 +67,7 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     // 2026-10-21: he teaches the Fireball), the daggers, and what's left to do.
     id: 'dungeon1-done',
     map: 'overworld',
-    room: { col: 3, row: 5 },
+    room: { col: 6, row: 8 },
     cell: { col: 13, row: 4 },
     after: 'dungeon1/shard',
     speech: [
@@ -108,7 +108,7 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     // Outside Bog Grotto, once its shard is found: the way on.
     id: 'dungeon2-done',
     map: 'overworld',
-    room: { col: 1, row: 5 },
+    room: { col: 2, row: 8 },
     cell: { col: 12, row: 3 },
     after: 'dungeon2/shard',
     speech: [
@@ -135,7 +135,7 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     // Outside Sunken Crypt, once its shard is found: choosing spells, and the way on.
     id: 'dungeon3-done',
     map: 'overworld',
-    room: { col: 5, row: 4 },
+    room: { col: 10, row: 6 },
     cell: { col: 12, row: 3 },
     after: 'dungeon3/shard',
     speech: [
@@ -166,7 +166,7 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     // Outside Stonecrag Mine, once its shard is found: secrets the Axe opens.
     id: 'dungeon4-done',
     map: 'overworld',
-    room: { col: 3, row: 1 },
+    room: { col: 6, row: 2 },
     cell: { col: 13, row: 4 },
     after: 'dungeon4/shard',
     speech: [
