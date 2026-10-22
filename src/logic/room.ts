@@ -42,6 +42,9 @@
  *   z  crystal switch (part of a wall; a Lightning bolt powers it, for good)
  *   g  gate           (barred until a crystal switch in the same room is powered)
  *
+ * Ward puzzles (dungeons):
+ *   e  spark barrier  (crackling energy; zaps Jarrett back, but he walks through inside the Ward)
+ *
  * Mountains:
  *   V  cave entrance (3×3, anchored top-left: rock all round, the doorway in the middle column open)
  *
@@ -94,10 +97,10 @@ export interface Cell {
  * Things that block until opened: a locked door (a key), a chest, a false wall
  * (the sword), a cracked wall or a boulder (the Axe), a thorn bush (Fireball).
  * A crystal switch (Lightning) is powered rather than opened, and opens the
- * gates in its room.
+ * gates in its room. A spark barrier never opens: only the Ward lets him through.
  */
 export type Fixture =
-  'door' | 'chest' | 'hollow' | 'cracked' | 'boulder' | 'thorns' | 'switch' | 'gate';
+  'door' | 'chest' | 'hollow' | 'cracked' | 'boulder' | 'thorns' | 'switch' | 'gate' | 'spark';
 
 export interface Room {
   cells: readonly (readonly Cell[])[];
@@ -201,6 +204,7 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       if (ch === 'K') return { ...plain, solid: true, fixture: 'door' };
       if (ch === 'z') return { ...plain, solid: true, wall: true, fixture: 'switch' };
       if (ch === 'g') return { ...plain, solid: true, fixture: 'gate' };
+      if (ch === 'e') return { ...plain, solid: true, fixture: 'spark' };
       if (ch === 'C') return { ...plain, solid: true, fixture: 'chest' };
       if (ch === 'D') return { ...plain, solid: false, exit: true };
       if (ch === 'B') {
@@ -304,12 +308,14 @@ export function isWall(room: Room, x: number, y: number): boolean {
   return cellAt(room, cx, cy)?.wall ?? false;
 }
 
-/** Where Jarrett can pass to the room next door: open ground, or a door (locked or not), but not a doorway to another map. */
+/** Where Jarrett can pass to the room next door: open ground, a door (locked or not), a gate or a spark barrier, but not a doorway to another map. */
 export function isPassage(room: Room, x: number, y: number): boolean {
   const cell = cellAt(room, x, y);
   if (!cell) return true;
   if (cell.exit) return false;
-  return !cell.solid || cell.fixture === 'door' || cell.fixture === 'gate';
+  return (
+    !cell.solid || cell.fixture === 'door' || cell.fixture === 'gate' || cell.fixture === 'spark'
+  );
 }
 
 /** Every doorway cell to another map in a room. */

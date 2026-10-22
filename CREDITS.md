@@ -49,6 +49,8 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/effects/bolt.png` — `Explosions and Magic/Warped shooting fx/Bolt/spritesheet.png`
 - `assets/effects/enemy-shot.png` — `Gothicvania/Misc/EnemyProjectile/spritesheet.png`
 - `assets/effects/snake-spit.png` — `Warped/Characters/Grotto-escape-2-snake/spritesheets/spit.png`
+- `assets/effects/ward.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/energy-shield.png`, the Ward spell's bubble
+- `assets/effects/spark.png` — a spark barrier: 16×16 tiles cut, unchanged, from the middle of `Explosions and Magic/Warped shooting fx/waveform/spritesheet.png` by `tools/art/spark_barrier.py` (owner decision 2026-10-21)
 
 ### Items
 
