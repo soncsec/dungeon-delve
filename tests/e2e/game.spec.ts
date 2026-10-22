@@ -2887,7 +2887,12 @@ test('a new game from the title screen saves at the start room', async ({ page }
   const watched = watchPage(page);
   await page.goto('./');
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
-  expect(await titleShows(page)).toEqual({ screen: 'menu', options: ['NEW GAME'], cursor: 0 });
+  expect(await titleShows(page)).toEqual({
+    screen: 'menu',
+    options: ['NEW GAME'],
+    cursor: 0,
+    fastest: null,
+  });
   await page.keyboard.press('Enter');
   await expect.poll(() => sceneNow(page)).toBe('Game');
   const s = await snapshot(page);
@@ -2947,11 +2952,11 @@ test('NEW GAME over a save asks first; NO keeps it, YES starts over', async ({ p
   await page.keyboard.press('Enter');
   await expect
     .poll(() => titleShows(page))
-    .toEqual({ screen: 'confirm', options: ['NO', 'YES'], cursor: 0 });
+    .toEqual({ screen: 'confirm', options: ['NO', 'YES'], cursor: 0, fastest: null });
   await page.keyboard.press('Enter'); // NO
   await expect
     .poll(() => titleShows(page))
-    .toEqual({ screen: 'menu', options: ['CONTINUE', 'NEW GAME'], cursor: 1 });
+    .toEqual({ screen: 'menu', options: ['CONTINUE', 'NEW GAME'], cursor: 1, fastest: null });
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await titleShows(page))?.screen).toBe('confirm');
   await page.keyboard.press('ArrowDown');
