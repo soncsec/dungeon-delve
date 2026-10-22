@@ -3,6 +3,7 @@ import {
   bossBody,
   blinkSpots,
   bossShotOrigin,
+  drainHeal,
   gallopWay,
   hitBoss,
   isGalloping,
@@ -551,5 +552,98 @@ describe('the Witch: blinking from spot to spot, with decoys when fierce', () =>
     expect(popped.health).toBe(10);
     expect(hitBoss(b, 2, 4, 100, w, 'steel-sword').health).toBe(8);
     expect(hitBoss(b, 1, 5, 100, w, null).health).toBe(9);
+  });
+});
+
+describe('the Vampire: gliding after Jarrett, draining him, and bursting into a ring', () => {
+  const spots = [
+    { x: 60, y: 90 },
+    { x: 160, y: 80 },
+  ];
+  const m = {
+    style: 'swarm' as const,
+    speed: 20,
+    goneMs: 500,
+    spots,
+    arena: { x: 50, y: 70, w: 220, h: 50 },
+  };
+  const v: BossStats = {
+    health: 12,
+    contactDamage: 1,
+    drain: 1,
+    box: { halfWidth: 20, height: 56 },
+    moves: m,
+    shotKind: 'dark',
+    calm: { shots: 8, spreadDeg: 45, everyMs: { min: 4000, max: 4000 } },
+    fierce: { shots: 12, spreadDeg: 30, everyMs: { min: 2500, max: 2500 } },
+  };
+  const vampire = (over: Partial<Boss> = {}): Boss =>
+    boss({
+      kind: 'vampire',
+      pos: { x: 60, y: 90 },
+      home: { x: 60, y: 90 },
+      health: 12,
+      stayMs: 4000,
+      ...over,
+    });
+
+  it('starts with its stay at its spot', () => {
+    expect(spawnBoss('vampire', { x: 60, y: 90 }, v, firstRng).stayMs).toBe(4000);
+  });
+
+  it('glides after him, inside its arena, turning his way', () => {
+    const r = stepBoss(vampire(), 1000, { x: 160, y: 90 }, v, firstRng);
+    expect(r.boss.pos).toEqual({ x: 80, y: 90 });
+    expect(r.boss.heading).toBe(1);
+    expect(r.shots).toEqual([]);
+    expect(
+      stepBoss(vampire({ heading: 1 }), 1000, { x: 0, y: 90 }, v, firstRng).boss,
+    ).toMatchObject({
+      pos: { x: 50, y: 90 },
+      heading: -1,
+    });
+    // Right under it: it stays put, facing as it was.
+    expect(stepBoss(vampire(), 100, { x: 60, y: 90 }, v, firstRng).boss.pos).toEqual({
+      x: 60,
+      y: 90,
+    });
+    expect(
+      stepBoss(vampire({ heading: -1 }), 100, { x: 60, y: 200 }, v, firstRng).boss.heading,
+    ).toBe(-1);
+  });
+
+  it('when its time is up, it bursts into a ring of shots (the first at him) and vanishes', () => {
+    const r = stepBoss(vampire({ stayMs: 10 }), 20, { x: 160, y: 90 }, v, firstRng);
+    expect(r.shots).toHaveLength(8);
+    expect(r.shots[0]?.x).toBeGreaterThan(0.9);
+    expect(isGone(r.boss)).toBe(true);
+    // Twelve when fierce.
+    expect(stepBoss(vampire({ health: 6, stayMs: 10 }), 20, hero, v, firstRng).shots).toHaveLength(
+      12,
+    );
+  });
+
+  it('then re-forms at another spot, staying a shorter time when fierce', () => {
+    const still = stepBoss(vampire({ goneMs: 400 }), 100, hero, v, firstRng).boss;
+    expect(isGone(still)).toBe(true);
+    const back = stepBoss(still, 300, hero, v, firstRng).boss;
+    expect(isGone(back)).toBe(false);
+    expect(back.pos).toEqual({ x: 160, y: 80 });
+    expect(back.stayMs).toBe(4000);
+    expect(stepBoss(vampire({ health: 6, goneMs: 10 }), 20, hero, v, firstRng).boss.stayMs).toBe(
+      2500,
+    );
+    // With nowhere else to go, it re-forms where it was.
+    const lone = { ...v, moves: { ...m, spots: [{ x: 60, y: 90 }] } };
+    expect(stepBoss(vampire({ goneMs: 10 }), 20, hero, lone, firstRng).boss.pos).toEqual({
+      x: 60,
+      y: 90,
+    });
+  });
+
+  it('a touch heals it a little, never past full; a boss that does not drain is unchanged', () => {
+    expect(drainHeal(vampire({ health: 5 }), v).health).toBe(6);
+    expect(drainHeal(vampire({ health: 12 }), v).health).toBe(12);
+    expect(drainHeal(boss({ health: 5 }), s)).toEqual(boss({ health: 5 }));
   });
 });

@@ -10,6 +10,9 @@
  * and calls down a storm of lightning (logic/storm.ts) instead of shooting.
  * The Witch blinks from spot to spot, throwing fire; fierce, she leaves
  * look-alike decoys, which fire too but pop at a blow and never hurt her.
+ * The Vampire glides after Jarrett, draining him (and healing itself) on
+ * touch; now and then it bursts into a ring of dark shots, vanishes, and
+ * re-forms elsewhere (sooner when fierce).
  * Below half health a boss turns fiercer: more shots, more often. A hit (by
  * id, so each lands once) costs it health; at zero it is beaten.
  */
@@ -18,7 +21,7 @@ import type { Point } from './movement';
 import type { Rng } from './rng';
 import type { ShotKind, Vec } from './enemies';
 
-export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur' | 'witch';
+export type BossKind = 'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur' | 'witch' | 'vampire';
 
 /** How a boss moves. */
 export type BossMoves =
@@ -61,6 +64,18 @@ export type BossMoves =
       spots: readonly Point[];
       decoys: number;
     }
+  /**
+   * Gliding after Jarrett at `speed` (feet inside `arena`); when its time at a
+   * spot runs out (its mood's `everyMs`), it bursts into a ring of shots,
+   * vanishes for `goneMs`, and re-forms at one of `spots` (room pixels).
+   */
+  | {
+      style: 'swarm';
+      speed: number;
+      goneMs: number;
+      spots: readonly Point[];
+      arena: { x: number; y: number; w: number; h: number };
+    }
   | {
       style: 'gallop';
       speed: number;
@@ -101,6 +116,8 @@ export interface BossStats {
   storm?: boolean;
   /** What its shots are (the Witch throws fire); the flying eye's orbs if not said. */
   shotKind?: ShotKind;
+  /** A touch drains Jarrett and heals it this much (the Vampire). */
+  drain?: number;
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -151,7 +168,12 @@ export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): B
     stunMs: 0,
     dash: null,
     restMs: 0,
-    stayMs: s.moves.style === 'blink' ? rng.int(s.moves.stayMs.min, s.moves.stayMs.max) : 0,
+    stayMs:
+      s.moves.style === 'blink'
+        ? rng.int(s.moves.stayMs.min, s.moves.stayMs.max)
+        : s.moves.style === 'swarm'
+          ? rng.int(s.calm.everyMs.min, s.calm.everyMs.max)
+          : 0,
     goneMs: 0,
     decoys: [],
   };
@@ -209,6 +231,7 @@ export function stepBoss(
   if (m.style === 'hop') return { ...stepLeaper(b, dtMs, hero, s, m, rng), storm: false };
   if (m.style === 'gallop') return stepGalloper(b, dtMs, hero, s, m, rng);
   if (m.style === 'blink') return stepBlinker(b, dtMs, hero, s, m, rng);
+  if (m.style === 'swarm') return stepSwarmer(b, dtMs, hero, s, m, rng);
   const mood = isFierce(b, s) ? s.fierce : s.calm;
   let x = b.pos.x;
   let y = b.pos.y;
@@ -406,6 +429,55 @@ function stepBlinker(
     shootInMs = rng.int(mood.everyMs.min, mood.everyMs.max);
   }
   return { boss: { ...b, stayMs, shootInMs, flashMs }, shots, storm: false };
+}
+
+type SwarmMoves = Extract<BossMoves, { style: 'swarm' }>;
+
+/**
+ * A swarmer: gone, it waits, then re-forms at another spot; there, it glides
+ * after Jarrett until its time is up, then bursts into a ring of shots (the
+ * first aimed at him) and vanishes.
+ */
+function stepSwarmer(
+  b: Boss,
+  dtMs: number,
+  hero: Point,
+  s: BossStats,
+  m: SwarmMoves,
+  rng: Rng,
+): { boss: Boss; shots: Vec[]; storm: boolean } {
+  const flashMs = Math.max(0, b.flashMs - dtMs);
+  const mood = isFierce(b, s) ? s.fierce : s.calm;
+  if (b.goneMs > 0) {
+    const goneMs = b.goneMs - dtMs;
+    if (goneMs > 0) return { boss: { ...b, goneMs, flashMs }, shots: [], storm: false };
+    const pool = m.spots.filter((p) => p.x !== b.pos.x || p.y !== b.pos.y);
+    const to = pool.length > 0 ? (pool[rng.int(0, pool.length - 1)] as Point) : b.pos;
+    const stayMs = rng.int(mood.everyMs.min, mood.everyMs.max);
+    return { boss: { ...b, pos: { ...to }, goneMs: 0, stayMs, flashMs }, shots: [], storm: false };
+  }
+  const stayMs = b.stayMs - dtMs;
+  if (stayMs <= 0) {
+    const shots = ring(aimAt(bossShotOrigin(b, s), hero), mood.shots, 360 / mood.shots);
+    return { boss: { ...b, stayMs: 0, goneMs: m.goneMs, flashMs }, shots, storm: false };
+  }
+  // Gliding after him (no further than he is), its feet kept inside the arena.
+  const dx = hero.x - b.pos.x;
+  const dy = hero.y - b.pos.y;
+  const len = Math.hypot(dx, dy);
+  const step = Math.min(len, (m.speed * dtMs) / 1000);
+  const pos =
+    len > 0
+      ? within({ x: b.pos.x + (dx / len) * step, y: b.pos.y + (dy / len) * step }, m.arena)
+      : b.pos;
+  const heading = dx < 0 ? -1 : dx > 0 ? 1 : b.heading;
+  return { boss: { ...b, pos, heading, stayMs, flashMs }, shots: [], storm: false };
+}
+
+/** A touch that hurt Jarrett heals a draining boss (the Vampire), up to its full health. */
+export function drainHeal(b: Boss, s: BossStats): Boss {
+  if (!s.drain) return b;
+  return { ...b, health: Math.min(s.health, b.health + s.drain) };
 }
 
 /** Whether it has vanished mid-blink: nothing lands on it, and it hurts no one. */

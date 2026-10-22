@@ -51,6 +51,7 @@ import { fallMessage, gemsAfterFalling } from '../logic/death';
 import {
   aimAt,
   bossBody,
+  drainHeal,
   bossShotOrigin,
   isGone,
   popDecoy,
@@ -443,10 +444,12 @@ const ENEMY_ART: Readonly<
   toad: { sheet: 'toad', anim: 'hop', feetY: 38 / 38 },
 };
 /** Bosses whose art faces left (the rest face right or straight on): mirrored to face right. */
-const BOSS_FACES_LEFT: ReadonlySet<BossKind> = new Set(['centaur']);
+const BOSS_FACES_LEFT: ReadonlySet<BossKind> = new Set(['centaur', 'vampire']);
 
 /** The mushroom's spores: the enemy orb under a sickly green (runtime tint, ADR-D05). */
 const SPORE_TINT = 0x9fe070;
+/** The Vampire's dark shots: the enemy orb under a deep purple (runtime tint). */
+const DARK_TINT = 0x9050d0;
 
 interface Pickup {
   kind: PickupKind;
@@ -1871,6 +1874,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
               .play(animKey('fire-ball', 'fly'))
           : this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
     if (kind === 'spore') sprite.setTint(SPORE_TINT);
+    if (kind === 'dark') sprite.setTint(DARK_TINT);
     const live = { s, sprite };
     this.enemyShots.push(live);
     this.drawEnemyShot(live);
@@ -2279,7 +2283,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     );
     if (toucher) this.hurtHero(ENEMIES[toucher.e.kind].contactDamage, toucher.e.pos, now);
     else if (this.boss && this.bossAt(body)) {
-      this.hurtHero(BOSSES[this.boss.b.kind].contactDamage, this.boss.b.pos, now);
+      const stats = BOSSES[this.boss.b.kind];
+      const before = this.health.points;
+      this.hurtHero(stats.contactDamage, this.boss.b.pos, now);
+      // A draining boss (the Vampire) heals by what it takes.
+      if (this.health.points < before) this.boss.b = drainHeal(this.boss.b, stats);
     }
   }
 
@@ -2695,7 +2703,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
    */
   testEnemiesShootNow(): void {
     for (const live of this.enemies) live.e = { ...live.e, shootInMs: 0 };
-    if (this.boss) this.boss.b = { ...this.boss.b, shootInMs: 0 };
+    if (this.boss) {
+      // A swarmer (the Vampire) attacks as its stay runs out.
+      const swarm = BOSSES[this.boss.b.kind].moves.style === 'swarm';
+      this.boss.b = { ...this.boss.b, shootInMs: 0, ...(swarm ? { stayMs: 0 } : {}) };
+    }
     this.eyes = this.eyes.map((eye) => ({ ...eye, inMs: 0 }));
   }
 

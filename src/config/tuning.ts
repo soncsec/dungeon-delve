@@ -418,6 +418,31 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     calm: { shots: 3, spreadDeg: 20, everyMs: { min: 1400, max: 2000 } },
     fierce: { shots: 3, spreadDeg: 25, everyMs: { min: 1100, max: 1600 } },
   },
+  // Dungeon 7: glides after Jarrett, draining him on touch (and healing itself); now and then it
+  // bursts into a ring of dark shots and re-forms elsewhere, sooner below half health
+  // (owner 2026-10-22). Any weapon hurts it. `everyMs` is how long it stays before bursting.
+  vampire: {
+    health: 12,
+    contactDamage: 1,
+    drain: 1,
+    box: { halfWidth: 20, height: 56 },
+    moves: {
+      style: 'swarm',
+      speed: 26,
+      goneMs: 700,
+      spots: [
+        { x: 64, y: 96 },
+        { x: 160, y: 80 },
+        { x: 256, y: 96 },
+        { x: 96, y: 124 },
+        { x: 224, y: 124 },
+      ],
+      arena: { x: 52, y: 72, w: 216, h: 52 },
+    },
+    shotKind: 'dark',
+    calm: { shots: 8, spreadDeg: 45, everyMs: { min: 3600, max: 4400 } },
+    fierce: { shots: 12, spreadDeg: 30, everyMs: { min: 2200, max: 2800 } },
+  },
 };
 
 /**
@@ -479,6 +504,7 @@ export const ENEMY_SHOTS = {
   venom: { speed: 150, range: 160, size: 6, damage: 1 },
   spore: { speed: 40, range: 44, size: 8, damage: 1 },
   fire: { speed: 120, range: 260, size: 10, damage: 2 },
+  dark: { speed: 90, range: 220, size: 8, damage: 1 },
 } as const;
 
 /**

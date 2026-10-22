@@ -147,10 +147,10 @@
   - [x] M6.2a The Steel Sword (owner 2026-10-22): twice the Wooden Sword's blow, and a swing bats enemy shots back the way Jarrett faces. Eye statues (`y`) in walls fire orbs; one batted back into its eye shuts it for good and opens its room's gates (Lightning does nothing to them); the reachability test knows them
   - [x] M6.2b Seven rooms up the tower (in mossy green stone; the archway needs five shards): the Steel Sword behind sparks (the Ward), key 1 behind thorns (Fireball), eye statues barring the way up and key 2's cage (the Steel Sword)
   - [x] M6.2c The Witch (owner 2026-10-22): she blinks from place to place throwing fire; below half health she leaves look-alike decoys, and only the real Witch takes hits. Any weapon hurts her
-- [ ] M6.3 Dungeon 7, Crimson Manor: Triple Daggers (owner 2026-10-21), Vampire, in three PRs:
+- [x] M6.3 Dungeon 7, Crimson Manor: Triple Daggers (owner 2026-10-21), Vampire, in three PRs:
   - [x] M6.3a The Triple Daggers (owner 2026-10-22: just a better throw): a fan of three, thrown faster, up to six in the air
   - [x] M6.3b Seven rooms of the manor (in old-blood red; the archway needs six shards): a foyer and two wings, a gallery with a library and a chapel above; key 1 behind sparks (the Ward), the Triple Daggers behind rubble (the Axe), key 2 caged by an eye statue (the Steel Sword), a Mana Brew behind a crystal switch (Lightning)
-  - [ ] M6.3c The Vampire (owner 2026-10-22): it glides after Jarrett; a touch drains half a heart and heals it a little; every so often it bursts into a whirl of dark shots and re-forms elsewhere, sooner below half health. Any weapon hurts it
+  - [x] M6.3c The Vampire (owner 2026-10-22): it glides after Jarrett; a touch drains half a heart and heals it a little; every so often it bursts into a whirl of dark shots and re-forms elsewhere, sooner below half health. Any weapon hurts it
 - [ ] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon
 - [ ] M6.5 Walker's lines at dungeons 5–8
 
