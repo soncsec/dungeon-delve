@@ -138,6 +138,17 @@ export const WARD = {
 export const SPARK = { damage: 1 } as const;
 
 /**
+ * The Triple Daggers (Crimson Manor's prize, owner 2026-10-22): a fan of
+ * three daggers (each flies as a dagger does), thrown faster.
+ */
+export const TRIPLE_DAGGERS = {
+  spreadDeg: 14,
+  maxInFlight: 6,
+  cooldownMs: 220,
+  throwPauseMs: 100,
+} as const;
+
+/**
  * Near weapons: what a blow costs an enemy, and whether a swing bats enemy
  * shots back the way Jarrett faces (the Steel Sword: owner 2026-10-22).
  */

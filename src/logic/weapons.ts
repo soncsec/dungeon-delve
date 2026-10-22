@@ -23,6 +23,8 @@ export interface Projectile {
   dir: Facing;
   /** Distance flown so far. */
   travelled: number;
+  /** Turned this far off its facing (radians): the outer daggers of a fan. */
+  turn?: number;
 }
 
 export interface ProjectileTuning {
@@ -38,6 +40,31 @@ export function launch(id: number, feet: Point, facing: Facing, bodyHeight: numb
   const v = facingVector(facing);
   const start = { x: feet.x + v.x * 8, y: feet.y - bodyHeight / 2 + v.y * 8 };
   return { id, pos: start, dir: facing, travelled: 0 };
+}
+
+/** The way it flies: its facing, turned by `turn` if it has one. */
+export function flightVector(d: Projectile): { x: number; y: number } {
+  const v = facingVector(d.dir);
+  const a = d.turn ?? 0;
+  if (a === 0) return v;
+  return { x: v.x * Math.cos(a) - v.y * Math.sin(a), y: v.x * Math.sin(a) + v.y * Math.cos(a) };
+}
+
+/** A fan of three daggers (the Triple Daggers): one straight ahead, one `spreadDeg` either side. */
+export function fan(
+  firstId: number,
+  feet: Point,
+  facing: Facing,
+  bodyHeight: number,
+  spreadDeg: number,
+): Projectile[] {
+  const middle = launch(firstId, feet, facing, bodyHeight);
+  const a = (spreadDeg * Math.PI) / 180;
+  return [
+    middle,
+    { ...middle, id: firstId + 1, pos: { ...middle.pos }, turn: -a },
+    { ...middle, id: firstId + 2, pos: { ...middle.pos }, turn: a },
+  ];
 }
 
 /** A shot batted back (the Steel Sword): from where it was, the way Jarrett faces. */
@@ -56,7 +83,7 @@ export function stepProjectile(
   t: ProjectileTuning,
   solidAt: (cx: number, cy: number) => boolean,
 ): { projectile: Projectile; stopped: boolean } {
-  const v = facingVector(d.dir);
+  const v = flightVector(d);
   const want = Math.min((t.speed * dtMs) / 1000, t.range - d.travelled);
   const steps = Math.max(1, Math.ceil(want / (TILE / 4)));
   let pos = d.pos;

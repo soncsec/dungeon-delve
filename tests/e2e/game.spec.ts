@@ -1880,6 +1880,35 @@ test('the beaten Witch leaves a heart container and Witchwood Tower’s shard', 
   expect(watched.errors).toEqual([]);
 });
 
+test('the Triple Daggers throw a fan of three, which spread as they fly', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.giveItem('triple-daggers'); // into the empty far slot
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 2); // the hub
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(60, 94, 'right');
+  });
+  await page.keyboard.press('x');
+  await expect.poll(async () => (await snapshot(page)).mode).toBe('far');
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).daggers.length).toBe(3);
+  expect((await snapshot(page)).thrown).toBe(1);
+  // As they fly they spread out: one level, one above, one below (more than 4 px apart).
+  await expect
+    .poll(
+      async () => {
+        const ys = (await snapshot(page)).daggers.map((d) => d.y).sort((a, b) => a - b);
+        const [top = 0, mid = 0, low = 0] = ys;
+        return ys.length === 3 && mid - top > 4 && low - mid > 4;
+      },
+      { intervals: [20] },
+    )
+    .toBe(true);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the daggers: push the stone into the closet, open the chest, and throw one', async ({
   page,
 }) => {
