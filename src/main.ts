@@ -10,6 +10,7 @@ import { InventoryScene } from './scenes/InventoryScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { ShopScene } from './scenes/ShopScene';
 import { EndingScene } from './scenes/EndingScene';
+import { PauseScene } from './scenes/PauseScene';
 import { TitleScene } from './scenes/TitleScene';
 
 const zoomForWindow = (): number =>
@@ -49,6 +50,7 @@ export const game = new Phaser.Game({
     InventoryScene,
     ShopScene,
     EndingScene,
+    PauseScene,
     AssetPreviewScene,
   ],
 });

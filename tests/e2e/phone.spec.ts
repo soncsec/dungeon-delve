@@ -133,6 +133,22 @@ test('the touch buttons: HIT swings, MAGIC casts, SWAP switches, BAG opens and c
   await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
 });
 
+test('the PAUSE button pauses; RESUME on the pause screen is a button too', async ({ page }) => {
+  await openDungeon(page);
+  const box = await page.locator('#touch .pause').boundingBox();
+  expect(box).not.toBeNull();
+  await page.touchscreen.tap(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + (box?.height ?? 0) / 2,
+  );
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Pause');
+  // RESUME: left of the middle, 116 px down the 320×180 game (scaled to the canvas).
+  const canvas = await page.locator('#game canvas').boundingBox();
+  const k = (canvas?.width ?? 0) / 320;
+  await page.touchscreen.tap((canvas?.x ?? 0) + 90 * k, (canvas?.y ?? 0) + 120 * k);
+  await expect.poll(() => page.evaluate(() => window.__game?.scene() ?? null)).toBe('Game');
+});
+
 test('the touch controls sit below the game when the phone is upright', async ({ page }) => {
   await openDungeon(page);
   const canvas = await page.locator('#game canvas').boundingBox();

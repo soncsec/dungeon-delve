@@ -6,6 +6,7 @@ import type { Facing } from '../logic/hero';
 import type { ItemId } from '../logic/inventory';
 import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
 import type { InventoryScene } from '../scenes/InventoryScene';
+import type { PauseScene } from '../scenes/PauseScene';
 import type { EndingScene } from '../scenes/EndingScene';
 import type { TitleScene } from '../scenes/TitleScene';
 import type { ShopScene } from '../scenes/ShopScene';
@@ -28,6 +29,8 @@ export interface TestHook {
   } | null;
   /** The asset group the preview scene shows, or null when it isn't running. */
   previewGroup(): string | null;
+  /** Which pause screen shows, or null when the game isn't paused. */
+  pause(): { screen: 'paused' | 'confirmQuit' } | null;
   /** What the ending shows, or null when it isn't running. */
   ending(): {
     time: string;
@@ -138,6 +141,10 @@ export function installTestHook(game: Phaser.Game): void {
     title: () => {
       const s = game.scene.getScene('Title') as TitleScene | null;
       return s && game.scene.isActive('Title') ? s.shows() : null;
+    },
+    pause: () => {
+      const s = game.scene.getScene('Pause') as PauseScene | null;
+      return s && game.scene.isActive('Pause') ? s.shows() : null;
     },
     ending: () => {
       const s = game.scene.getScene('Ending') as EndingScene | null;
