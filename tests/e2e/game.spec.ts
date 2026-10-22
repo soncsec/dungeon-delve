@@ -1315,7 +1315,8 @@ test('the daggers: push the stone into the closet, open the chest, and throw one
   await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon1/0,2/3,3');
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]); // picked up
-  // He can throw them now.
+  // He holds them up for a moment, while the game waits; then he can throw them.
+  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
   await page.keyboard.press('x');
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).thrown).toBe(1);
