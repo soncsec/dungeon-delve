@@ -3660,6 +3660,51 @@ test('a play-test run (?dungeon=n) never sets the fastest time', async ({ page }
   expect(watched.errors).toEqual([]);
 });
 
+test('P pauses: the controls show and the game waits, its play time too; Esc resumes', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  const before = (await snapshot(page)).playMs;
+  await page.keyboard.press('p');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.pause()))?.screen)
+    .toBe('paused');
+  expect(await sceneNow(page)).toBe('Pause');
+  await page.waitForTimeout(1000);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  // A second paused: the clock stood still for it.
+  expect((await snapshot(page)).playMs - before).toBeLessThan(600);
+  expect(await page.evaluate(() => window.__game?.pause())).toBeNull();
+  expect(watched.errors).toEqual([]);
+});
+
+test('Q on the pause screen asks first; N goes back, Y goes up to the arcade', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.keyboard.press('p');
+  await expect.poll(() => sceneNow(page)).toBe('Pause');
+  await page.keyboard.press('q');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.pause()))?.screen)
+    .toBe('confirmQuit');
+  await page.keyboard.press('n');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.pause()))?.screen)
+    .toBe('paused');
+  // Yes: up one folder, to the arcade (here the test server's root, without the ?dungeon=1).
+  await page.keyboard.press('q');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.pause()))?.screen)
+    .toBe('confirmQuit');
+  const here = page.url();
+  await page.keyboard.press('y');
+  await expect.poll(() => page.url()).not.toBe(here);
+  expect(new URL(page.url()).search).toBe('');
+  expect(watched.errors).toEqual([]);
+});
+
 test('?dungeon=9 starts in the Shadow Vault, with every prize', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page, '?dungeon=9');

@@ -174,8 +174,10 @@
 
 - [ ] M8.1 Difficulty pass with the owner (enemy health, damage, drop rates, prices)
 - [x] M8.2 Touch controls and phone layout (done after M5.2, owner 2026-10-21)
-- [ ] M8.3 Title screen (the intro, art and the rest; the CONTINUE / NEW GAME menu came with M3.5), controls legend, quit-to-arcade, pause menu
-- [ ] M8.4 Portal card image (256×192) and `coming-soon` status (portal PR)
+- [ ] M8.3 Title screen (the intro, art and the rest; the CONTINUE / NEW GAME menu came with M3.5), controls legend, quit-to-arcade, pause menu, in two PRs:
+  - [x] M8.3a The pause screen, as in Star Destroyer: P or Esc pauses (a PAUSE button on phones) and the game waits, its play time too; it shows the controls, and Q quits to the arcade after asking (Y / N)
+  - [ ] M8.3b The title screen: the intro, the art, the controls, and the way back to the arcade
+- [x] M8.4 Portal card image (256×192) and `coming-soon` status (portal PR): done in games-portal #33 (the card image, and `live`), released with the portal on 2026-10-22
 - [ ] M8.5 Full playthrough with no console errors in every browser project
 
 ## M9 — v1.0 release

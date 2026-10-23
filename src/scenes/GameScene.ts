@@ -546,6 +546,8 @@ const SPELL_KEYS: ReadonlySet<string> = new Set(['KeyC', 'KeyL']);
 const MUTE_KEY = 'KeyM';
 /** Keys that open the inventory. */
 const INVENTORY_KEYS: ReadonlySet<string> = new Set(['KeyI', 'Tab']);
+/** Keys that pause the game (as in Star Destroyer). */
+const PAUSE_KEYS: ReadonlySet<string> = new Set(['KeyP', 'Escape']);
 /** Keys that drink a potion. */
 const POTION_KEYS: Readonly<Record<string, PotionKind>> = { Digit1: 'health', Digit2: 'mana' };
 /** Every key the overworld uses (browser key codes). */
@@ -563,6 +565,7 @@ const KEYS = new Set([
   ...SPELL_KEYS,
   ...Object.keys(POTION_KEYS),
   ...INVENTORY_KEYS,
+  ...PAUSE_KEYS,
   MUTE_KEY,
 ]);
 
@@ -845,6 +848,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     // Presses made during a slide are dropped, not saved up.
     const presses = this.keys.takePresses();
     if (this.sliding || this.falling || this.travelling) return;
+    if (presses.some((c) => PAUSE_KEYS.has(c))) {
+      this.openPause();
+      return;
+    }
     // Holding up a find: the game waits (presses meanwhile are dropped).
     if (this.heldUp) {
       if (isHolding(this.hold, time)) return;
@@ -2018,6 +2025,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.spawnEnemies();
     this.refreshHud();
     this.enteredRoom();
+  }
+
+  /** The pause screen: the game waits behind it, its play time too. */
+  private openPause(): void {
+    this.moving = false;
+    this.animate(false);
+    this.sfx.play('menu');
+    this.scene.launch('Pause');
+    this.scene.pause();
   }
 
   /** Pauses the game and shows the inventory over it. */

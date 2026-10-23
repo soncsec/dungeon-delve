@@ -833,3 +833,20 @@ export const ENDING = {
   /** A moment before a key or tap leaves it, so a key still held from the game doesn't skip it. */
   promptAfterMs: 1500,
 } as const;
+
+/**
+ * The pause screen (ROADMAP M8.3): the game dimmed behind it, the controls in
+ * two columns, and the way on. Quitting goes up one folder, to the arcade.
+ */
+export const PAUSE = {
+  shade: 0x080810,
+  shadeAlpha: 0.93,
+  titleY: 14,
+  legendY: 44,
+  lineGap: 14,
+  columns: [12, 164],
+  choicesY: 116,
+  confirmGap: 26,
+  choiceSpread: 70,
+  quitUrl: '../',
+} as const;

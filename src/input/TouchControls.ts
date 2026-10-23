@@ -23,6 +23,7 @@ const BUTTONS: readonly { code: string; label: string; kind: string }[] = [
   { code: 'Digit1', label: 'HEAL', kind: 'health' },
   { code: 'Digit2', label: 'MANA', kind: 'mana' },
   { code: 'KeyI', label: 'BAG', kind: 'bag' },
+  { code: 'KeyP', label: 'PAUSE', kind: 'pause' },
 ];
 
 /** Adds the controls to the page. */
