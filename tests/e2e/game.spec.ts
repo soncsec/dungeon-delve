@@ -3626,7 +3626,10 @@ test('a whole run with no skip sets the fastest time, and the title shows it', a
 
 test('a play-test run (?dungeon=n) never sets the fastest time', async ({ page }) => {
   const watched = watchPage(page);
+  // A fastest time set once the title is up: leaving a page still loading its art makes
+  // WebKit log each cancelled load as an error.
   await page.goto('./');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
   await page.evaluate(() => localStorage.setItem('dungeon-delve:fastest', '3600000'));
   await openGame(page, '?dungeon=9');
   await page.evaluate(() => window.__game?.goToRoom(1, 1));
