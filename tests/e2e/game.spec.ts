@@ -3222,6 +3222,34 @@ test('Walker gives a hint at each dungeon’s entrance, and waits outside once i
   expect(watched.errors).toEqual([]);
 });
 
+test('Walker gives a hint at Dragon’s Maw, and after the last shard sends Jarrett to the vault', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  // At Dragon's Maw's entrance: the Dragon's fire and tail, and the Star Blade.
+  await openGame(page, '?dungeon=8');
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  expect((await snapshot(page)).walker).toEqual({ x: 72, y: 111 });
+  let said = (await talkToWalker(page)).flat().join(' ');
+  expect(said).toContain("THIS IS DRAGON'S MAW");
+  expect(said).toContain('STAR BLADE');
+  // Outside the Maw once the eighth shard is found: on to the Shadow Vault.
+  await page.evaluate(() => localStorage.clear());
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.takeShard(8);
+    window.__game?.goToRoom(14, 0);
+    window.__game?.clearEnemies();
+  });
+  expect((await snapshot(page)).walker).toEqual({ x: 200, y: 63 });
+  said = (await talkToWalker(page)).flat().join(' ');
+  expect(said).toContain('ALL EIGHT SHARDS');
+  expect(said).toContain('SHADOW VAULT');
+  expect((await snapshot(page)).opened).toContain('walker/dungeon8-done');
+  expect(watched.errors).toEqual([]);
+});
+
 test('a new game starts at the village gate; a house’s walls stop Jarrett', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page);

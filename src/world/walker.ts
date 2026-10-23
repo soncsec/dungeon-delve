@@ -7,6 +7,10 @@ import { DUNGEON_1_START } from './dungeon1';
 import { DUNGEON_2_START } from './dungeon2';
 import { DUNGEON_3_START } from './dungeon3';
 import { DUNGEON_4_START } from './dungeon4';
+import { DUNGEON_5_START } from './dungeon5';
+import { DUNGEON_6_START } from './dungeon6';
+import { DUNGEON_7_START } from './dungeon7';
+import { DUNGEON_8_START } from './dungeon8';
 import { START_ROOM } from './overworld';
 
 export const WALKER_VISITS: readonly WalkerVisit[] = [
@@ -174,6 +178,134 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       {
         text: 'THE AXE BREAKS BOULDERS AND RUBBLE OUT HERE TOO. LOOK FOR SECRETS BEHIND THEM.',
       },
+      {
+        text: 'THE NEXT SHARD IS IN THUNDER SPIRE, IN THE MOUNTAINS TO THE NORTH-WEST. STORMS CIRCLE IT.',
+      },
+    ],
+  },
+  {
+    // Thunder Spire's entrance: the Centaur, and the Ward.
+    id: 'dungeon5',
+    map: 'dungeon5',
+    room: DUNGEON_5_START,
+    cell: { col: 4, row: 6 },
+    speech: [
+      {
+        text: 'THIS IS THUNDER SPIRE. ITS CENTAUR GALLOPS AT YOU WHEN YOU STAND IN LINE WITH IT.',
+      },
+      { text: 'IT CALLS DOWN LIGHTNING, TOO. DARK MARKS ON THE FLOOR SHOW WHERE BOLTS WILL FALL.' },
+      {
+        text: 'THE WARD IS HIDDEN HERE: A SPELL THAT GUARDS YOU ALL ROUND, AND CARRIES YOU THROUGH SPARKS.',
+      },
+    ],
+  },
+  {
+    // Outside Thunder Spire, once its shard is found: raising the Ward, and the way on.
+    id: 'dungeon5-done',
+    map: 'overworld',
+    room: { col: 4, row: 0 },
+    cell: { col: 12, row: 3 },
+    after: 'dungeon5/shard',
+    speech: [
+      { text: 'FIVE SHARDS! THREE MORE TO FIND.' },
+      {
+        text: 'CHOOSE THE WARD IN YOUR BAG, THEN PRESS C. FOR A MOMENT, NOTHING CAN HURT YOU.',
+        touch: 'CHOOSE THE WARD IN YOUR BAG, THEN TAP MAGIC. FOR A MOMENT, NOTHING CAN HURT YOU.',
+      },
+      {
+        text: 'THE NEXT SHARD IS IN WITCHWOOD TOWER, DEEP IN THE FOREST TO THE SOUTH-WEST.',
+      },
+    ],
+  },
+  {
+    // Witchwood Tower's entrance: the Witch, and the Steel Sword.
+    id: 'dungeon6',
+    map: 'dungeon6',
+    room: DUNGEON_6_START,
+    cell: { col: 4, row: 6 },
+    speech: [
+      {
+        text: 'THIS IS WITCHWOOD TOWER. ITS WITCH BLINKS FROM PLACE TO PLACE, THROWING FIRE.',
+      },
+      { text: 'HURT, SHE MAKES COPIES OF HERSELF. ONLY THE REAL WITCH CAN BE HARMED.' },
+      {
+        text: 'THE STEEL SWORD IS HIDDEN HERE. IT STRIKES HARDER, AND SENDS SHOTS BACK THE WAY YOU FACE.',
+      },
+    ],
+  },
+  {
+    // Outside Witchwood Tower, once its shard is found: eye statues, and the way on.
+    id: 'dungeon6-done',
+    map: 'overworld',
+    room: { col: 0, row: 3 },
+    cell: { col: 12, row: 3 },
+    after: 'dungeon6/shard',
+    speech: [
+      { text: 'SIX SHARDS! TWO MORE TO FIND.' },
+      {
+        text: 'STONE EYES WATCH FROM SOME WALLS. SEND AN ORB BACK INTO ONE, AND IT SHUTS FOR GOOD.',
+      },
+      {
+        text: 'THE NEXT SHARD IS IN CRIMSON MANOR, IN THE RUINS FAR EAST OF THE VAULT.',
+      },
+    ],
+  },
+  {
+    // Crimson Manor's entrance: the Vampire, and the Triple Daggers.
+    id: 'dungeon7',
+    map: 'dungeon7',
+    room: DUNGEON_7_START,
+    cell: { col: 4, row: 6 },
+    speech: [
+      {
+        text: 'THIS IS CRIMSON MANOR. ITS VAMPIRE GLIDES AFTER YOU. ITS TOUCH DRAINS YOU, AND HEALS IT.',
+      },
+      { text: 'NOW AND THEN IT BURSTS INTO DARK SHOTS, AND FORMS AGAIN SOMEWHERE ELSE.' },
+      { text: 'THE TRIPLE DAGGERS ARE HIDDEN HERE: THREE BLADES AT A THROW.' },
+    ],
+  },
+  {
+    // Outside Crimson Manor, once its shard is found: the way to the last dungeon.
+    id: 'dungeon7-done',
+    map: 'overworld',
+    room: { col: 12, row: 5 },
+    cell: { col: 12, row: 3 },
+    after: 'dungeon7/shard',
+    speech: [
+      { text: 'SEVEN SHARDS! ONLY ONE MORE.' },
+      {
+        text: "THE LAST SHARD IS IN DRAGON'S MAW, ON THE VOLCANO'S EDGE IN THE FAR NORTH-EAST.",
+      },
+      { text: 'A DRAGON GUARDS IT. REST, FILL YOUR POTIONS, AND BE READY.' },
+    ],
+  },
+  {
+    // Dragon's Maw's entrance: the Dragon, and the Star Blade.
+    id: 'dungeon8',
+    map: 'dungeon8',
+    room: DUNGEON_8_START,
+    cell: { col: 4, row: 6 },
+    speech: [
+      {
+        text: "THIS IS DRAGON'S MAW. ITS DRAGON SWEEPS FIRE ACROSS ITS LAIR: HOLD UP YOUR SHIELD, OR RAISE THE WARD.",
+      },
+      { text: 'STAND TOO CLOSE AND ITS TAIL LASHES OUT. WHEN IT TURNS, STEP BACK.' },
+      {
+        text: 'THE STAR BLADE IS HIDDEN HERE. WITH EVERY HEART FULL, ITS SWING SENDS OUT A BEAM.',
+      },
+    ],
+  },
+  {
+    // Outside Dragon's Maw, once the last shard is found: on to the Shadow Vault.
+    id: 'dungeon8-done',
+    map: 'overworld',
+    room: { col: 14, row: 0 },
+    cell: { col: 12, row: 3 },
+    after: 'dungeon8/shard',
+    speech: [
+      { text: 'ALL EIGHT SHARDS! THE STAR OF POWER IS WHOLE AGAIN. I CAN FEEL IT SHINE.' },
+      { text: 'NOW, THE SHADOW VAULT, IN THE MIDDLE OF THE LAND. MEET ME AT ITS DOOR.' },
+      { text: 'KIRA IS WAITING, JARRETT. AND SO IS THE SORCERER.' },
     ],
   },
 ];
