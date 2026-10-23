@@ -5,6 +5,7 @@ import {
   MANOR_TINT,
   MARSH_TINT,
   MAW_TINT,
+  VAULT_TINT,
   MINE_TINT,
   SPIRE_TINT,
   WOOD_TINT,
@@ -17,6 +18,7 @@ import { DUNGEON_5, DUNGEON_5_START } from './dungeon5';
 import { DUNGEON_6, DUNGEON_6_START } from './dungeon6';
 import { DUNGEON_7, DUNGEON_7_START } from './dungeon7';
 import { DUNGEON_8, DUNGEON_8_START } from './dungeon8';
+import { VAULT, VAULT_START } from './vault';
 import { OVERWORLD, START_ROOM } from './overworld';
 import { SHOP, SHOP_START } from './shop';
 import { CAVES, CAVES_START } from './caves';
@@ -31,6 +33,7 @@ export type MapId =
   | 'dungeon6'
   | 'dungeon7'
   | 'dungeon8'
+  | 'vault'
   | 'shop'
   | 'caves';
 /** How a map looks: outdoors, a dungeon, or indoors (drawn like a dungeon, without its small keys). */
@@ -98,6 +101,13 @@ export const MAPS: Readonly<Record<MapId, GameMap>> = {
     rooms: DUNGEON_8,
     tint: MAW_TINT,
   },
+  vault: {
+    name: 'Shadow Vault',
+    theme: 'dungeon',
+    start: VAULT_START,
+    rooms: VAULT,
+    tint: VAULT_TINT,
+  },
   shop: { name: 'Shop', theme: 'indoors', start: SHOP_START, rooms: SHOP },
   caves: { name: 'Secret cave', theme: 'indoors', start: CAVES_START, rooms: CAVES },
 };
@@ -112,4 +122,6 @@ export const DUNGEON_MAPS: Readonly<Record<number, MapId>> = {
   6: 'dungeon6',
   7: 'dungeon7',
   8: 'dungeon8',
+  // The Shadow Vault counts as the ninth (logic/progress.ts).
+  9: 'vault',
 };
