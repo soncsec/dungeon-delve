@@ -25,21 +25,50 @@ async function snapshot(page: Page): Promise<GameSnapshot> {
 }
 
 /**
- * Polls the game until `done` holds, giving up after `gameMs` of game time, not real time, and
- * returns the last snapshot for the test to check. A loaded browser can fall so far behind
- * that its game clock runs at a fifth of real time (Phaser slows the game rather than leap
- * ahead when a frame takes over 200 ms), so a real-time limit could run out before something
- * that takes game time has happened.
+ * Watches the game until `done` holds, giving up after `gameMs` of game time, not real time, and
+ * returns the snapshot it held in (or the last one) for the test to check. A loaded browser can
+ * fall so far behind that its game clock runs at a fifth of real time (Phaser slows the game
+ * rather than leap ahead when a frame takes over 200 ms), so a real-time limit could run out
+ * before something that takes game time has happened. And the page records a snapshot on every
+ * frame, read back in batches, so a moment that lasts only a frame or two can't fall between
+ * two looks, however slow the round trips to the browser.
  */
 async function untilGame(
   page: Page,
   done: (s: GameSnapshot) => boolean,
   gameMs = 5_000,
 ): Promise<GameSnapshot> {
-  const start = (await snapshot(page)).playMs;
+  await page.evaluate(() => {
+    const w = window as unknown as { __frames?: GameSnapshot[]; __recording?: boolean };
+    w.__frames = [];
+    if (w.__recording) return;
+    w.__recording = true;
+    const record = (): void => {
+      if (!w.__recording) return;
+      const s = window.__game?.snapshot();
+      if (s) w.__frames?.push(s);
+      requestAnimationFrame(record);
+    };
+    requestAnimationFrame(record);
+  });
+  let start: number | null = null;
   for (;;) {
-    const s = await snapshot(page);
-    if (done(s) || s.playMs - start > gameMs) return s;
+    const frames = await page.evaluate(() => {
+      const w = window as unknown as { __frames?: GameSnapshot[] };
+      const taken = w.__frames ?? [];
+      w.__frames = [];
+      return taken;
+    });
+    // No frames yet: one look now, which also says so if the game scene isn't running.
+    for (const s of frames.length > 0 ? frames : [await snapshot(page)]) {
+      start ??= s.playMs;
+      if (done(s) || s.playMs - start > gameMs) {
+        await page.evaluate(() => {
+          (window as unknown as { __recording?: boolean }).__recording = false;
+        });
+        return s;
+      }
+    }
     await page.waitForTimeout(20);
   }
 }
