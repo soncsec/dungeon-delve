@@ -1596,12 +1596,20 @@ test('below half health the storm covers all but one patch; inside the Ward, Jar
     window.__game?.setBossHealth(6);
     window.__game?.enemiesShootNow();
   });
-  // 8 × 3 patches of floor, all but one (the marks last 0.8 s, so look often).
-  await expect
-    .poll(async () => (await snapshot(page)).strikes.length, { timeout: 10_000, intervals: [50] })
-    .toBe(23);
-  // He wards before they fall.
-  await page.keyboard.press('c');
+  // 8 × 3 patches of floor, all but one. The marks last 0.8 s, which a slow browser's
+  // round trips could miss, so they are watched frame by frame inside the page, and he
+  // wards on the frame they appear, before they fall.
+  const marks = await page.evaluate(async () => {
+    const g = window.__game;
+    const frame = () => new Promise((done) => requestAnimationFrame(() => done(null)));
+    for (let i = 0; i < 600 && (g?.snapshot()?.strikes.length ?? 0) < 23; i++) await frame();
+    const seen = g?.snapshot()?.strikes.length ?? 0;
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyC' }));
+    await frame();
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyC' }));
+    return seen;
+  });
+  expect(marks).toBe(23);
   await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
   await expect.poll(async () => (await snapshot(page)).boltsLanded, { timeout: 10_000 }).toBe(23);
   expect((await snapshot(page)).health.points).toBe(6);
