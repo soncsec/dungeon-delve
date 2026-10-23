@@ -118,6 +118,10 @@ export const ASSETS: readonly SheetAsset[] = [
   // The Dragon (dungeon 8): frames of 144×64, its art facing left. Idle; rearing, then breathing
   // fire (the breath sheet: frames 0-2 rear, 3-6 the flame); and its tail lash.
   sheet('bosses', 'dragon', 144, 64, 6, 1, [anim('sway', range(0, 6), 8)]),
+  // The Sorcerer (the Shadow Vault): 6 frames of 95×133, his hands aglow with magic.
+  sheet('bosses', 'sorcerer', 95, 133, 6, 1, [anim('sway', range(0, 6), 7)]),
+  // The Demon, his true shape: 5 frames of 89×122, the pack's horned demon at 80% (tools/art/scale_demon.py).
+  sheet('bosses', 'demon', 89, 122, 5, 1, [anim('sway', range(0, 5), 6)]),
   sheet('bosses', 'dragon-breath', 144, 64, 7, 1, [
     anim('rear', range(0, 3), 5, false),
     anim('breathe', range(3, 4), 10),
@@ -150,6 +154,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('effects', 'bolt', 48, 32, 4, 1, [anim('fly', range(0, 4), 14)]),
   // The flying eye's shot.
   sheet('effects', 'enemy-shot', 16, 16, 2, 1, [anim('fly', range(0, 2), 8)]),
+  // The Vampire's dark shots: the same orb recoloured purple (tools/art/dark_shot.py).
+  sheet('effects', 'dark-shot', 16, 16, 2, 1, [anim('fly', range(0, 2), 8)]),
   // The Ward: a bubble that shimmers while it is up, then breaks up as it drops.
   sheet('effects', 'ward', 51, 47, 8, 1, [
     anim('up', range(0, 4), 8),

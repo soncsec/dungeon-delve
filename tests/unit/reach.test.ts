@@ -9,6 +9,7 @@ import { DUNGEON_5, DUNGEON_5_START } from '../../src/world/dungeon5';
 import { DUNGEON_6, DUNGEON_6_START } from '../../src/world/dungeon6';
 import { DUNGEON_7, DUNGEON_7_START } from '../../src/world/dungeon7';
 import { DUNGEON_8, DUNGEON_8_START } from '../../src/world/dungeon8';
+import { VAULT, VAULT_START } from '../../src/world/vault';
 import { SECRET_CAVES } from '../../src/world/caves';
 import { OVERWORLD, START_ROOM } from '../../src/world/overworld';
 
@@ -454,6 +455,40 @@ describe('the real maps', () => {
       steel: true,
     });
     expect(noLightning.chests).not.toContain('2,2/8,7');
+  });
+
+  it('the Shadow Vault can be crossed with every item but the sword: both keys, both doors', () => {
+    const world = buildWorld(VAULT);
+    const start = { ...VAULT_START, cx: 10, cy: 8 };
+    const all = { axe: true, fireball: true, lightning: true, ward: true, steel: true };
+    const r = explore(world, start, all);
+    expect(r.rooms).toEqual([...world.rooms.keys()].sort());
+    expect(r.chests).toEqual(['0,2/3,4', '2,2/14,7']);
+    expect(r.doors).toEqual(['1,1/10,8', '1,1/9,8', '1,2/10,1', '1,2/9,1']);
+    // The west trial's sparks, boulder (all four cells) and thorns; the entry hall's
+    // switch; the east trial's eye.
+    expect(r.broken).toEqual([
+      '0,2/13,4',
+      '0,2/5,4',
+      '0,2/5,5',
+      '0,2/6,4',
+      '0,2/6,5',
+      '0,2/9,5',
+      '1,2/4,1',
+      '2,2/13,1',
+    ]);
+    expect(r.exits).toEqual(['1,2/10,9', '1,2/9,9']);
+    expect(r.keys).toBe(0);
+  });
+
+  it('each trial asks for its items: without any one of them, one key is missing and the hall’s door stays shut', () => {
+    const start = { ...VAULT_START, cx: 10, cy: 8 };
+    const all = { axe: true, fireball: true, lightning: true, ward: true, steel: true };
+    for (const item of ['axe', 'fireball', 'lightning', 'ward', 'steel'] as const) {
+      const r = explore(buildWorld(VAULT), start, { ...all, [item]: false });
+      expect(r.chests, item).toHaveLength(1);
+      expect(r.doors, item).toEqual(['1,2/10,1', '1,2/9,1']);
+    }
   });
 
   it('every overworld room, door and secret cave can be reached (some caves need the Axe or Fireball)', () => {

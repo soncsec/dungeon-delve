@@ -16,6 +16,10 @@
  * The Dragon prowls the top of its lair, facing Jarrett; it rears, then sweeps
  * its fire breath across him one burst at a time, and lashes its tail at him
  * when he comes close.
+ * The Sorcerer blinks from spot to spot casting magic, behind a shield of dark
+ * magic that turns every blow; one of his own orbs batted back into him breaks
+ * it for a while. Down to half health, he shows his true shape: the Demon,
+ * which charges at Jarrett when he is level with it and throws rings of fire.
  * Below half health a boss turns fiercer: more shots, more often. A hit (by
  * id, so each lands once) costs it health; at zero it is beaten.
  */
@@ -25,7 +29,16 @@ import type { Rng } from './rng';
 import type { ShotKind, Vec } from './enemies';
 
 export type BossKind =
-  'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur' | 'witch' | 'vampire' | 'dragon';
+  | 'treant'
+  | 'frog'
+  | 'mummy'
+  | 'ogre'
+  | 'centaur'
+  | 'witch'
+  | 'vampire'
+  | 'dragon'
+  | 'sorcerer'
+  | 'demon';
 
 /** How a boss moves. */
 export type BossMoves =
@@ -139,6 +152,13 @@ export interface BossStats {
   drain?: number;
   /** Where its shots start, from its feet, for art facing left (the Dragon's mouth); its middle if not said. */
   mouth?: { ahead: number; up: number };
+  /**
+   * A shield of dark magic (the Sorcerer): every blow and shot glances off it,
+   * until one of its own shots, batted back into it, breaks it for `bareMs`.
+   */
+  shield?: { bareMs: number };
+  /** Down to `atHealth`, it becomes another boss (the Sorcerer, his true shape), keeping its health. */
+  becomes?: { kind: BossKind; atHealth: number };
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -176,6 +196,8 @@ export interface Boss {
   breath: { aim: Vec; sent: number; inMs: number; side: 1 | -1 } | null;
   /** A tail lash under way: the time into it (ms). */
   lash: { ms: number } | null;
+  /** A shielded boss's time left with its shield broken (ms); 0 while the shield holds. */
+  bareMs: number;
 }
 
 export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): Boss {
@@ -203,6 +225,7 @@ export function spawnBoss(kind: BossKind, pos: Point, s: BossStats, rng: Rng): B
     decoys: [],
     breath: null,
     lash: null,
+    bareMs: 0,
   };
 }
 
@@ -238,8 +261,23 @@ export function aimAt(from: Point, to: Point): Vec {
   return len === 0 ? { x: 0, y: 1 } : { x: dx / len, y: dy / len };
 }
 
-/** Advances a boss by `dtMs`: it moves its way, and attacks when its timer runs out. */
+/**
+ * Advances a boss by `dtMs`: it moves its way, and attacks when its timer runs
+ * out; a broken shield mends as its time runs out.
+ */
 export function stepBoss(
+  b: Boss,
+  dtMs: number,
+  hero: Point,
+  s: BossStats,
+  rng: Rng,
+): { boss: Boss; shots: Vec[]; storm: boolean } {
+  const r = stepMoves(b, dtMs, hero, s, rng);
+  if (b.bareMs <= 0) return r;
+  return { ...r, boss: { ...r.boss, bareMs: Math.max(0, b.bareMs - dtMs) } };
+}
+
+function stepMoves(
   b: Boss,
   dtMs: number,
   hero: Point,
@@ -378,10 +416,14 @@ function stepGalloper(
   const mood = isFierce(b, s) ? s.fierce : s.calm;
   const shootInMs = b.shootInMs - dtMs;
   if (b.phase === 'crouch') {
-    // Rearing: when it is done, the storm.
+    // Rearing: when it is done, the storm (the Centaur), or a ring of shots, the first at
+    // Jarrett (the Demon's fire).
     if (shootInMs > 0) return { ...still, boss: { ...still.boss, shootInMs } };
     const next = rng.int(mood.everyMs.min, mood.everyMs.max);
-    return { ...still, boss: { ...still.boss, phase: 'sit', shootInMs: next }, storm: true };
+    const boss: Boss = { ...still.boss, phase: 'sit', shootInMs: next };
+    if (s.storm) return { ...still, boss, storm: true };
+    const shots = ring(aimAt(bossShotOrigin(b, s), hero), mood.shots, mood.spreadDeg);
+    return { ...still, boss, shots };
   }
   if (shootInMs <= 0) {
     return { ...still, boss: { ...still.boss, phase: 'crouch', shootInMs: s.windUpMs ?? 0 } };
@@ -676,13 +718,41 @@ export function leapHeight(b: Boss, s: BossStats): number {
 }
 
 /**
- * Whether a blow glances off it: wrapped tight and not stunned (the Mummy), or a
- * thick hide and not the Axe (the Ogre). `weapon` is the near weapon swung, or
+ * Whether a blow glances off it: its shield up (the Sorcerer), wrapped tight and
+ * not stunned (the Mummy), or a thick hide and not the Axe (the Ogre). `weapon` is the near weapon swung, or
  * null for a shot.
  */
 export function glancesOff(b: Boss, s: BossStats, weapon: ItemId | null): boolean {
+  if (isShielded(b, s)) return true;
   if (s.wrapped !== undefined && b.stunMs <= 0) return true;
   return s.hide === 'axe' && weapon !== 'axe';
+}
+
+/** The boss it now becomes, if it has come down far enough (the Sorcerer to the Demon); else null. */
+export function becomes(b: Boss, s: BossStats): BossKind | null {
+  if (!s.becomes || b.health <= 0 || b.health > s.becomes.atHealth) return null;
+  return s.becomes.kind;
+}
+
+/**
+ * The boss it becomes: new, where it stood (its feet kept inside the new one's
+ * arena, if it has one), with the health it had.
+ */
+export function become(b: Boss, kind: BossKind, s: BossStats, rng: Rng): Boss {
+  const m = s.moves;
+  const pos = 'arena' in m ? within(b.pos, m.arena) : b.pos;
+  return { ...spawnBoss(kind, pos, s, rng), health: b.health, lastHitBy: b.lastHitBy };
+}
+
+/** Whether its shield of dark magic is up (the Sorcerer, unless an orb batted back has broken it). */
+export function isShielded(b: Boss, s: BossStats): boolean {
+  return s.shield !== undefined && b.bareMs <= 0;
+}
+
+/** One of its own shots, batted back into it: a shielded boss's shield breaks for a while. Others: no change. */
+export function breakShield(b: Boss, s: BossStats): Boss {
+  if (!s.shield || !isShielded(b, s)) return b;
+  return { ...b, bareMs: s.shield.bareMs };
 }
 
 /** A Lightning bolt (by id, so each lands once) stuns a wrapped boss; others shrug it off. */

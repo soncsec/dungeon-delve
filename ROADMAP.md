@@ -151,6 +151,7 @@
   - [x] M6.3a The Triple Daggers (owner 2026-10-22: just a better throw): a fan of three, thrown faster, up to six in the air
   - [x] M6.3b Seven rooms of the manor (in old-blood red; the archway needs six shards): a foyer and two wings, a gallery with a library and a chapel above; key 1 behind sparks (the Ward), the Triple Daggers behind rubble (the Axe), key 2 caged by an eye statue (the Steel Sword), a Mana Brew behind a crystal switch (Lightning)
   - [x] M6.3c The Vampire (owner 2026-10-22): it glides after Jarrett; a touch drains half a heart and heals it a little; every so often it bursts into a whirl of dark shots and re-forms elsewhere, sooner below half health. Any weapon hurts it
+  - [x] M6.3d The Vampire's dark shots in purple (owner 2026-10-22): the enemy orb recoloured by `tools/art/dark_shot.py`, since a tint could only darken its orange
 - [x] M6.4 Dungeon 8, Dragon's Maw: Star Blade, Dragon, in three PRs:
   - [x] M6.4a The Star Blade (owner 2026-10-22: a beam at full hearts): three times the Wooden Sword's strength, it bats shots back like the Steel Sword, and with every heart full a swing also sends a golden beam flying ahead
   - [x] M6.4b Seven caverns of the Maw (in ember red; the cave needs seven shards): key 1 behind a boulder (the Axe), the Star Blade caged by an eye statue (the Steel Sword), key 2 behind sparks (the Ward), a Health Potion behind a crystal switch (Lightning)
@@ -159,8 +160,11 @@
 
 ## M7 — Shadow Vault and ending
 
-- [ ] M7.1 Vault door that Walker opens with all 8 shards
-- [ ] M7.2 Vault rooms and the final boss
+- [x] M7.1 Vault door that Walker opens with all 8 shards: his last words (with a hint at the sorcerer's shield), then the Star opens the door for good; behind it, the vault's entry hall. The vault counts as the ninth dungeon (`?dungeon=9` starts there)
+- [x] M7.2 Vault rooms and the final boss (owner 2026-10-22: four rooms; the sorcerer, then the demon), in three PRs:
+  - [x] M7.2a The vault's rooms (in shadowy violet): the entry hall, with a crystal switch (Lightning) opening the way east; the west trial (sparks, thorns and a boulder: the Ward, the Fireball, the Axe) and the east trial (a stone to push, and an eye statue: the Steel Sword), each holding a key; two locked doors up to the sorcerer's hall, with Kira's cell behind a gate at its top
+  - [x] M7.2b The Sorcerer: he blinks between four spots along the foot of his hall, casting golden orbs of magic, behind a shield of dark magic (the Ward's bubble in violet) that turns every blow; one of his orbs batted back into him (Steel Sword or Star Blade) breaks it for 4 s, and then any weapon hurts him. The vault's boss leaves no heart or shard
+  - [x] M7.2c The Demon: at half health the sorcerer shows his true shape, a horned demon (the pack's, scaled to 80% so it fits the room: owner 2026-10-22) that charges at Jarrett when he is level with it and crouches, then throws a ring of fire; it has no shield, and the health bar goes on from the Sorcerer's
 - [ ] M7.3 Princess Kira's rescue with Walker, ending screen with play time, credits
 - [ ] M7.4 Fastest finish time kept in localStorage and shown on the title screen (owner 2026-10-20)
 

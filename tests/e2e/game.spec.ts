@@ -2029,13 +2029,27 @@ test('the Vampire’s touch drains Jarrett and heals it', async ({ page }) => {
   expect(watched.errors).toEqual([]);
 });
 
-test('the Vampire bursts into a ring of dark shots and re-forms somewhere else', async ({
+test('the Vampire bursts into a ring of dark purple shots and re-forms somewhere else', async ({
   page,
 }) => {
   const watched = watchPage(page);
   await enterVampireRoom(page, { x: 40, y: 126 });
   const start = (await snapshot(page)).boss;
-  await page.evaluate(() => window.__game?.enemiesShootNow());
+  // Watched in the page, frame by frame: the art of the shots in the air on the frame they burst out.
+  const arts = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        window.__game?.enemiesShootNow();
+        const look = (): void => {
+          const s = window.__game?.snapshot();
+          if (s && s.shotsFired >= 8) resolve(s.enemyShots.map((shot) => shot.art));
+          else requestAnimationFrame(look);
+        };
+        look();
+      }),
+  );
+  expect(arts.length).toBeGreaterThan(0);
+  expect(arts).toEqual(arts.map(() => 'dark-shot'));
   await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(8);
   expect((await snapshot(page)).boss?.gone).toBe(true);
   await expect
@@ -3255,6 +3269,226 @@ test('Walker gives a hint at Dragon’s Maw, and after the last shard sends Jarr
   expect(said).toContain('ALL EIGHT SHARDS');
   expect(said).toContain('SHADOW VAULT');
   expect((await snapshot(page)).opened).toContain('walker/dungeon8-done');
+  expect(watched.errors).toEqual([]);
+});
+
+test('with all 8 shards, Walker opens the Shadow Vault’s door, and Jarrett goes in', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) window.__game?.takeShard(n);
+    window.__game?.goToRoom(6, 6);
+    window.__game?.clearEnemies();
+  });
+  // Seven shards: no Walker, and the door (columns 14–15, row 3) holds fast.
+  expect((await snapshot(page)).walker).toBeNull();
+  await page.evaluate(() => window.__game?.placeHero(240, 90, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(70); // row 4's top + his feet box
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  // The eighth: Walker waits beside the door. When he has spoken, it is open.
+  await page.evaluate(() => {
+    window.__game?.takeShard(8);
+    window.__game?.goToRoom(6, 6);
+    window.__game?.clearEnemies();
+  });
+  expect((await snapshot(page)).walker).toEqual({ x: 200, y: 79 });
+  const said = (await talkToWalker(page)).flat().join(' ');
+  expect(said).toContain('SHADOW VAULT');
+  expect(said).toContain('OPEN THE WAY');
+  const s = await snapshot(page);
+  expect(s.opened).toEqual(
+    expect.arrayContaining(['walker/vault', 'overworld/6,6/14,3', 'overworld/6,6/15,3']),
+  );
+  expect(s.sounds.unlock).toBe(1);
+  // Up through the open door and down into the vault's entry hall.
+  await page.evaluate(() => window.__game?.placeHero(240, 90, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const inside = await snapshot(page);
+  expect(inside.map).toBe('vault');
+  expect(inside.room).toEqual({ col: 1, row: 2 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('in the Shadow Vault, Lightning opens the way to the east trial, whose stone slides aside', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=9'); // with every prize
+  await chooseSpell(page, 'Lightning');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.clearEnemies();
+  });
+  // The gate east (column 18, rows 4–5) stops him at its edge.
+  await page.evaluate(() => window.__game?.placeHero(260, 78, 'right'));
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => (await snapshot(page)).player.x).toBe(283); // x 288 less his half-width
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowRight');
+  expect((await snapshot(page)).room).toEqual({ col: 1, row: 2 });
+  // A bolt up into the crystal switch (column 4, row 1) powers it, and the gate opens.
+  await page.evaluate(() => window.__game?.placeHero(72, 46, 'up'));
+  await page.keyboard.press('c');
+  await expect.poll(async () => (await snapshot(page)).opened).toContain('vault/1,2/4,1');
+  await page.evaluate(() => window.__game?.placeHero(260, 78, 'right'));
+  await holdUntil(page, 'ArrowRight', async () => {
+    const room = (await snapshot(page)).room;
+    return room.col === 2 && room.row === 2;
+  });
+  await expect.poll(async () => (await snapshot(page)).sliding).toBe(false);
+  // In the east trial: the stone in the wall (column 7, row 4) slides aside, and he is through.
+  await page.evaluate(() => {
+    window.__game?.clearEnemies();
+    window.__game?.placeHero(96, 78, 'right');
+  });
+  await holdUntil(page, 'ArrowRight', async () => (await snapshot(page)).player.x > 136);
+  expect((await snapshot(page)).room).toEqual({ col: 2, row: 2 });
+  expect(watched.errors).toEqual([]);
+});
+
+/** Into the Shadow Vault's top hall (by the test hook), the Steel Sword in hand, Jarrett at `at`. */
+async function enterSorcererHall(page: Page, at: { x: number; y: number }): Promise<void> {
+  await openGame(page, '?dungeon=9');
+  await chooseItem(page, 'near', 'Steel Sword');
+  await page.evaluate(({ x, y }) => {
+    window.__game?.goToRoom(1, 1);
+    window.__game?.placeHero(x, y, 'right');
+  }, at);
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('sorcerer');
+}
+
+test('the Sorcerer’s shield turns every blow, until one of his orbs batted back breaks it', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await enterSorcererHall(page, { x: 150, y: 100 });
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  const first = (await snapshot(page)).boss;
+  expect(first?.shielded).toBe(true);
+  const boss = { x: first?.x ?? 0, y: first?.y ?? 0 };
+  // Beside him, facing him (not touching): a blow glances off.
+  const beside = { x: boss.x - 20, y: boss.y - 8 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'right'), beside);
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  let s = await snapshot(page);
+  expect(s.boss?.health).toBe(24);
+  expect(s.sounds.block).toBeGreaterThanOrEqual(1);
+  // He casts at Jarrett, off to the left; the orb is held once it has flown a little way.
+  await page.evaluate(() => {
+    window.__game?.placeHero(150, 100, 'right');
+    window.__game?.holdEnemies(false);
+    window.__game?.enemiesShootNow();
+  });
+  await expect
+    .poll(
+      () =>
+        page.evaluate((bx) => {
+          const shots = window.__game?.snapshot()?.enemyShots ?? [];
+          const out = shots.length > 0 && (shots[0]?.x ?? bx) < bx - 20;
+          if (out) window.__game?.holdEnemies(true);
+          return out;
+        }, boss.x),
+      { intervals: [20] },
+    )
+    .toBe(true);
+  // Under the blade, facing him: batted back, it flies into him and breaks the shield.
+  const orb = (await snapshot(page)).enemyShots[0] ?? { x: 0, y: 0 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y + 10, 'right'), orb);
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).shieldsBroken).toBe(1);
+  s = await snapshot(page);
+  expect(s.boss?.shielded).toBe(false);
+  expect(s.boss?.health).toBe(24);
+  // Now a blow lands: the Steel Sword's 2.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'right'), beside);
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).boss?.health).toBe(22);
+  expect(watched.errors).toEqual([]);
+});
+
+/** In the Sorcerer's hall: brings him down to half his health, so he shows his true shape. */
+async function toTheDemon(page: Page): Promise<void> {
+  await enterSorcererHall(page, { x: 150, y: 100 });
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(13);
+    window.__game?.breakBossShield();
+  });
+  const b = (await snapshot(page)).boss ?? { x: 0, y: 0 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 20, y - 8, 'right'), b);
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page); // the Steel Sword's 2: down to 11
+  await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('demon');
+}
+
+test('at half his health the Sorcerer shows his true shape: the Demon, which throws rings of fire', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await toTheDemon(page);
+  let s = await snapshot(page);
+  expect(s.boss?.health).toBe(11);
+  expect(s.boss?.shielded).toBe(false);
+  expect(s.sounds.rumble).toBeGreaterThanOrEqual(1);
+  // Away up the hall (not level with it): it crouches, then throws a ring of ten.
+  await page.evaluate(() => {
+    window.__game?.placeHero(100, 60, 'down');
+    window.__game?.holdEnemies(false);
+    window.__game?.enemiesShootNow();
+  });
+  const fired = s.shotsFired;
+  await expect
+    .poll(async () => (await snapshot(page)).boss?.crouching, { intervals: [20] })
+    .toBe(true);
+  await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(fired + 10);
+  s = await snapshot(page);
+  expect(s.boss?.kind).toBe('demon');
+  expect(watched.errors).toEqual([]);
+});
+
+test('the beaten Demon ends the fight, and leaves no heart or shard', async ({ page }) => {
+  const watched = watchPage(page);
+  await toTheDemon(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(1);
+  });
+  // Beside it, facing it, clear of its body.
+  const d = (await snapshot(page)).boss ?? { x: 0, y: 0 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 27, y - 8, 'right'), d);
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  const s = await snapshot(page);
+  expect(s.pickups).toEqual([]);
+  expect(s.opened).toContain('vault/1,1/boss');
+  expect(s.sealed).toBe(false);
+  expect(watched.errors).toEqual([]);
+});
+
+test('?dungeon=9 starts in the Shadow Vault, with every prize', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=9');
+  const s = await snapshot(page);
+  expect(s.map).toBe('vault');
+  expect(s.room).toEqual({ col: 1, row: 2 });
+  // The last dungeons' prizes are in the bag.
+  await chooseItem(page, 'near', 'Star Blade');
+  await chooseItem(page, 'spell', 'Ward');
   expect(watched.errors).toEqual([]);
 });
 

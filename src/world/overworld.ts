@@ -513,16 +513,26 @@ const ROOMS: readonly RoomDef[] = [
       'FFFFFFFFFFFFFFFFFFFF',
     ],
   },
-  // The vault grounds, south-west: the vault's door (sealed until M7.1).
+  // The vault grounds, south-west: the Shadow Vault's door, which no key opens. Walker
+  // opens it once Jarrett holds all 8 shards (src/world/walker.ts); behind it, the way down.
   {
     col: 6,
     row: 6,
     region: 'vault',
     enemies: [{ kind: 'ghost', col: 14, row: 7 }],
+    exits: [
+      {
+        cells: [
+          { col: 14, row: 2 },
+          { col: 15, row: 2 },
+        ],
+        to: { map: 'vault', room: { col: 1, row: 2 }, feet: { x: 160, y: 140 }, facing: 'up' },
+      },
+    ],
     lines: [
       '#########..#########',
       '#########..#########',
-      '##.........#########',
+      '##.........###DD####',
       '##.........###KK####',
       '....................',
       '....................',

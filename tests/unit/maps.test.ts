@@ -10,6 +10,7 @@ import {
   WOOD_TINT,
   MANOR_TINT,
   MAW_TINT,
+  VAULT_TINT,
   coveredCells,
   dungeonArt,
   roomArt,
@@ -155,6 +156,18 @@ describe('maps', () => {
     expect(DUNGEON_MAPS[7]).toBe('dungeon7');
     expect(MAPS.dungeon7.name).toBe('Crimson Manor');
     expect(MAPS.dungeon7.tint).toBe(MANOR_TINT);
+  });
+
+  it('the overworld and the Shadow Vault lead into each other, through the vault door', () => {
+    const into = MAPS.overworld.rooms
+      .filter((r) => (r.exits ?? []).some((e) => e.to.map === 'vault'))
+      .map((r) => `${r.col},${r.row}`);
+    expect(into).toEqual(['6,6']);
+    const out = MAPS.vault.rooms.flatMap((r) => r.exits ?? []).map((e) => e.to);
+    expect(out).toEqual([expect.objectContaining({ map: 'overworld', room: { col: 6, row: 6 } })]);
+    expect(DUNGEON_MAPS[9]).toBe('vault');
+    expect(MAPS.vault.name).toBe('Shadow Vault');
+    expect(MAPS.vault.tint).toBe(VAULT_TINT);
   });
 
   it("the overworld and Dragon's Maw lead into each other, through the volcano cave", () => {

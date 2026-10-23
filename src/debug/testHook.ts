@@ -46,6 +46,8 @@ export interface TestHook {
   setCell(x: number, y: number, ch: string): void;
   /** Set the boss's health (at least 1; it still needs a hit to be beaten). */
   setBossHealth(health: number): void;
+  /** Breaks the boss's shield of dark magic, as an orb batted back into it does. */
+  breakBossShield(): void;
   /** Give Jarrett a small key for the map he's on. */
   giveKey(): void;
   /** Count dungeon n's shard as found (as picking it up does). */
@@ -137,6 +139,7 @@ export function installTestHook(game: Phaser.Game): void {
     nextDrop: (drop) => gameScene(game).testNextDrop(drop),
     setMana: (current) => gameScene(game).testSetMana(current),
     setBossHealth: (health) => gameScene(game).testSetBossHealth(health),
+    breakBossShield: () => gameScene(game).testBreakBossShield(),
     setCell: (x, y, ch) => gameScene(game).testSetCell(x, y, ch),
     giveKey: () => gameScene(game).testGiveKey(),
     takeShard: (n) => gameScene(game).testTakeShard(n),
