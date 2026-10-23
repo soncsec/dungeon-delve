@@ -3480,6 +3480,66 @@ test('the beaten Demon ends the fight, and leaves no heart or shard', async ({ p
   expect(watched.errors).toEqual([]);
 });
 
+test('beating the Demon opens Kira’s cell; her rescue ends the game, with the time it took', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await toTheDemon(page);
+  // Kira waits in her cell (column 10, row 3), but there's no talking to her yet.
+  let s = await snapshot(page);
+  expect(s.walkerWho).toBe('kira');
+  const kira = s.walker ?? { x: 0, y: 0 };
+  expect(kira).toEqual({ x: 168, y: 63 });
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), kira);
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await swingOnce(page); // Space only swings
+  expect((await snapshot(page)).talking).toBeNull();
+  // The Demon beaten: the gates of her cell (columns 9–10, row 4) open.
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.setBossHealth(1);
+  });
+  const d = (await snapshot(page)).boss ?? { x: 0, y: 0 };
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 27, y - 8, 'right'), d);
+  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  await swingOnce(page);
+  await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
+  s = await snapshot(page);
+  expect(s.opened).toEqual(expect.arrayContaining(['vault/1,1/9,4', 'vault/1,1/10,4']));
+  // Up through the open gate to her.
+  await page.evaluate(() => window.__game?.placeHero(168, 100, 'up'));
+  await holdUntil(page, 'ArrowUp', async () => (await snapshot(page)).player.y < 80);
+  // She and Walker speak, by name; after the last page, the ending.
+  await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 12, y, 'right'), kira);
+  await expect.poll(async () => (await snapshot(page)).knockedBack).toBe(false);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await snapshot(page)).talking?.who).toBe('KIRA');
+  // (Read in one go: after the last page the game gives way to the ending at any moment.)
+  const talkNow = () =>
+    page.evaluate(() => {
+      const g = window.__game;
+      return g?.scene() === 'Game' ? (g.snapshot()?.talking ?? null) : null;
+    });
+  const speakers = new Set<string>();
+  for (let talking = await talkNow(); talking; talking = await talkNow()) {
+    speakers.add(talking.who);
+    const at = talking.page;
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await talkNow())?.page ?? -1).not.toBe(at);
+  }
+  expect(speakers).toEqual(new Set(['KIRA', 'WALKER']));
+  await expect.poll(() => sceneNow(page)).toBe('Ending');
+  const ending = await page.evaluate(() => window.__game?.ending());
+  expect(ending?.time).toMatch(/^\d+:\d\d:\d\d$/);
+  // A moment, then Enter goes back to the title.
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__game?.ending()))?.ready)
+    .toBe(true);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => sceneNow(page)).toBe('Title');
+  expect(watched.errors).toEqual([]);
+});
+
 test('?dungeon=9 starts in the Shadow Vault, with every prize', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page, '?dungeon=9');

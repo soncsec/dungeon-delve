@@ -337,4 +337,32 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       { text: 'STAR OF POWER... OPEN THE WAY!' },
     ],
   },
+  {
+    // Princess Kira, in her cell at the top of the sorcerer's hall. Once the sorcerer is
+    // beaten, his gates open and she is free; Walker comes, the Star is whole, and the
+    // ending follows.
+    id: 'kira',
+    map: 'vault',
+    room: { col: 1, row: 1 },
+    cell: { col: 10, row: 3 },
+    who: 'kira',
+    speaksAfter: 'vault/1,1/boss',
+    ends: true,
+    speech: [
+      {
+        who: 'KIRA',
+        text: 'YOU BEAT HIM! I HEARD EVERY BLOW FROM IN HERE. YOU MUST BE JARRETT. WALKER SAID YOU WOULD COME.',
+      },
+      { who: 'KIRA', text: 'THANK YOU. I THOUGHT NO ONE WOULD EVER OPEN THAT GATE.' },
+      {
+        who: 'WALKER',
+        text: 'WELL DONE, JARRETT. THE SORCERER IS GONE FOR GOOD, AND KIRA IS FREE.',
+      },
+      {
+        who: 'WALKER',
+        text: 'THE EIGHT SHARDS ARE ONE AGAIN. THE STAR OF POWER SHINES OVER THE WHOLE LAND.',
+      },
+      { who: 'KIRA', text: 'THEN LET US GO HOME, ALL THREE OF US.' },
+    ],
+  },
 ];

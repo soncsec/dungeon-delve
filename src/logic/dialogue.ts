@@ -11,6 +11,8 @@ export interface Paragraph {
   touch?: string;
   /** Items given when this paragraph's first page shows. */
   give?: readonly ItemId[];
+  /** Who says it, for the name over the text box (the talk's own speaker if not said). */
+  who?: string;
 }
 
 /** The speech for this device: on a touchscreen, each paragraph's `touch` wording where it has one. */
@@ -21,6 +23,8 @@ export function forDevice(speech: readonly Paragraph[], touch: boolean): Paragra
 export interface Page {
   lines: string[];
   give: readonly ItemId[];
+  /** Who says it, if the paragraph names someone. */
+  who?: string;
 }
 
 /** Wraps text into lines of at most `width` characters, breaking between words (a long word is split). */
@@ -54,7 +58,11 @@ export function paginate(speech: readonly Paragraph[], width: number, perPage: n
   for (const p of speech) {
     const lines = wrap(p.text, width);
     for (let i = 0; i < lines.length; i += perPage) {
-      pages.push({ lines: lines.slice(i, i + perPage), give: i === 0 ? (p.give ?? []) : [] });
+      const page: Page = {
+        lines: lines.slice(i, i + perPage),
+        give: i === 0 ? (p.give ?? []) : [],
+      };
+      pages.push(p.who === undefined ? page : { ...page, who: p.who });
     }
   }
   return pages;

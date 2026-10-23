@@ -49,3 +49,14 @@ describe('forDevice', () => {
     expect(forDevice(speech, true).map((p) => p.text)).toEqual(['TAP MAGIC.', 'HELLO.']);
   });
 });
+
+describe('who speaks', () => {
+  it('each page of a paragraph that names its speaker names them; others name no one', () => {
+    const pages = paginate([{ text: 'ONE TWO THREE', who: 'KIRA' }, { text: 'FOUR' }], 7, 1);
+    expect(pages).toEqual([
+      { lines: ['ONE TWO'], give: [], who: 'KIRA' },
+      { lines: ['THREE'], give: [], who: 'KIRA' },
+      { lines: ['FOUR'], give: [] },
+    ]);
+  });
+});

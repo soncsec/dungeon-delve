@@ -6,6 +6,7 @@ import type { Facing } from '../logic/hero';
 import type { ItemId } from '../logic/inventory';
 import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
 import type { InventoryScene } from '../scenes/InventoryScene';
+import type { EndingScene } from '../scenes/EndingScene';
 import type { TitleScene } from '../scenes/TitleScene';
 import type { ShopScene } from '../scenes/ShopScene';
 
@@ -22,6 +23,8 @@ export interface TestHook {
   title(): { screen: 'menu' | 'confirm'; options: string[]; cursor: number } | null;
   /** The asset group the preview scene shows, or null when it isn't running. */
   previewGroup(): string | null;
+  /** What the ending shows, or null when it isn't running. */
+  ending(): { time: string; ready: boolean; cards: number } | null;
   /** Texture keys that failed to load or are missing. */
   missingTextures(): string[];
   /** Put the hero's feet at a room position (room pixels), optionally facing a way. */
@@ -124,6 +127,10 @@ export function installTestHook(game: Phaser.Game): void {
     title: () => {
       const s = game.scene.getScene('Title') as TitleScene | null;
       return s && game.scene.isActive('Title') ? s.shows() : null;
+    },
+    ending: () => {
+      const s = game.scene.getScene('Ending') as EndingScene | null;
+      return s && game.scene.isActive('Ending') ? s.shows() : null;
     },
     previewGroup: () => {
       const s = game.scene.getScene('AssetPreview') as AssetPreviewScene | null;

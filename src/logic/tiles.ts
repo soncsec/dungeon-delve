@@ -432,7 +432,8 @@ export function dungeonArt(
   const gates = gatesOpen(room, opened);
   room.cells.forEach((rowCells, y) => {
     rowCells.forEach((cell, x) => {
-      const isOpen = cell.fixture === 'gate' ? gates : cell.fixture !== null && opened(x, y);
+      const isOpen =
+        cell.fixture === 'gate' ? gates || opened(x, y) : cell.fixture !== null && opened(x, y);
       const tile = { frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE };
       // A switch is dim until powered; an eye statue glows red until shut, then is dim.
       if (cell.fixture === 'eye')

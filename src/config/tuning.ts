@@ -812,3 +812,24 @@ export const FRAME_BUDGET = {
 
 /** Seed for the random number generator; override with ?seed= in the URL. */
 export const DEFAULT_SEED = 1;
+
+/**
+ * The ending (M7.3): Jarrett between Kira and Walker at twice their size, the
+ * time the quest took beneath them, then the credits, a card at a time.
+ */
+export const ENDING = {
+  background: '#101018',
+  cast: [
+    { key: 'kira', dx: -48 },
+    { key: 'jarrett', dx: 0 },
+    { key: 'walker', dx: 48 },
+  ],
+  castScale: 2,
+  feetY: 100,
+  timeY: 108,
+  creditY: 134,
+  cardMs: 3000,
+  fadeMs: 500,
+  /** A moment before a key or tap leaves it, so a key still held from the game doesn't skip it. */
+  promptAfterMs: 1500,
+} as const;

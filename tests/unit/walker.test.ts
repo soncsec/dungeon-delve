@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { NEW_PROGRESS, openChest } from '../../src/logic/progress';
 import {
+  canTalk,
   finishVisit,
   markTalked,
   talkId,
@@ -181,5 +182,35 @@ describe('Walker at the Shadow Vault (M7.1)', () => {
   it('a visit that opens nothing only records the talk', () => {
     const p = finishVisit({ opened: [], keys: {} }, VISITS[0] as WalkerVisit);
     expect(p.opened).toEqual(['walker/a']);
+  });
+});
+
+describe('Princess Kira, in her cell in the Shadow Vault (M7.3)', () => {
+  const kira = WALKER_VISITS.find((v) => v.id === 'kira');
+  const hall = { col: 1, row: 1 };
+
+  it('waits in her cell from the start, but can only be talked to once the sorcerer is beaten', () => {
+    expect(kira).toBeDefined();
+    if (!kira) return;
+    expect(walkerHere(WALKER_VISITS, 'vault', hall, NEW_PROGRESS)?.id).toBe('kira');
+    expect(kira.who).toBe('kira');
+    expect(canTalk(kira, NEW_PROGRESS)).toBe(false);
+    expect(canTalk(kira, { opened: ['vault/1,1/boss'], keys: {} })).toBe(true);
+    // Once she has spoken, she is gone (and the ending has followed).
+    expect(
+      walkerHere(WALKER_VISITS, 'vault', hall, { opened: ['walker/kira'], keys: {} }),
+    ).toBeNull();
+  });
+
+  it('her talk ends the game; she and Walker each speak, by name', () => {
+    expect(kira?.ends).toBe(true);
+    const who = new Set(kira?.speech.map((p) => p.who));
+    expect(who).toEqual(new Set(['KIRA', 'WALKER']));
+  });
+
+  it('Walker’s own visits can be talked to as soon as they are there', () => {
+    for (const v of WALKER_VISITS.filter((x) => x.id !== 'kira')) {
+      expect(canTalk(v, NEW_PROGRESS), v.id).toBe(true);
+    }
   });
 });

@@ -165,7 +165,7 @@
   - [x] M7.2a The vault's rooms (in shadowy violet): the entry hall, with a crystal switch (Lightning) opening the way east; the west trial (sparks, thorns and a boulder: the Ward, the Fireball, the Axe) and the east trial (a stone to push, and an eye statue: the Steel Sword), each holding a key; two locked doors up to the sorcerer's hall, with Kira's cell behind a gate at its top
   - [x] M7.2b The Sorcerer: he blinks between four spots along the foot of his hall, casting golden orbs of magic, behind a shield of dark magic (the Ward's bubble in violet) that turns every blow; one of his orbs batted back into him (Steel Sword or Star Blade) breaks it for 4 s, and then any weapon hurts him. The vault's boss leaves no heart or shard
   - [x] M7.2c The Demon: at half health the sorcerer shows his true shape, a horned demon (the pack's, scaled to 80% so it fits the room: owner 2026-10-22) that charges at Jarrett when he is level with it and crouches, then throws a ring of fire; it has no shield, and the health bar goes on from the Sorcerer's
-- [ ] M7.3 Princess Kira's rescue with Walker, ending screen with play time, credits
+- [x] M7.3 Princess Kira's rescue with Walker, ending screen with play time, credits: Kira waits in her cell (no talking to her through the bars); beating the Demon opens its gates; she and Walker (who comes in a shimmer) speak, by name; then the ending shows the three of them, the time the quest took, and the credits, and Enter or a tap goes back to the title. The game is saved as it stands
 - [ ] M7.4 Fastest finish time kept in localStorage and shown on the title screen (owner 2026-10-20)
 
 **Acceptance criteria:** the owner completes the game.
