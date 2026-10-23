@@ -2921,10 +2921,15 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
 
   /** Test hook only: jump to a room on this map, standing at its start position. */
   testGoToRoom(col: number, row: number): void {
+    this.testGoToMap(this.mapId, col, row);
+  }
+
+  /** Test hook only: go to a room of any map at once, as a doorway would take him. */
+  testGoToMap(map: string, col: number, row: number): void {
     this.arrive({
       cells: [],
       to: {
-        map: this.mapId,
+        map,
         room: { col, row },
         feet: { x: HERO.start.col * TILE, y: (HERO.start.row + 1) * TILE - HERO.start.lift },
         facing: 'down',

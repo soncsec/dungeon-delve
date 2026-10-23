@@ -75,6 +75,8 @@ export interface TestHook {
   bump(x: number, y: number): void;
   /** Jump to a room on the map he's on. */
   goToRoom(col: number, row: number): void;
+  /** Go to a room of any map at once (by its id, e.g. 'dungeon3'), as a doorway would. */
+  goToMap(map: string, col: number, row: number): void;
   /** Set his hearts (in half hearts) and gems. */
   setHealth(points: number): void;
   setGems(gems: number): void;
@@ -171,6 +173,7 @@ export function installTestHook(game: Phaser.Game): void {
     finishTalk: () => gameScene(game).testFinishTalk(),
     bump: (x, y) => gameScene(game).testBump(x, y),
     goToRoom: (col, row) => gameScene(game).testGoToRoom(col, row),
+    goToMap: (map, col, row) => gameScene(game).testGoToMap(map, col, row),
     setHealth: (points) => gameScene(game).testSetHealth(points),
     setGems: (gems) => gameScene(game).testSetGems(gems),
     frameTimes: (reset) => {
