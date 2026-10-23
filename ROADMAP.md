@@ -163,7 +163,7 @@
 - [x] M7.1 Vault door that Walker opens with all 8 shards: his last words (with a hint at the sorcerer's shield), then the Star opens the door for good; behind it, the vault's entry hall. The vault counts as the ninth dungeon (`?dungeon=9` starts there)
 - [ ] M7.2 Vault rooms and the final boss (owner 2026-10-22: four rooms; the sorcerer, then the demon), in three PRs:
   - [x] M7.2a The vault's rooms (in shadowy violet): the entry hall, with a crystal switch (Lightning) opening the way east; the west trial (sparks, thorns and a boulder: the Ward, the Fireball, the Axe) and the east trial (a stone to push, and an eye statue: the Steel Sword), each holding a key; two locked doors up to the sorcerer's hall, with Kira's cell behind a gate at its top
-  - [ ] M7.2b The Sorcerer: he blinks about casting magic orbs behind a shield of dark magic; one of his orbs batted back into him (Steel Sword or Star Blade) breaks it for a few seconds, and then any weapon hurts him
+  - [x] M7.2b The Sorcerer: he blinks between four spots along the foot of his hall, casting golden orbs of magic, behind a shield of dark magic (the Ward's bubble in violet) that turns every blow; one of his orbs batted back into him (Steel Sword or Star Blade) breaks it for 4 s, and then any weapon hurts him. The vault's boss leaves no heart or shard
   - [ ] M7.2c The Demon: at half health the sorcerer shows his true shape, a horned demon that charges at Jarrett and throws rings of fire, with no shield
 - [ ] M7.3 Princess Kira's rescue with Walker, ending screen with play time, credits
 - [ ] M7.4 Fastest finish time kept in localStorage and shown on the title screen (owner 2026-10-20)

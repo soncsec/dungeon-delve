@@ -16,6 +16,7 @@ import {
   enemyId,
   markDefeated,
   shardsToEnter,
+  bossRewards,
   VAULT_NUMBER,
   heartContainers,
   manaCrystals,
@@ -203,5 +204,12 @@ describe('Mana Crystals', () => {
     expect(manaCrystals(NEW_PROGRESS)).toBe(0);
     expect(manaCrystals(takeReward(NEW_PROGRESS, rewardId('dungeon2', 'crystal')))).toBe(1);
     expect(CRYSTAL_MESSAGE[0]).toBe('A MANA CRYSTAL!');
+  });
+});
+
+describe('boss rewards', () => {
+  it('a dungeon boss leaves a heart container and its shard; the Shadow Vault’s, neither', () => {
+    expect(bossRewards('dungeon3')).toEqual(['heart', 'shard']);
+    expect(bossRewards('vault')).toEqual([]);
   });
 });

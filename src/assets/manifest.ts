@@ -118,6 +118,8 @@ export const ASSETS: readonly SheetAsset[] = [
   // The Dragon (dungeon 8): frames of 144×64, its art facing left. Idle; rearing, then breathing
   // fire (the breath sheet: frames 0-2 rear, 3-6 the flame); and its tail lash.
   sheet('bosses', 'dragon', 144, 64, 6, 1, [anim('sway', range(0, 6), 8)]),
+  // The Sorcerer (the Shadow Vault): 6 frames of 95×133, his hands aglow with magic.
+  sheet('bosses', 'sorcerer', 95, 133, 6, 1, [anim('sway', range(0, 6), 7)]),
   sheet('bosses', 'dragon-breath', 144, 64, 7, 1, [
     anim('rear', range(0, 3), 5, false),
     anim('breathe', range(3, 4), 10),

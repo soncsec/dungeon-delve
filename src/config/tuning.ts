@@ -475,6 +475,32 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     calm: { shots: 5, spreadDeg: 14, everyMs: { min: 2600, max: 3400 } },
     fierce: { shots: 8, spreadDeg: 11, everyMs: { min: 1500, max: 2100 } },
   },
+  // The Shadow Vault: the Sorcerer (owner 2026-10-22). He blinks between four spots along the foot
+  // of his hall (his art is 118 px tall, so he stands low to stay in view), casting orbs of magic
+  // at Jarrett from behind a shield of dark magic that turns every blow. One of his orbs batted
+  // back into him (the Steel Sword or the Star Blade) breaks it for 4 s; then any weapon hurts him.
+  sorcerer: {
+    health: 24,
+    contactDamage: 2,
+    box: { halfWidth: 14, height: 64 },
+    moves: {
+      style: 'blink',
+      stayMs: { min: 2600, max: 3600 },
+      goneMs: 700,
+      // 52 px apart or more (his body is 28 wide).
+      spots: [
+        { x: 48, y: 126 },
+        { x: 100, y: 126 },
+        { x: 220, y: 126 },
+        { x: 272, y: 126 },
+      ],
+      decoys: 0,
+    },
+    shotKind: 'magic',
+    shield: { bareMs: 4000 },
+    calm: { shots: 1, spreadDeg: 0, everyMs: { min: 1300, max: 1900 } },
+    fierce: { shots: 3, spreadDeg: 18, everyMs: { min: 1000, max: 1500 } },
+  },
 };
 
 /**
@@ -519,6 +545,8 @@ export const BOSS_FX = {
   shadow: { height: 8, alpha: 0.35 },
   /** A storm-caller rears up this much while it winds up (the warning). */
   rear: { x: 0.95, y: 1.08 },
+  /** A shielded boss's shield: the Ward's bubble at three times its size, see-through, its middle this far above the boss's feet (px). */
+  shield: { scale: 3, alpha: 0.55, lift: 60 },
 } as const;
 
 /** The flying eye's shot. */
@@ -530,13 +558,15 @@ export const ENEMY_SHOT = {
   damage: 1,
 } as const;
 
-/** Each kind of enemy shot: the eye's orb, the snake's venom (fast), the mushroom's spores (slow, short), the Witch's fire. */
+/** Each kind of enemy shot: the eye's orb, the snake's venom (fast), the mushroom's spores (slow, short), the Witch's fire, the Vampire's dark shots, the Sorcerer's magic. */
 export const ENEMY_SHOTS = {
   orb: ENEMY_SHOT,
   venom: { speed: 150, range: 160, size: 6, damage: 1 },
   spore: { speed: 40, range: 44, size: 8, damage: 1 },
   fire: { speed: 120, range: 260, size: 10, damage: 2 },
   dark: { speed: 90, range: 220, size: 8, damage: 1 },
+  // The Sorcerer's magic: slow enough to meet with the sword and send back.
+  magic: { speed: 80, range: 280, size: 8, damage: 2 },
 } as const;
 
 /**
