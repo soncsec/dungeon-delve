@@ -2694,7 +2694,19 @@ test('a spark barrier zaps Jarrett back; inside the Ward he walks through it', a
   await page.keyboard.press('c');
   expect((await untilGame(page, (s) => s.warded)).warded).toBe(true);
   await page.keyboard.down('ArrowUp');
-  expect((await untilGame(page, (s) => s.sliding, 10_000)).sliding).toBe(true);
+  // The slide north lasts half a second of game time, which a slow browser's round trips
+  // could miss, so it is watched frame by frame inside the page (for up to 10 s of game time).
+  const slid = await page.evaluate(async () => {
+    const g = window.__game;
+    const frame = () => new Promise((done) => requestAnimationFrame(() => done(null)));
+    const start = g?.snapshot()?.playMs ?? 0;
+    for (let s = g?.snapshot(); s && s.playMs - start < 10_000; s = g?.snapshot()) {
+      if (s.sliding) return true;
+      await frame();
+    }
+    return false;
+  });
+  expect(slid).toBe(true);
   await page.keyboard.up('ArrowUp');
   const north = await untilGame(page, (s) => s.room.col === 1 && s.room.row === 1);
   expect(north.room).toEqual({ col: 1, row: 1 });
