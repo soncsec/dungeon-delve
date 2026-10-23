@@ -13,6 +13,15 @@ import { DUNGEON_7_START } from './dungeon7';
 import { DUNGEON_8_START } from './dungeon8';
 import { START_ROOM } from './overworld';
 
+/** The Shadow Vault's door: two cells in the vault grounds' south-west room. */
+export const VAULT_DOOR = {
+  room: { col: 6, row: 6 },
+  cells: [
+    { col: 14, row: 3 },
+    { col: 15, row: 3 },
+  ],
+} as const;
+
 export const WALKER_VISITS: readonly WalkerVisit[] = [
   {
     // The village (the start room, for now): the story, the sword and shield, the controls.
@@ -306,6 +315,26 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       { text: 'ALL EIGHT SHARDS! THE STAR OF POWER IS WHOLE AGAIN. I CAN FEEL IT SHINE.' },
       { text: 'NOW, THE SHADOW VAULT, IN THE MIDDLE OF THE LAND. MEET ME AT ITS DOOR.' },
       { text: 'KIRA IS WAITING, JARRETT. AND SO IS THE SORCERER.' },
+    ],
+  },
+  {
+    // The Shadow Vault's door, once all 8 shards are found: his last words, and the Star opens it.
+    id: 'vault',
+    map: 'overworld',
+    room: VAULT_DOOR.room,
+    cell: { col: 12, row: 4 },
+    after: 'dungeon8/shard',
+    opens: VAULT_DOOR.cells,
+    speech: [
+      {
+        text: 'HERE IT IS: THE SHADOW VAULT. KIRA IS INSIDE, AND SO IS THE SORCERER WHO TOOK HER.',
+      },
+      {
+        text: 'A SHIELD OF DARK MAGIC GUARDS HIM. SWING YOUR SWORD AT HIS OWN MAGIC TO SEND IT BACK, AND THE SHIELD WILL BREAK.',
+      },
+      { text: 'HURT HIM BADLY, AND HE WILL SHOW HIS TRUE SHAPE. DO NOT BE AFRAID.' },
+      { text: 'I CANNOT GO IN WITH YOU. BUT THE STAR GOES WITH YOU, AND SO DO I.' },
+      { text: 'STAR OF POWER... OPEN THE WAY!' },
     ],
   },
 ];

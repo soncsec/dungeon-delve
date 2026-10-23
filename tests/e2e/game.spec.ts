@@ -3264,6 +3264,66 @@ test('Walker gives a hint at Dragon’s Maw, and after the last shard sends Jarr
   expect(watched.errors).toEqual([]);
 });
 
+test('with all 8 shards, Walker opens the Shadow Vault’s door, and Jarrett goes in', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page);
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) window.__game?.takeShard(n);
+    window.__game?.goToRoom(6, 6);
+    window.__game?.clearEnemies();
+  });
+  // Seven shards: no Walker, and the door (columns 14–15, row 3) holds fast.
+  expect((await snapshot(page)).walker).toBeNull();
+  await page.evaluate(() => window.__game?.placeHero(240, 90, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).player.y).toBe(70); // row 4's top + his feet box
+  await page.waitForTimeout(300);
+  await page.keyboard.up('ArrowUp');
+  expect((await snapshot(page)).map).toBe('overworld');
+  // The eighth: Walker waits beside the door. When he has spoken, it is open.
+  await page.evaluate(() => {
+    window.__game?.takeShard(8);
+    window.__game?.goToRoom(6, 6);
+    window.__game?.clearEnemies();
+  });
+  expect((await snapshot(page)).walker).toEqual({ x: 200, y: 79 });
+  const said = (await talkToWalker(page)).flat().join(' ');
+  expect(said).toContain('SHADOW VAULT');
+  expect(said).toContain('OPEN THE WAY');
+  const s = await snapshot(page);
+  expect(s.opened).toEqual(
+    expect.arrayContaining(['walker/vault', 'overworld/6,6/14,3', 'overworld/6,6/15,3']),
+  );
+  expect(s.sounds.unlock).toBe(1);
+  // Up through the open door and down into the vault's entry hall.
+  await page.evaluate(() => window.__game?.placeHero(240, 90, 'up'));
+  await page.keyboard.down('ArrowUp');
+  await expect
+    .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
+    .toBe(true);
+  await page.keyboard.up('ArrowUp');
+  await expect.poll(async () => (await snapshot(page)).travelling).toBe(false);
+  const inside = await snapshot(page);
+  expect(inside.map).toBe('vault');
+  expect(inside.room).toEqual({ col: 1, row: 2 });
+  expect(watched.errors).toEqual([]);
+});
+
+test('?dungeon=9 starts in the Shadow Vault, with every prize', async ({ page }) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=9');
+  const s = await snapshot(page);
+  expect(s.map).toBe('vault');
+  expect(s.room).toEqual({ col: 1, row: 2 });
+  // The last dungeons' prizes are in the bag.
+  await chooseItem(page, 'near', 'Star Blade');
+  await chooseItem(page, 'spell', 'Ward');
+  expect(watched.errors).toEqual([]);
+});
+
 test('a new game starts at the village gate; a house’s walls stop Jarrett', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page);

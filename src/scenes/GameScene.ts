@@ -77,7 +77,7 @@ import { forDevice, paginate, type Page } from '../logic/dialogue';
 import { markStrikes, stepStrikes, stormPatches, strikeHits, type Strike } from '../logic/storm';
 import { isTouchDevice } from '../platform/touch';
 import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
-import { markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
+import { finishVisit, markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
 import { WALKER_VISITS } from '../world/walker';
 import { SHOPKEEPER_CELL } from '../world/shop';
 import type { Purse } from '../logic/shop';
@@ -1317,7 +1317,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.talk = null;
     const live = this.walker;
     if (!live) return;
-    this.progress = markTalked(this.progress, live.visit.id);
+    this.progress = finishVisit(this.progress, live.visit);
+    // A door he opens (the Shadow Vault's) swings open with a sparkle.
+    const opens = live.visit.opens ?? [];
+    for (const c of opens) this.effect('puff', (c.col + 0.5) * TILE, (c.row + 0.5) * TILE);
+    if (opens.length > 0) {
+      this.sfx.play('unlock');
+      this.redrawRoom();
+    }
     this.effect('puff', live.feet.x, live.feet.y - BODY.height / 2);
     this.enemyPool.give(live.sprite.setFlipX(false));
     this.walker = null;

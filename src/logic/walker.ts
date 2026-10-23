@@ -4,7 +4,8 @@
  * visits wait for something first (e.g. a dungeon's shard).
  */
 import type { Paragraph } from './dialogue';
-import { isOpened, openChest, type Progress } from './progress';
+import { fixtureId, isOpened, openChest, type Progress } from './progress';
+import { roomKey } from './world';
 
 export interface WalkerVisit {
   id: string;
@@ -15,6 +16,8 @@ export interface WalkerVisit {
   /** A progress id that must be there first (none: from the start). */
   after?: string;
   speech: readonly Paragraph[];
+  /** Doors in his room that he opens, for good, when the talk is done (the Shadow Vault's). */
+  opens?: readonly { col: number; row: number }[];
 }
 
 /** The progress id recording that a visit's talk has happened. */
@@ -23,6 +26,15 @@ export const talkId = (visitId: string): string => `walker/${visitId}`;
 /** Records that Jarrett has talked to Walker on a visit (once). */
 export function markTalked(p: Progress, visitId: string): Progress {
   return openChest(p, talkId(visitId));
+}
+
+/** A talk done: recorded, and the doors the visit opens opened for good. */
+export function finishVisit(p: Progress, v: WalkerVisit): Progress {
+  const key = roomKey(v.room.col, v.room.row);
+  return (v.opens ?? []).reduce(
+    (q, c) => openChest(q, fixtureId(v.map, key, c.col, c.row)),
+    markTalked(p, v.id),
+  );
 }
 
 /** The visit waiting in this room, if any. */

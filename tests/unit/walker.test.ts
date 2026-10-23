@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { NEW_PROGRESS, openChest } from '../../src/logic/progress';
-import { markTalked, talkId, walkerHere, type WalkerVisit } from '../../src/logic/walker';
-import { WALKER_VISITS } from '../../src/world/walker';
+import {
+  finishVisit,
+  markTalked,
+  talkId,
+  walkerHere,
+  type WalkerVisit,
+} from '../../src/logic/walker';
+import { VAULT_DOOR, WALKER_VISITS } from '../../src/world/walker';
 import { paginate } from '../../src/logic/dialogue';
 import { MAPS } from '../../src/world/maps';
 import { buildWorld, roomKey } from '../../src/logic/world';
@@ -140,5 +146,40 @@ describe('Walker at dungeons 2 to 4 (M5.5)', () => {
         expect(p.touch ?? '', `${v.id}: ${p.text}`).not.toMatch(/SPACE|WASD|PRESS [A-Z0-9]\b/);
       }
     }
+  });
+});
+
+describe('Walker at the Shadow Vault (M7.1)', () => {
+  const here = (opened: string[] = []) =>
+    walkerHere(WALKER_VISITS, 'overworld', VAULT_DOOR.room, { opened, keys: {} })?.id ?? null;
+
+  it('waits at the vault door once all 8 shards are found', () => {
+    expect(here()).toBeNull();
+    expect(here(['dungeon7/shard'])).toBeNull();
+    expect(here(['dungeon8/shard'])).toBe('vault');
+    expect(here(['dungeon8/shard', 'walker/vault'])).toBeNull();
+  });
+
+  it('when he has spoken, the vault door is open for good', () => {
+    const visit = WALKER_VISITS.find((v) => v.id === 'vault');
+    expect(visit).toBeDefined();
+    if (!visit) return;
+    const p = finishVisit({ opened: ['dungeon8/shard'], keys: {} }, visit);
+    expect(p.opened).toEqual([
+      'dungeon8/shard',
+      'walker/vault',
+      'overworld/6,6/14,3',
+      'overworld/6,6/15,3',
+    ]);
+    // The door is the room's locked door, which no key opens out here.
+    const room = buildWorld(MAPS.overworld.rooms).rooms.get(roomKey(6, 6));
+    for (const c of VAULT_DOOR.cells) expect(room?.cells[c.row]?.[c.col]?.fixture).toBe('door');
+    // His hint: send the sorcerer's magic back with the sword.
+    expect(visit.speech.map((s) => s.text).join(' ')).toContain('SEND IT BACK');
+  });
+
+  it('a visit that opens nothing only records the talk', () => {
+    const p = finishVisit({ opened: [], keys: {} }, VISITS[0] as WalkerVisit);
+    expect(p.opened).toEqual(['walker/a']);
   });
 });

@@ -160,8 +160,11 @@
 
 ## M7 — Shadow Vault and ending
 
-- [ ] M7.1 Vault door that Walker opens with all 8 shards
-- [ ] M7.2 Vault rooms and the final boss
+- [x] M7.1 Vault door that Walker opens with all 8 shards: his last words (with a hint at the sorcerer's shield), then the Star opens the door for good; behind it, the vault's entry hall. The vault counts as the ninth dungeon (`?dungeon=9` starts there)
+- [ ] M7.2 Vault rooms and the final boss (owner 2026-10-22: four rooms; the sorcerer, then the demon), in three PRs:
+  - [ ] M7.2a The vault's rooms: two trial rooms off the entry hall that use the earlier items, each holding a key to the hall's double door; the sorcerer's hall above, with Kira's cell behind it
+  - [ ] M7.2b The Sorcerer: he blinks about casting magic orbs behind a shield of dark magic; one of his orbs batted back into him (Steel Sword or Star Blade) breaks it for a few seconds, and then any weapon hurts him
+  - [ ] M7.2c The Demon: at half health the sorcerer shows his true shape, a horned demon that charges at Jarrett and throws rings of fire, with no shield
 - [ ] M7.3 Princess Kira's rescue with Walker, ending screen with play time, credits
 - [ ] M7.4 Fastest finish time kept in localStorage and shown on the title screen (owner 2026-10-20)
 

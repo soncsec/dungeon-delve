@@ -16,6 +16,7 @@ import {
   enemyId,
   markDefeated,
   shardsToEnter,
+  VAULT_NUMBER,
   heartContainers,
   manaCrystals,
   CRYSTAL_MESSAGE,
@@ -120,6 +121,8 @@ describe('shards as keys', () => {
     expect(shardsToEnter('overworld')).toBe(0);
     expect(shardsToEnter('caves')).toBe(0);
     expect(shardsToEnter('dungeon0')).toBe(0);
+    // The Shadow Vault, the ninth: every shard.
+    expect(shardsToEnter('vault')).toBe(8);
   });
 
   it('reads a dungeon map’s number', () => {
@@ -127,6 +130,8 @@ describe('shards as keys', () => {
     expect(dungeonNumber('dungeon12')).toBe(12);
     expect(dungeonNumber('overworld')).toBeNull();
     expect(dungeonNumber('caves')).toBeNull();
+    expect(dungeonNumber('vault')).toBe(VAULT_NUMBER);
+    expect(VAULT_NUMBER).toBe(9);
   });
 
   it('lets Jarrett in with enough shards', () => {
