@@ -123,8 +123,7 @@ async function settled(page: Page): Promise<boolean> {
  * "no sword out" can pass before the swing starts, so the next press is lost in it.)
  */
 async function swingOnce(page: Page): Promise<void> {
-  // Once he is free to: a press while he is knocked back is dropped. (His knockback runs on
-  // game time and his moment of safety on real time, so on a slow clock it can outlast it.)
+  // Once he is free to: a press while he is knocked back is dropped.
   const ready = await untilGame(page, (s) => !s.knockedBack);
   await page.keyboard.press('Space');
   expect((await untilGame(page, (s) => s.swings === ready.swings + 1)).swings).toBe(
