@@ -43,6 +43,8 @@ import {
   TILE,
 } from '../config/tuning';
 import { ITEM_ICON } from '../assets/itemIcons';
+import { isNewBest } from '../logic/fastest';
+import { readFastest, writeFastest } from '../storage/fastestStore';
 import type { EndingData } from './EndingScene';
 import { Sfx } from '../audio/Sfx';
 import type { SfxName } from '../config/tuning';
@@ -1401,7 +1403,17 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
    */
   private finishGame(): void {
     this.writeGame();
-    const ending: EndingData = { playMs: Math.round(this.playMs), cheated: this.cheated };
+    // A run with no ?dungeon=n skip, quicker than the best, is the new fastest.
+    const playMs = Math.round(this.playMs);
+    const best = readFastest();
+    const newBest = isNewBest(best, playMs, this.cheated);
+    if (newBest) writeFastest(playMs);
+    const ending: EndingData = {
+      playMs,
+      cheated: this.cheated,
+      best: newBest ? playMs : best,
+      newBest,
+    };
     this.scene.start('Ending', ending);
   }
 
