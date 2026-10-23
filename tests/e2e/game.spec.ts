@@ -2021,13 +2021,27 @@ test('the Vampire’s touch drains Jarrett and heals it', async ({ page }) => {
   expect(watched.errors).toEqual([]);
 });
 
-test('the Vampire bursts into a ring of dark shots and re-forms somewhere else', async ({
+test('the Vampire bursts into a ring of dark purple shots and re-forms somewhere else', async ({
   page,
 }) => {
   const watched = watchPage(page);
   await enterVampireRoom(page, { x: 40, y: 126 });
   const start = (await snapshot(page)).boss;
-  await page.evaluate(() => window.__game?.enemiesShootNow());
+  // Watched in the page, frame by frame: the art of the shots in the air on the frame they burst out.
+  const arts = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        window.__game?.enemiesShootNow();
+        const look = (): void => {
+          const s = window.__game?.snapshot();
+          if (s && s.shotsFired >= 8) resolve(s.enemyShots.map((shot) => shot.art));
+          else requestAnimationFrame(look);
+        };
+        look();
+      }),
+  );
+  expect(arts.length).toBeGreaterThan(0);
+  expect(arts).toEqual(arts.map(() => 'dark-shot'));
   await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(8);
   expect((await snapshot(page)).boss?.gone).toBe(true);
   await expect
