@@ -288,8 +288,8 @@ export interface GameSnapshot {
   /** How many times each sound has played, and whether sound is muted. */
   sounds: Record<SfxName, number>;
   muted: boolean;
-  /** Enemy shots in the air, how many have been fired, and how many the shield has blocked. */
-  enemyShots: { x: number; y: number }[];
+  /** Enemy shots in the air (and the art each is drawn with), how many have been fired, and how many the shield has blocked. */
+  enemyShots: { x: number; y: number; art: string }[];
   shotsFired: number;
   blocked: number;
   pickups: { kind: PickupKind; x: number; y: number }[];
@@ -477,8 +477,6 @@ function dragonPose(b: Boss): string {
 const SPORE_TINT = 0x9fe070;
 /** The Star Blade's beam: the blade in starlit gold (runtime tint, as its icon). */
 const STAR_GOLD = 0xfff0a0;
-/** The Vampire's dark shots: the enemy orb under a deep purple (runtime tint). */
-const DARK_TINT = 0x9050d0;
 
 interface Pickup {
   kind: PickupKind;
@@ -1928,9 +1926,10 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
               .take('fire-ball')
               .setAngle((Math.atan2(dir.y, dir.x) * 180) / Math.PI)
               .play(animKey('fire-ball', 'fly'))
-          : this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
+          : kind === 'dark'
+            ? this.enemyPool.take('dark-shot').play(animKey('dark-shot', 'fly'))
+            : this.enemyPool.take('enemy-shot').play(animKey('enemy-shot', 'fly'));
     if (kind === 'spore') sprite.setTint(SPORE_TINT);
-    if (kind === 'dark') sprite.setTint(DARK_TINT);
     const live = { s, sprite };
     this.enemyShots.push(live);
     this.drawEnemyShot(live);
@@ -2635,7 +2634,11 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         knocked: e.knockMs > 0,
         stunned: isStunned(e),
       })),
-      enemyShots: this.enemyShots.map(({ s: shot }) => ({ x: shot.pos.x, y: shot.pos.y })),
+      enemyShots: this.enemyShots.map(({ s: shot, sprite }) => ({
+        x: shot.pos.x,
+        y: shot.pos.y,
+        art: sprite.texture.key,
+      })),
       blocked: this.blocked,
       shotsFired: this.shotsFired,
       falling: this.falling,

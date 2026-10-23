@@ -54,6 +54,7 @@ List every file copied into `public/assets/` here, one per line, as its path fro
 - `assets/effects/fire-ball.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/fire-ball.png`
 - `assets/effects/bolt.png` — `Explosions and Magic/Warped shooting fx/Bolt/spritesheet.png`
 - `assets/effects/enemy-shot.png` — `Gothicvania/Misc/EnemyProjectile/spritesheet.png`
+- `assets/effects/dark-shot.png` — the same orb, its three colours recoloured from yellow, orange and white to purples by `tools/art/dark_shot.py` (owner request 2026-10-22: the Vampire's dark shots)
 - `assets/effects/snake-spit.png` — `Warped/Characters/Grotto-escape-2-snake/spritesheets/spit.png`
 - `assets/effects/electro-shock.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/electro-shock.png`, the Centaur's lightning
 - `assets/effects/ward.png` — `Explosions and Magic/Grotto-escape-2-FX/spritesheets/energy-shield.png`, the Ward spell's bubble
