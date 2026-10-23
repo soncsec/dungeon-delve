@@ -850,3 +850,31 @@ export const PAUSE = {
   choiceSpread: 70,
   quitUrl: '../',
 } as const;
+
+/**
+ * The title screen (M3.5, M8.3): the title, the story a card at a time, the
+ * menu with Jarrett and Kira either side, the save and the fastest time, and
+ * the keys along the foot.
+ */
+export const TITLE = {
+  titleY: 16,
+  subtitleY: 32,
+  storyY: 44,
+  menuY: 86,
+  menuGap: 14,
+  confirmGap: 24,
+  saveY: 132,
+  fastestY: 146,
+  footFromBottom: 10,
+  cast: [
+    { key: 'jarrett', x: 52 },
+    { key: 'kira', x: 268 },
+  ],
+  castFeetY: 150,
+  legendY: 76,
+  legendGap: 14,
+  legendX: [12, 164],
+  backY: 140,
+  cardMs: 3500,
+  fadeMs: 500,
+} as const;

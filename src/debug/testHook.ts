@@ -22,7 +22,7 @@ export interface TestHook {
   snapshot(): GameSnapshot | null;
   /** What the title screen's menu shows, or null when it isn't running. */
   title(): {
-    screen: 'menu' | 'confirm';
+    screen: 'menu' | 'confirm' | 'controls';
     options: string[];
     cursor: number;
     fastest: string | null;

@@ -2989,7 +2989,7 @@ test('a new game from the title screen saves at the start room', async ({ page }
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
   expect(await titleShows(page)).toEqual({
     screen: 'menu',
-    options: ['NEW GAME'],
+    options: ['NEW GAME', 'CONTROLS'],
     cursor: 0,
     fastest: null,
   });
@@ -3000,7 +3000,7 @@ test('a new game from the title screen saves at the start room', async ({ page }
   expect(s.saves).toBe(1);
   expect(s.cheated).toBe(false);
   await reloadToTitle(page);
-  expect((await titleShows(page))?.options).toEqual(['CONTINUE', 'NEW GAME']);
+  expect((await titleShows(page))?.options).toEqual(['CONTINUE', 'NEW GAME', 'CONTROLS']);
   expect(watched.errors).toEqual([]);
 });
 
@@ -3056,7 +3056,12 @@ test('NEW GAME over a save asks first; NO keeps it, YES starts over', async ({ p
   await page.keyboard.press('Enter'); // NO
   await expect
     .poll(() => titleShows(page))
-    .toEqual({ screen: 'menu', options: ['CONTINUE', 'NEW GAME'], cursor: 1, fastest: null });
+    .toEqual({
+      screen: 'menu',
+      options: ['CONTINUE', 'NEW GAME', 'CONTROLS'],
+      cursor: 1,
+      fastest: null,
+    });
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await titleShows(page))?.screen).toBe('confirm');
   await page.keyboard.press('ArrowDown');
@@ -3068,7 +3073,27 @@ test('NEW GAME over a save asks first; NO keeps it, YES starts over', async ({ p
   expect(s.cheated).toBe(false);
 });
 
-test('a damaged save is ignored: the title offers only NEW GAME', async ({ page }) => {
+test('the title shows the controls, and Q goes back to the arcade', async ({ page }) => {
+  const watched = watchPage(page);
+  await page.goto('./?seed=1');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
+  // CONTROLS (the second line without a save) shows the controls; Esc goes back, on CONTROLS.
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await titleShows(page))?.screen).toBe('controls');
+  await page.keyboard.press('Escape');
+  await expect
+    .poll(() => titleShows(page))
+    .toEqual({ screen: 'menu', options: ['NEW GAME', 'CONTROLS'], cursor: 1, fastest: null });
+  // Q: up one folder, to the arcade (here the test server's root, without the ?seed=1).
+  const here = page.url();
+  await page.keyboard.press('q');
+  await expect.poll(() => page.url()).not.toBe(here);
+  expect(new URL(page.url()).search).toBe('');
+  expect(watched.errors).toEqual([]);
+});
+
+test('a damaged save is ignored: the title offers no CONTINUE', async ({ page }) => {
   const watched = watchPage(page);
   await page.goto('./');
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
@@ -3076,10 +3101,10 @@ test('a damaged save is ignored: the title offers only NEW GAME', async ({ page 
     window.localStorage.setItem('dungeon-delve:save', '{"version":1,"map":"the-moon"}');
   });
   await reloadToTitle(page);
-  expect((await titleShows(page))?.options).toEqual(['NEW GAME']);
+  expect((await titleShows(page))?.options).toEqual(['NEW GAME', 'CONTROLS']);
   await page.evaluate(() => window.localStorage.setItem('dungeon-delve:save', '{oops'));
   await reloadToTitle(page);
-  expect((await titleShows(page))?.options).toEqual(['NEW GAME']);
+  expect((await titleShows(page))?.options).toEqual(['NEW GAME', 'CONTROLS']);
   expect(watched.errors).toEqual([]);
 });
 
