@@ -154,6 +154,8 @@ export const ASSETS: readonly SheetAsset[] = [
   sheet('effects', 'bolt', 48, 32, 4, 1, [anim('fly', range(0, 4), 14)]),
   // The flying eye's shot.
   sheet('effects', 'enemy-shot', 16, 16, 2, 1, [anim('fly', range(0, 2), 8)]),
+  // The Vampire's dark shots: the same orb recoloured purple (tools/art/dark_shot.py).
+  sheet('effects', 'dark-shot', 16, 16, 2, 1, [anim('fly', range(0, 2), 8)]),
   // The Ward: a bubble that shimmers while it is up, then breaks up as it drops.
   sheet('effects', 'ward', 51, 47, 8, 1, [
     anim('up', range(0, 4), 8),

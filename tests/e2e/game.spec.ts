@@ -690,26 +690,43 @@ test('a find from a chest is held up over his head with a success tune, and the 
   await expect.poll(async () => (await snapshot(page)).pickups.length).toBe(1);
   const key = (await snapshot(page)).pickups[0];
   expect(key?.kind).toBe('key');
-  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'left'), key ?? { x: 0, y: 0 });
-  await expect.poll(async () => (await snapshot(page)).holding).toBe(true);
-  const held = await snapshot(page);
-  expect(held.keys).toBe(1);
-  expect(held.facing).toBe('down'); // he turns to face you
-  expect(held.sounds.found).toBe(1);
-  expect(held.sounds.chest).toBe(1); // only the chest's opening; the find has its own tune
-  // The game waits: walking does nothing until the moment is over.
-  await page.keyboard.down('ArrowRight');
-  let sawHold = false;
-  for (;;) {
-    const s = await snapshot(page);
-    if (!s.holding) break;
-    sawHold = true;
-    expect(s.player).toEqual(held.player);
-  }
-  expect(sawHold).toBe(true);
-  // Then he walks on.
-  await expect.poll(async () => (await snapshot(page)).player.x).toBeGreaterThan(held.player.x);
-  await page.keyboard.up('ArrowRight');
+  // On the key: he holds it up, and the game waits. Watched frame by frame inside the
+  // page (the hold is 1.5 s, which a slow browser's round trips could miss entirely):
+  // the arrow is held down as soon as the hold begins, and he doesn't move until it ends.
+  const hold = await page.evaluate(
+    async ({ x, y }) => {
+      const g = window.__game;
+      const frame = () => new Promise((done) => requestAnimationFrame(() => done(null)));
+      g?.placeHero(x, y, 'left');
+      for (let i = 0; i < 600 && !g?.snapshot()?.holding; i++) await frame();
+      const start = g?.snapshot() ?? null;
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }));
+      let frames = 0;
+      let moved = false;
+      for (let s = g?.snapshot(); s?.holding; s = g?.snapshot()) {
+        frames += 1;
+        if (s.player.x !== start?.player.x || s.player.y !== start?.player.y) moved = true;
+        await frame();
+      }
+      return { start, frames, moved };
+    },
+    key ?? { x: 0, y: 0 },
+  );
+  const held = hold.start;
+  expect(held?.holding).toBe(true);
+  expect(held?.keys).toBe(1);
+  expect(held?.facing).toBe('down'); // he turns to face you
+  expect(held?.sounds.found).toBe(1);
+  expect(held?.sounds.chest).toBe(1); // only the chest's opening; the find has its own tune
+  expect(hold.frames).toBeGreaterThan(0);
+  expect(hold.moved).toBe(false);
+  // Then, the arrow still down, he walks on.
+  await expect
+    .poll(async () => (await snapshot(page)).player.x)
+    .toBeGreaterThan(held?.player.x ?? 0);
+  await page.evaluate(() =>
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'ArrowRight' })),
+  );
   expect(watched.errors).toEqual([]);
 });
 
@@ -1530,8 +1547,12 @@ test('the Centaur gallops at Jarrett when he is level with it', async ({ page })
   await expect
     .poll(async () => (await snapshot(page)).boss?.galloping, { intervals: [50] })
     .toBe(true);
-  // It rushes along the row at him: a full heart on touch.
-  await expect.poll(async () => (await snapshot(page)).health.points).toBe(4);
+  // It rushes along the row at him: a full heart on touch. (Looked at often, to catch that
+  // first touch: it may touch him again once his moment of safety is over.)
+  await expect
+    .poll(async () => (await snapshot(page)).health.points, { intervals: [20] })
+    .toBeLessThan(6);
+  expect((await snapshot(page)).health.points).toBe(4);
   expect(watched.errors).toEqual([]);
 });
 
@@ -2000,13 +2021,27 @@ test('the Vampire’s touch drains Jarrett and heals it', async ({ page }) => {
   expect(watched.errors).toEqual([]);
 });
 
-test('the Vampire bursts into a ring of dark shots and re-forms somewhere else', async ({
+test('the Vampire bursts into a ring of dark purple shots and re-forms somewhere else', async ({
   page,
 }) => {
   const watched = watchPage(page);
   await enterVampireRoom(page, { x: 40, y: 126 });
   const start = (await snapshot(page)).boss;
-  await page.evaluate(() => window.__game?.enemiesShootNow());
+  // Watched in the page, frame by frame: the art of the shots in the air on the frame they burst out.
+  const arts = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        window.__game?.enemiesShootNow();
+        const look = (): void => {
+          const s = window.__game?.snapshot();
+          if (s && s.shotsFired >= 8) resolve(s.enemyShots.map((shot) => shot.art));
+          else requestAnimationFrame(look);
+        };
+        look();
+      }),
+  );
+  expect(arts.length).toBeGreaterThan(0);
+  expect(arts).toEqual(arts.map(() => 'dark-shot'));
   await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(8);
   expect((await snapshot(page)).boss?.gone).toBe(true);
   await expect
