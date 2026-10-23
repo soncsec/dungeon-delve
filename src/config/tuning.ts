@@ -498,8 +498,35 @@ export const BOSSES: Readonly<Record<BossKind, BossStats>> = {
     },
     shotKind: 'magic',
     shield: { bareMs: 4000 },
+    // At half his health he shows his true shape (below), so he is never fierce himself.
+    becomes: { kind: 'demon', atHealth: 12 },
     calm: { shots: 1, spreadDeg: 0, everyMs: { min: 1300, max: 1900 } },
-    fierce: { shots: 3, spreadDeg: 18, everyMs: { min: 1000, max: 1500 } },
+    fierce: { shots: 1, spreadDeg: 0, everyMs: { min: 1300, max: 1900 } },
+  },
+  // The Sorcerer's true shape (owner 2026-10-22), taking over at half his health with what he has
+  // left (the bar goes on). Its art, the pack's horned demon, is scaled to 80% so it stays in view
+  // (owner 2026-10-22; tools/art/scale_demon.py): it roams the foot of the hall, charging at Jarrett
+  // when he is level with it, and crouches, then throws a ring of fire. No shield: any weapon hurts.
+  demon: {
+    health: 24,
+    contactDamage: 2,
+    box: { halfWidth: 20, height: 84 },
+    moves: {
+      style: 'gallop',
+      speed: 24,
+      dashSpeed: 150,
+      dashMs: 900,
+      sight: 240,
+      inLine: 14,
+      restMs: 900,
+      // Its 115 px art stays in view with its feet at y 117 or lower.
+      arena: { x: 56, y: 118, w: 208, h: 8 },
+    },
+    windUpMs: 600,
+    shotKind: 'fire',
+    // It starts at half health, so it is always fierce.
+    calm: { shots: 10, spreadDeg: 36, everyMs: { min: 2200, max: 3000 } },
+    fierce: { shots: 10, spreadDeg: 36, everyMs: { min: 2200, max: 3000 } },
   },
 };
 

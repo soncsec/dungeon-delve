@@ -18,7 +18,8 @@
  * when he comes close.
  * The Sorcerer blinks from spot to spot casting magic, behind a shield of dark
  * magic that turns every blow; one of his own orbs batted back into him breaks
- * it for a while.
+ * it for a while. Down to half health, he shows his true shape: the Demon,
+ * which charges at Jarrett when he is level with it and throws rings of fire.
  * Below half health a boss turns fiercer: more shots, more often. A hit (by
  * id, so each lands once) costs it health; at zero it is beaten.
  */
@@ -28,7 +29,16 @@ import type { Rng } from './rng';
 import type { ShotKind, Vec } from './enemies';
 
 export type BossKind =
-  'treant' | 'frog' | 'mummy' | 'ogre' | 'centaur' | 'witch' | 'vampire' | 'dragon' | 'sorcerer';
+  | 'treant'
+  | 'frog'
+  | 'mummy'
+  | 'ogre'
+  | 'centaur'
+  | 'witch'
+  | 'vampire'
+  | 'dragon'
+  | 'sorcerer'
+  | 'demon';
 
 /** How a boss moves. */
 export type BossMoves =
@@ -147,6 +157,8 @@ export interface BossStats {
    * until one of its own shots, batted back into it, breaks it for `bareMs`.
    */
   shield?: { bareMs: number };
+  /** Down to `atHealth`, it becomes another boss (the Sorcerer, his true shape), keeping its health. */
+  becomes?: { kind: BossKind; atHealth: number };
 }
 
 /** A leaper's leap under way: from, to, and the time it has been in the air (ms). */
@@ -404,10 +416,14 @@ function stepGalloper(
   const mood = isFierce(b, s) ? s.fierce : s.calm;
   const shootInMs = b.shootInMs - dtMs;
   if (b.phase === 'crouch') {
-    // Rearing: when it is done, the storm.
+    // Rearing: when it is done, the storm (the Centaur), or a ring of shots, the first at
+    // Jarrett (the Demon's fire).
     if (shootInMs > 0) return { ...still, boss: { ...still.boss, shootInMs } };
     const next = rng.int(mood.everyMs.min, mood.everyMs.max);
-    return { ...still, boss: { ...still.boss, phase: 'sit', shootInMs: next }, storm: true };
+    const boss: Boss = { ...still.boss, phase: 'sit', shootInMs: next };
+    if (s.storm) return { ...still, boss, storm: true };
+    const shots = ring(aimAt(bossShotOrigin(b, s), hero), mood.shots, mood.spreadDeg);
+    return { ...still, boss, shots };
   }
   if (shootInMs <= 0) {
     return { ...still, boss: { ...still.boss, phase: 'crouch', shootInMs: s.windUpMs ?? 0 } };
@@ -710,6 +726,22 @@ export function glancesOff(b: Boss, s: BossStats, weapon: ItemId | null): boolea
   if (isShielded(b, s)) return true;
   if (s.wrapped !== undefined && b.stunMs <= 0) return true;
   return s.hide === 'axe' && weapon !== 'axe';
+}
+
+/** The boss it now becomes, if it has come down far enough (the Sorcerer to the Demon); else null. */
+export function becomes(b: Boss, s: BossStats): BossKind | null {
+  if (!s.becomes || b.health <= 0 || b.health > s.becomes.atHealth) return null;
+  return s.becomes.kind;
+}
+
+/**
+ * The boss it becomes: new, where it stood (its feet kept inside the new one's
+ * arena, if it has one), with the health it had.
+ */
+export function become(b: Boss, kind: BossKind, s: BossStats, rng: Rng): Boss {
+  const m = s.moves;
+  const pos = 'arena' in m ? within(b.pos, m.arena) : b.pos;
+  return { ...spawnBoss(kind, pos, s, rng), health: b.health, lastHitBy: b.lastHitBy };
 }
 
 /** Whether its shield of dark magic is up (the Sorcerer, unless an orb batted back has broken it). */

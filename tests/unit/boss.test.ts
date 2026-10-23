@@ -11,6 +11,8 @@ import {
   isBreathing,
   isShielded,
   breakShield,
+  becomes,
+  become,
   isLashing,
   lashHurts,
   nearBody,
@@ -858,5 +860,66 @@ describe('the Sorcerer: a shield of dark magic that only his own magic, sent bac
     const b = boss();
     expect(isShielded(b, s)).toBe(false);
     expect(breakShield(b, s)).toBe(b);
+  });
+});
+
+describe('the Demon: the Sorcerer’s true shape, charging and throwing rings of fire', () => {
+  const de: BossStats = {
+    health: 24,
+    contactDamage: 2,
+    box: { halfWidth: 20, height: 84 },
+    moves: {
+      style: 'gallop',
+      speed: 24,
+      dashSpeed: 150,
+      dashMs: 900,
+      sight: 240,
+      inLine: 14,
+      restMs: 900,
+      arena: { x: 56, y: 118, w: 208, h: 8 },
+    },
+    windUpMs: 600,
+    shotKind: 'fire',
+    calm: { shots: 10, spreadDeg: 36, everyMs: { min: 2500, max: 2500 } },
+    fierce: { shots: 10, spreadDeg: 36, everyMs: { min: 2500, max: 2500 } },
+  };
+  const so: BossStats = { ...s, health: 24, becomes: { kind: 'demon', atHealth: 12 } };
+
+  it('the Sorcerer becomes the Demon once down to half his health, and not before (nor once beaten)', () => {
+    expect(becomes(boss({ health: 13 }), so)).toBeNull();
+    expect(becomes(boss({ health: 12 }), so)).toBe('demon');
+    expect(becomes(boss({ health: 5 }), so)).toBe('demon');
+    expect(becomes(boss({ health: 0 }), so)).toBeNull();
+    // Other bosses never change.
+    expect(becomes(boss({ health: 1 }), s)).toBeNull();
+  });
+
+  it('the Demon stands where he stood (feet kept inside its arena), with the health he had', () => {
+    const d = become(
+      boss({ kind: 'sorcerer', pos: { x: 48, y: 126 }, health: 11, lastHitBy: 7, bareMs: 3000 }),
+      'demon',
+      de,
+      firstRng,
+    );
+    expect(d).toMatchObject({ kind: 'demon', pos: { x: 56, y: 126 }, health: 11, lastHitBy: 7 });
+    expect(d.bareMs).toBe(0);
+    expect(d.home).toEqual({ x: 56, y: 126 });
+    // A boss with no arena stays put.
+    expect(become(boss({ pos: { x: 10, y: 20 } }), 'treant', s, firstRng).pos).toEqual({
+      x: 10,
+      y: 20,
+    });
+  });
+
+  it('crouches, then throws a ring of fire, the first shot at Jarrett', () => {
+    const d = boss({ kind: 'demon', pos: { x: 160, y: 120 }, health: 12, shootInMs: 10 });
+    const away = { x: 160, y: 40 }; // not level with it, so it doesn't charge
+    const crouch = stepBoss(d, 20, away, de, firstRng).boss;
+    expect(crouch.phase).toBe('crouch');
+    const r = stepBoss(crouch, 700, away, de, firstRng);
+    expect(r.storm).toBe(false);
+    expect(r.shots).toHaveLength(10);
+    expect(r.shots[0]?.y).toBeCloseTo(-1);
+    expect(r.boss).toMatchObject({ phase: 'sit', shootInMs: 2500 });
   });
 });
