@@ -24,6 +24,26 @@ async function snapshot(page: Page): Promise<GameSnapshot> {
   return snap;
 }
 
+/**
+ * Polls the game until `done` holds, giving up after `gameMs` of game time, not real time, and
+ * returns the last snapshot for the test to check. A loaded browser can fall so far behind
+ * that its game clock runs at a fifth of real time (Phaser slows the game rather than leap
+ * ahead when a frame takes over 200 ms), so a real-time limit could run out before something
+ * that takes game time has happened.
+ */
+async function untilGame(
+  page: Page,
+  done: (s: GameSnapshot) => boolean,
+  gameMs = 5_000,
+): Promise<GameSnapshot> {
+  const start = (await snapshot(page)).playMs;
+  for (;;) {
+    const s = await snapshot(page);
+    if (done(s) || s.playMs - start > gameMs) return s;
+    await page.waitForTimeout(20);
+  }
+}
+
 const sceneNow = (page: Page) => page.evaluate(() => window.__game?.scene() ?? null);
 
 /** The opened doors and chests (ids ending in a cell), leaving out seen rooms, bosses and the rest. */
@@ -74,10 +94,14 @@ async function settled(page: Page): Promise<boolean> {
  * "no sword out" can pass before the swing starts, so the next press is lost in it.)
  */
 async function swingOnce(page: Page): Promise<void> {
-  const swings = (await snapshot(page)).swings;
+  // Once he is free to: a press while he is knocked back is dropped. (His knockback runs on
+  // game time and his moment of safety on real time, so on a slow clock it can outlast it.)
+  const ready = await untilGame(page, (s) => !s.knockedBack);
   await page.keyboard.press('Space');
-  await expect.poll(async () => (await snapshot(page)).swings).toBe(swings + 1);
-  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  expect((await untilGame(page, (s) => s.swings === ready.swings + 1)).swings).toBe(
+    ready.swings + 1,
+  );
+  expect((await untilGame(page, (s) => s.sword === null)).sword).toBeNull();
 }
 
 async function openGame(page: Page, query = ''): Promise<void> {
@@ -656,10 +680,9 @@ test('the mushroom puffs a ring of spores that drift a little way', async ({ pag
   // One puff is six spores, all at once.
   expect((await snapshot(page)).shotsFired).toBe(6);
   // Spores go only a short way, then are gone.
-  await expect
-    .poll(async () => (await snapshot(page)).enemyShots.length, { timeout: 5_000 })
-    .toBe(0);
-  expect((await snapshot(page)).shotsFired).toBe(6);
+  const settled = await untilGame(page, (s) => s.enemyShots.length === 0);
+  expect(settled.enemyShots).toEqual([]);
+  expect(settled.shotsFired).toBe(6);
   expect(watched.errors).toEqual([]);
 });
 
@@ -845,10 +868,8 @@ test('the flying eye shoots at Jarrett, and a shot costs half a heart', async ({
   // Within the distance it keeps, so it circles and shoots rather than closing in.
   await page.evaluate(({ x, y }) => window.__game?.spawnEnemy('eye', x + 90, y), start.player);
   // A shot is only in the air for half a second or so, so count shots fired rather than catch one.
-  await expect
-    .poll(async () => (await snapshot(page)).shotsFired, { timeout: 10_000 })
-    .toBeGreaterThan(0);
-  await expect.poll(async () => (await snapshot(page)).health.points, { timeout: 10_000 }).toBe(5);
+  expect((await untilGame(page, (s) => s.shotsFired > 0, 10_000)).shotsFired).toBeGreaterThan(0);
+  expect((await untilGame(page, (s) => s.health.points === 5, 10_000)).health.points).toBe(5);
 });
 
 test('the wolf charges when Jarrett is in line with it', async ({ page }) => {
@@ -1845,14 +1866,10 @@ test('the Witch throws fire, vanishes, and appears somewhere else', async ({ pag
   await page.evaluate(() => window.__game?.enemiesShootNow());
   await expect.poll(async () => (await snapshot(page)).shotsFired).toBe(3);
   // Gone for a moment...
-  await expect
-    .poll(async () => (await snapshot(page)).boss?.gone, { timeout: 10_000, intervals: [50] })
-    .toBe(true);
+  expect((await untilGame(page, (s) => s.boss?.gone === true, 10_000)).boss?.gone).toBe(true);
   // ...then back, at another spot.
-  await expect
-    .poll(async () => (await snapshot(page)).boss?.gone, { timeout: 10_000, intervals: [50] })
-    .toBe(false);
-  const moved = (await snapshot(page)).boss;
+  const moved = (await untilGame(page, (s) => s.boss?.gone === false, 10_000)).boss;
+  expect(moved?.gone).toBe(false);
   expect({ x: moved?.x, y: moved?.y }).not.toEqual({ x: start?.x, y: start?.y });
   expect(watched.errors).toEqual([]);
 });
@@ -1864,12 +1881,8 @@ test('below half health the Witch brings decoys; a blow pops one and never hurts
   await enterWitchRoom(page, { x: 160, y: 126 });
   await page.evaluate(() => window.__game?.setBossHealth(5));
   // Her next appearance brings two decoys.
-  await expect
-    .poll(async () => (await snapshot(page)).boss?.decoys.length, {
-      timeout: 15_000,
-      intervals: [50],
-    })
-    .toBe(2);
+  const fierce = await untilGame(page, (s) => s.boss?.decoys.length === 2, 15_000);
+  expect(fierce.boss?.decoys).toHaveLength(2);
   // Held still, her fire cleared away.
   await page.evaluate(() => {
     window.__game?.holdEnemies(true);
@@ -2229,12 +2242,10 @@ test('the shield held up towards the Dragon stops its fire', async ({ page }) =>
     window.__game?.holdEnemies(false);
     window.__game?.enemiesShootNow();
   });
-  await expect
-    .poll(async () => (await snapshot(page)).boss?.breathing, { intervals: [20] })
-    .toBe(true);
-  await expect.poll(async () => (await snapshot(page)).boss?.breathing).toBe(false);
-  await expect.poll(async () => (await snapshot(page)).enemyShots).toEqual([]);
-  const s = await snapshot(page);
+  expect((await untilGame(page, (s) => s.boss?.breathing === true)).boss?.breathing).toBe(true);
+  expect((await untilGame(page, (s) => s.boss?.breathing === false)).boss?.breathing).toBe(false);
+  const s = await untilGame(page, (now) => now.enemyShots.length === 0);
+  expect(s.enemyShots).toEqual([]);
   expect(s.blocked).toBeGreaterThan(0);
   expect(s.health.points).toBe(s.health.max);
   expect(watched.errors).toEqual([]);
@@ -2252,26 +2263,31 @@ test('the Dragon’s tail lashes Jarrett when he comes close; stepping back in t
     window.__game?.placeHero(b.x, b.y + 24, 'up');
     return { x: b.x, y: b.y };
   });
-  await expect.poll(async () => (await snapshot(page)).lashes, { intervals: [20] }).toBe(1);
-  expect((await snapshot(page)).health.points).toBe(4);
-  // Once his moment of safety is over: close again, and the moment the tail starts, back out of reach.
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
-  await expect.poll(async () => (await snapshot(page)).boss?.lashing).toBe(false);
-  await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y + 24, 'up'), close);
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const s = window.__game?.snapshot();
-          if (!s?.boss?.lashing) return false;
-          window.__game?.placeHero(s.boss.x, s.boss.y + 48, 'up');
-          return true;
-        }),
-      { intervals: [20] },
-    )
-    .toBe(true);
-  await expect.poll(async () => (await snapshot(page)).boss?.lashing).toBe(false);
-  expect((await snapshot(page)).lashes).toBe(1);
+  const lashed = await untilGame(page, (s) => s.lashes === 1);
+  expect(lashed.lashes).toBe(1);
+  expect(lashed.health.points).toBe(4);
+  // Once his moment of safety is over: close again, and the moment the tail starts (watched
+  // frame by frame in the page), back out of reach.
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.boss?.lashing)).boss?.lashing).toBe(false);
+  const dodged = await page.evaluate(async ({ x, y }) => {
+    const g = window.__game;
+    const frame = () => new Promise((done) => requestAnimationFrame(() => done(null)));
+    g?.placeHero(x, y + 24, 'up');
+    const start = g?.snapshot()?.playMs ?? 0;
+    for (let s = g?.snapshot(); s && s.playMs - start < 5_000; s = g?.snapshot()) {
+      if (s.boss?.lashing) {
+        g?.placeHero(s.boss.x, s.boss.y + 48, 'up');
+        return true;
+      }
+      await frame();
+    }
+    return false;
+  }, close);
+  expect(dodged).toBe(true);
+  const after = await untilGame(page, (s) => !s.boss?.lashing);
+  expect(after.boss?.lashing).toBe(false);
+  expect(after.lashes).toBe(1);
   expect(watched.errors).toEqual([]);
 });
 
@@ -2671,18 +2687,18 @@ test('a spark barrier zaps Jarrett back; inside the Ward he walks through it', a
   expect(zapped.sounds.spark).toBe(1);
   expect(zapped.room).toEqual({ col: 1, row: 2 });
   expect(zapped.player.y).toBeGreaterThanOrEqual(32);
-  // Inside the Ward, he walks through and on north.
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  // Inside the Ward, he walks through and on north. (Cast once he is free to: a press while
+  // he is knocked back is dropped.)
+  await untilGame(page, (s) => !s.invulnerable && !s.knockedBack);
   await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
   await page.keyboard.press('c');
-  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  expect((await untilGame(page, (s) => s.warded)).warded).toBe(true);
   await page.keyboard.down('ArrowUp');
-  await expect
-    .poll(async () => (await snapshot(page)).sliding, { timeout: 10_000, intervals: [50] })
-    .toBe(true);
+  expect((await untilGame(page, (s) => s.sliding, 10_000)).sliding).toBe(true);
   await page.keyboard.up('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).room).toEqual({ col: 1, row: 1 });
-  expect((await snapshot(page)).zaps).toBe(1);
+  const north = await untilGame(page, (s) => s.room.col === 1 && s.room.row === 1);
+  expect(north.room).toEqual({ col: 1, row: 1 });
+  expect(north.zaps).toBe(1);
   expect(watched.errors).toEqual([]);
 });
 
@@ -2697,14 +2713,14 @@ test('if the Ward drops while Jarrett stands in a spark barrier, it zaps him and
     window.__game?.placeHero(160, 60, 'down');
   });
   await page.keyboard.press('c');
-  await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
+  expect((await untilGame(page, (s) => s.warded)).warded).toBe(true);
   // In the middle of the barrier (row 5), standing still.
   await page.evaluate(() => window.__game?.placeHero(160, 90, 'down'));
-  await expect.poll(async () => (await snapshot(page)).warded, { timeout: 10_000 }).toBe(false);
-  await expect.poll(async () => (await snapshot(page)).zaps).toBe(1);
+  expect((await untilGame(page, (s) => !s.warded, 10_000)).warded).toBe(false);
+  expect((await untilGame(page, (s) => s.zaps === 1)).zaps).toBe(1);
   // Thrown back the way he faced (up), out of the barrier, or free to walk out of it.
   await page.keyboard.down('ArrowUp');
-  await expect.poll(async () => (await snapshot(page)).player.y).toBeLessThan(74);
+  expect((await untilGame(page, (s) => s.player.y < 74)).player.y).toBeLessThan(74);
   await page.keyboard.up('ArrowUp');
   expect((await snapshot(page)).health.points).toBe((await snapshot(page)).health.max - 1);
   expect(watched.errors).toEqual([]);
@@ -3626,7 +3642,10 @@ test('a whole run with no skip sets the fastest time, and the title shows it', a
 
 test('a play-test run (?dungeon=n) never sets the fastest time', async ({ page }) => {
   const watched = watchPage(page);
+  // A fastest time set once the title is up: leaving a page still loading its art makes
+  // WebKit log each cancelled load as an error.
   await page.goto('./');
+  await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Title');
   await page.evaluate(() => localStorage.setItem('dungeon-delve:fastest', '3600000'));
   await openGame(page, '?dungeon=9');
   await page.evaluate(() => window.__game?.goToRoom(1, 1));
