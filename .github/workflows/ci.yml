@@ -39,10 +39,26 @@ jobs:
       - name: Secret scan (full history)
         run: ./gitleaks git --redact --verbose --exit-code 1 .
 
+      # Here, on the runner (which has shellcheck and Python), not in the test job's
+      # Playwright image below.
+      - name: Release scripts (shellcheck + tests against a fake server)
+        run: |
+          git ls-files -z '*.sh' | xargs -0 shellcheck
+          npm run test:release
+          # Only in the template itself; init-game.sh removes this test.
+          if [ -f tests/template/test_init.sh ]; then bash tests/template/test_init.sh; fi
+
   build-and-test:
     name: Build and test
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    # Microsoft's Playwright image at the lockfile's Playwright version, pinned by digest
+    # (owner 2026-10-22): the browsers and their system packages are already in it, so
+    # the job no longer downloads them (Ubuntu's mirror kept stalling on WebKit's).
+    # Update the tag and digest together with @playwright/test.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --user 1001
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,20 +89,10 @@ jobs:
       - name: Unit tests with coverage
         run: npm run test:coverage
 
-      - name: Release scripts (shellcheck + tests against a fake server)
-        run: |
-          git ls-files -z '*.sh' | xargs -0 shellcheck
-          npm run test:release
-          # Only in the template itself; init-game.sh removes this test.
-          if [ -f tests/template/test_init.sh ]; then bash tests/template/test_init.sh; fi
-
       - name: Build
         run: npm run build
 
-      - name: Install Playwright browsers (version from the lockfile)
-        run: npx playwright install --with-deps chromium firefox webkit
-
-      - name: End-to-end tests (Chromium and Firefox)
+      - name: End-to-end tests (Chromium, Firefox, WebKit and the phone)
         run: npm run test:e2e
 
       - name: Upload Playwright report on failure
