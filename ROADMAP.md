@@ -15,7 +15,7 @@
 | M6 Dungeons 5–8 | Done (2026-10-23; released) |
 | M7 Shadow Vault and ending | Done (2026-10-23; released) |
 | M8 Polish and balance | Done (owner play-tested 2026-10-24: every dungeon "about right", full playthrough done) |
-| M9 v1.0 release | Not started |
+| M9 v1.0 release | Done (2026-10-24: production 20261024T225720Z-6aaa1403, tag v1.0) |
 
 **In production:** first release 2026-10-21, `20261021T165122Z-fe100746` (M0–M4 and the walking fix), at http://games.soncrant.com/dungeon-delve/.
 
@@ -185,6 +185,6 @@
 
 ## M9 — v1.0 release
 
-- [ ] M9.1 Release with `scripts/release.sh deploy` (owner approval), from a clean `main` with CI and staging ZAP passed
-- [ ] M9.2 games-portal `Production check` covers `dungeon-delve`; run it and report
-- [ ] M9.3 Portal PR: status `live`; tag v1.0
+- [x] M9.1 Release with `scripts/release.sh deploy` (owner approval), from a clean `main` with CI and staging ZAP passed: release 20261024T225720Z-6aaa1403 (main 6aaa140; owner approved 2026-10-24), 444 e2e passed in the release's own check, smoke test passed
+- [x] M9.2 games-portal `Production check` covers `dungeon-delve`; run it and report: run 40140999417 passed (smoke test from outside; production ZAP 0 failures)
+- [x] M9.3 Portal PR: status `live` (already set in games-portal #33); tag v1.0 on 6aaa140 with a [GitHub release](https://github.com/soncsec/dungeon-delve/releases/tag/v1.0)
