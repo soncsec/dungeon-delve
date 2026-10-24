@@ -588,7 +588,12 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   private sliding = false;
   private enteredAt: Point | null = null;
   private swing: Swing = { startedAt: null };
-  /** Game time of the latest frame, in ms. */
+  /**
+   * The game's own clock (ms): each frame's game step added up, and never reset. Every timer
+   * (a swing, a throw, his moment of safety after a hit, a held-up find) runs on it, so when
+   * frames lag and Phaser slows the game, they all slow together. (The `time` Phaser passes
+   * to update is real time.)
+   */
   private now = 0;
   private swings = 0;
   private lastSword: Rect | null = null;
@@ -841,8 +846,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.savedPlayMs = Math.round(this.playMs);
   }
 
-  override update(time: number, deltaMs: number): void {
-    this.now = time;
+  override update(_realTime: number, deltaMs: number): void {
+    this.now += deltaMs;
+    const time = this.now;
     this.playMs += deltaMs;
     this.showWard();
     // Presses made during a slide are dropped, not saved up.

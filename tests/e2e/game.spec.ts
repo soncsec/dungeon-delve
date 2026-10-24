@@ -38,20 +38,25 @@ async function untilGame(
   done: (s: GameSnapshot) => boolean,
   gameMs = 5_000,
 ): Promise<GameSnapshot> {
+  // Already so (the common case): no recording needed.
+  const now = await snapshot(page);
+  if (done(now)) return now;
+  // Each recording has its own number, so an earlier one still waiting on its next frame
+  // ends rather than running alongside (a snapshot every frame is costly on a slow browser).
   await page.evaluate(() => {
-    const w = window as unknown as { __frames?: GameSnapshot[]; __recording?: boolean };
+    const w = window as unknown as { __frames?: GameSnapshot[]; __recording?: number };
+    const mine = (w.__recording ?? 0) + 1;
+    w.__recording = mine;
     w.__frames = [];
-    if (w.__recording) return;
-    w.__recording = true;
     const record = (): void => {
-      if (!w.__recording) return;
+      if (w.__recording !== mine) return;
       const s = window.__game?.snapshot();
       if (s) w.__frames?.push(s);
       requestAnimationFrame(record);
     };
     requestAnimationFrame(record);
   });
-  let start: number | null = null;
+  const start = now.playMs;
   for (;;) {
     const frames = await page.evaluate(() => {
       const w = window as unknown as { __frames?: GameSnapshot[] };
@@ -61,10 +66,10 @@ async function untilGame(
     });
     // No frames yet: one look now, which also says so if the game scene isn't running.
     for (const s of frames.length > 0 ? frames : [await snapshot(page)]) {
-      start ??= s.playMs;
       if (done(s) || s.playMs - start > gameMs) {
         await page.evaluate(() => {
-          (window as unknown as { __recording?: boolean }).__recording = false;
+          const w = window as unknown as { __recording?: number };
+          w.__recording = (w.__recording ?? 0) + 1;
         });
         return s;
       }
@@ -123,8 +128,7 @@ async function settled(page: Page): Promise<boolean> {
  * "no sword out" can pass before the swing starts, so the next press is lost in it.)
  */
 async function swingOnce(page: Page): Promise<void> {
-  // Once he is free to: a press while he is knocked back is dropped. (His knockback runs on
-  // game time and his moment of safety on real time, so on a slow clock it can outlast it.)
+  // Once he is free to: a press while he is knocked back is dropped.
   const ready = await untilGame(page, (s) => !s.knockedBack);
   await page.keyboard.press('Space');
   expect((await untilGame(page, (s) => s.swings === ready.swings + 1)).swings).toBe(
@@ -280,7 +284,7 @@ test('Space or J swings the sword in front of Jarrett, and he stands still meanw
   expect((box?.x ?? 0) + (box?.w ?? 0)).toBeGreaterThan(start.player.x);
 
   // A press during a swing is ignored, so let the first swing finish.
-  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  expect((await untilGame(page, (s) => s.sword === null)).sword).toBeNull();
 
   // J swings too. Holding a direction from the moment of the swing doesn't move
   // him until it ends; then he walks on.
@@ -306,7 +310,7 @@ test('two sword hits defeat a robot', async ({ page }) => {
   });
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).enemies[0]?.health).toBe(1);
-  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  expect((await untilGame(page, (s) => s.sword === null)).sword).toBeNull();
 
   // It was knocked back; step up to it and swing again.
   // Aim only once it, and Jarrett, have stopped sliding from the last hit.
@@ -336,7 +340,7 @@ test('touching a robot costs half a heart and pushes Jarrett away', async ({ pag
   await page.evaluate(() => window.__game?.clearEnemies());
   // Pushed left, away from the robot on his right.
   await expect.poll(async () => (await snapshot(page)).player.x).toBeLessThan(start.player.x - 10);
-  await expect.poll(async () => (await snapshot(page)).invulnerable, { timeout: 5000 }).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
 });
 
 test('Jarrett picks up gems and hearts', async ({ page }) => {
@@ -604,7 +608,7 @@ test('2 drinks a Mana Brew, which makes mana refill faster', async ({ page }) =>
   await openGame(page);
   expect((await snapshot(page)).manaBoosted).toBe(false);
   await page.keyboard.press('2');
-  await expect.poll(async () => (await snapshot(page)).manaBoosted).toBe(true);
+  expect((await untilGame(page, (s) => s.manaBoosted)).manaBoosted).toBe(true);
   expect((await snapshot(page)).potions.mana).toBe(0);
   // Pressing 2 with none left does nothing.
   await page.keyboard.press('2');
@@ -797,9 +801,9 @@ test('a heart container is held up too, wherever it lies; a dropped gem is not',
   await expect.poll(async () => (await snapshot(page)).gems).toBe(1);
   expect((await snapshot(page)).holding).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(200, 94, 'right'));
-  await expect.poll(async () => (await snapshot(page)).holding).toBe(true);
+  expect((await untilGame(page, (s) => s.holding)).holding).toBe(true);
   expect((await snapshot(page)).health.max).toBe(8);
-  await expect.poll(async () => (await snapshot(page)).holding, { timeout: 10_000 }).toBe(false);
+  expect((await untilGame(page, (s) => !s.holding, 10_000)).holding).toBe(false);
   expect(watched.errors).toEqual([]);
 });
 
@@ -1191,6 +1195,8 @@ test('Bog Grotto’s archway in the marsh opens once Jarrett holds a shard', asy
   await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), { x: 160, y: 70 });
   await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
@@ -1299,6 +1305,8 @@ test('Sunken Crypt’s archway in the ruins opens once Jarrett holds two shards'
   const at = (await snapshot(page)).player;
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), at);
   await expect.poll(shards).toBe(1);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
   await page.keyboard.down('ArrowDown');
   await expect
@@ -1322,6 +1330,8 @@ test('Sunken Crypt’s archway in the ruins opens once Jarrett holds two shards'
   await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
   await page.evaluate(() => window.__game?.spawnPickup('shard', 160, 70));
   await expect.poll(shards).toBe(2);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
@@ -1540,7 +1550,7 @@ test('Thunder Spire’s prize: the Ward, caged past thorns and a crystal switch'
   expect(ward).toBeDefined();
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), ward ?? { x: 0, y: 0 });
   await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
-  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   // In his hand: the bag's spell slot shows it.
   await page.keyboard.press('Tab');
   await expect
@@ -1569,7 +1579,7 @@ test('in Thunder Spire, the Ward takes Jarrett through the sparks up the stair h
   await page.keyboard.up('ArrowUp');
   expect((await snapshot(page)).room).toEqual({ col: 1, row: 2 });
   // With it up, he walks through, up into the upper hall.
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(160, 60, 'up'));
   await page.keyboard.press('c');
   await expect.poll(async () => (await snapshot(page)).warded).toBe(true);
@@ -1679,7 +1689,7 @@ test('the beaten Centaur leaves a heart container and Thunder Spire’s shard', 
     x: boss?.x ?? 0,
     y: boss?.y ?? 0,
   });
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
   const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
@@ -1831,7 +1841,7 @@ test('Witchwood Tower’s prize: the Steel Sword, behind sparks the Ward gets hi
   expect(sword).toBeDefined();
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), sword ?? { x: 0, y: 0 });
   await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
-  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   // In his hand: the bag's near slot shows it.
   await page.keyboard.press('Tab');
   await expect
@@ -1921,7 +1931,7 @@ test('below half health the Witch brings decoys; a blow pops one and never hurts
   const decoy = s.boss?.decoys[0] ?? { x: 0, y: 0 };
   // Beside the first decoy, facing it: one blow, and it is gone; she keeps her health.
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 22, y, 'right'), decoy);
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).decoysPopped).toBe(1);
   const after = await snapshot(page);
@@ -1943,7 +1953,7 @@ test('the beaten Witch leaves a heart container and Witchwood Tower’s shard', 
     x: boss?.x ?? 0,
     y: boss?.y ?? 0,
   });
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
   const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
@@ -2033,7 +2043,7 @@ test('Crimson Manor’s prize: the Triple Daggers, behind rubble the Axe smashes
   await page.evaluate(() => window.__game?.bump(14, 4));
   await expect.poll(async () => (await snapshot(page)).opened).toContain('dungeon7/2,2/14,4');
   await expect.poll(async () => (await snapshot(page)).sounds.found).toBe(1);
-  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   expect((await snapshot(page)).pickups).toEqual([]);
   await page.keyboard.press('Tab');
   await expect
@@ -2115,7 +2125,7 @@ test('the beaten Vampire leaves a heart container and Crimson Manor’s shard', 
     x: boss?.x ?? 0,
     y: boss?.y ?? 0,
   });
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
   const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
@@ -2213,7 +2223,7 @@ test('Dragon’s Maw’s prize: the Star Blade, caged until the forge’s eye is
       return s.sounds.found;
     })
     .toBe(1);
-  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   expect((await snapshot(page)).pickups).toEqual([]);
   // In his hand: the bag's near slot shows it.
   await page.keyboard.press('Tab');
@@ -2334,7 +2344,7 @@ test('the beaten Dragon leaves a heart container and Dragon’s Maw’s shard', 
     x: boss?.x ?? 0,
     y: boss?.y ?? 0,
   });
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
   const kinds = (await snapshot(page)).pickups.map((p) => p.kind).sort();
@@ -2393,7 +2403,7 @@ test('the daggers: push the stone into the closet, open the chest, and throw one
   await page.keyboard.up('ArrowUp');
   await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]); // picked up
   // He holds them up for a moment, while the game waits; then he can throw them.
-  await expect.poll(async () => (await snapshot(page)).holding).toBe(false);
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   await page.keyboard.press('x');
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).thrown).toBe(1);
@@ -3258,6 +3268,8 @@ test('once dungeon 1’s shard is found, Walker waits outside, thanks Jarrett an
   const at = (await snapshot(page)).player;
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), at);
   await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   expect((await snapshot(page)).opened).toContain('dungeon1/shard');
 
   // No magic yet: no spell, and no mana bar.
@@ -3467,7 +3479,7 @@ test('the Sorcerer’s shield turns every blow, until one of his orbs batted bac
   // Beside him, facing him (not touching): a blow glances off.
   const beside = { x: boss.x - 20, y: boss.y - 8 };
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'right'), beside);
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   let s = await snapshot(page);
   expect(s.boss?.health).toBe(24);
@@ -3501,7 +3513,7 @@ test('the Sorcerer’s shield turns every blow, until one of his orbs batted bac
   expect(s.boss?.health).toBe(24);
   // Now a blow lands: the Steel Sword's 2.
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y, 'right'), beside);
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).boss?.health).toBe(22);
   expect(watched.errors).toEqual([]);
@@ -3517,7 +3529,7 @@ async function toTheDemon(page: Page): Promise<void> {
   });
   const b = (await snapshot(page)).boss ?? { x: 0, y: 0 };
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 20, y - 8, 'right'), b);
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page); // the Steel Sword's 2: down to 11
   await expect.poll(async () => (await snapshot(page)).boss?.kind).toBe('demon');
 }
@@ -3557,7 +3569,7 @@ test('the beaten Demon ends the fight, and leaves no heart or shard', async ({ p
   // Beside it, facing it, clear of its body.
   const d = (await snapshot(page)).boss ?? { x: 0, y: 0 };
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 27, y - 8, 'right'), d);
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
   const s = await snapshot(page);
@@ -3588,7 +3600,7 @@ test('beating the Demon opens Kira’s cell; her rescue ends the game, with the 
   });
   const d = (await snapshot(page)).boss ?? { x: 0, y: 0 };
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x - 27, y - 8, 'right'), d);
-  await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+  expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
   await swingOnce(page);
   await expect.poll(async () => (await snapshot(page)).boss).toBeNull();
   s = await snapshot(page);
@@ -3639,7 +3651,7 @@ async function beatTheFinalBoss(page: Page): Promise<void> {
       x: b.x - gap,
       y: b.y - 8,
     });
-    await expect.poll(async () => (await snapshot(page)).invulnerable).toBe(false);
+    expect((await untilGame(page, (s) => !s.invulnerable)).invulnerable).toBe(false);
     await swingOnce(page);
   };
   await page.evaluate(() => {
@@ -4029,7 +4041,7 @@ test('a false wall sounds hollow, opens on a second strike, and hides a secret c
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).sounds.hollow).toBe(1);
   expect((await snapshot(page)).opened).not.toContain('overworld/0,5/2,4');
-  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  expect((await untilGame(page, (s) => s.sword === null)).sword).toBeNull();
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).opened).toContain('overworld/0,5/2,4');
   expect((await snapshot(page)).sounds.crumble).toBe(1);
@@ -4066,7 +4078,7 @@ test('a secret cave in the ruins holds a heart container, kept in the save', asy
   await page.evaluate(() => window.__game?.placeHero(248, 62, 'right'));
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).sounds.hollow).toBe(1);
-  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  expect((await untilGame(page, (s) => s.sword === null)).sword).toBeNull();
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).sounds.crumble).toBe(1);
   await holdUntil(page, 'ArrowRight', async () => (await snapshot(page)).map === 'caves');
@@ -4114,7 +4126,7 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
   await page.keyboard.press('Space');
   await expect.poll(async () => (await snapshot(page)).sounds.block).toBe(1);
   expect(await opened()).toEqual([]);
-  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  expect((await untilGame(page, (s) => s.sword === null)).sword).toBeNull();
 
   // The Axe, chosen in the inventory: one blow breaks the whole boulder.
   await page.evaluate(() => window.__game?.giveItem('axe'));
@@ -4144,7 +4156,7 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
   // A cracked wall (put here for the test; they're placed in M4.4/M5) smashes too.
   await page.evaluate(() => window.__game?.setCell(11, 5, 'x'));
   await page.evaluate(() => window.__game?.placeHero(160, 94, 'right'));
-  await expect.poll(async () => (await snapshot(page)).sword).toBeNull();
+  expect((await untilGame(page, (s) => s.sword === null)).sword).toBeNull();
   await page.keyboard.press('Space');
   await expect.poll(opened).toContain('overworld/8,11/11,5');
 
@@ -4190,9 +4202,8 @@ async function defeatFirstEnemy(page: Page): Promise<void> {
   await expect.poll(async () => (await snapshot(page)).defeated).toBe(before + 1);
 }
 
-test('overworld enemies come back after four rooms away; dungeon enemies never', async ({
-  page,
-}) => {
+// (Split in two, overworld and dungeon, to keep each well inside WebKit's 30 s per test.)
+test('overworld enemies come back after four rooms away', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
@@ -4216,7 +4227,12 @@ test('overworld enemies come back after four rooms away; dungeon enemies never',
   }
   await page.evaluate(() => window.__game?.goToRoom(6, 11));
   expect(await enemies()).toBe(2);
+  expect(watched.errors).toEqual([]);
+});
 
+test('dungeon enemies never come back', async ({ page }) => {
+  const watched = watchPage(page);
+  const enemies = async () => (await snapshot(page)).enemies.length;
   // In dungeon 1, a defeated enemy stays gone: through other rooms, and after saving and continuing.
   await page.goto('./?dungeon=1');
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Game');
