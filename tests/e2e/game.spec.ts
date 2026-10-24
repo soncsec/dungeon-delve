@@ -38,6 +38,9 @@ async function untilGame(
   done: (s: GameSnapshot) => boolean,
   gameMs = 5_000,
 ): Promise<GameSnapshot> {
+  // Already so (the common case): no recording needed.
+  const now = await snapshot(page);
+  if (done(now)) return now;
   // Each recording has its own number, so an earlier one still waiting on its next frame
   // ends rather than running alongside (a snapshot every frame is costly on a slow browser).
   await page.evaluate(() => {
@@ -53,7 +56,7 @@ async function untilGame(
     };
     requestAnimationFrame(record);
   });
-  let start: number | null = null;
+  const start = now.playMs;
   for (;;) {
     const frames = await page.evaluate(() => {
       const w = window as unknown as { __frames?: GameSnapshot[] };
@@ -63,7 +66,6 @@ async function untilGame(
     });
     // No frames yet: one look now, which also says so if the game scene isn't running.
     for (const s of frames.length > 0 ? frames : [await snapshot(page)]) {
-      start ??= s.playMs;
       if (done(s) || s.playMs - start > gameMs) {
         await page.evaluate(() => {
           const w = window as unknown as { __recording?: number };
@@ -4200,9 +4202,8 @@ async function defeatFirstEnemy(page: Page): Promise<void> {
   await expect.poll(async () => (await snapshot(page)).defeated).toBe(before + 1);
 }
 
-test('overworld enemies come back after four rooms away; dungeon enemies never', async ({
-  page,
-}) => {
+// (Split in two, overworld and dungeon, to keep each well inside WebKit's 30 s per test.)
+test('overworld enemies come back after four rooms away', async ({ page }) => {
   const watched = watchPage(page);
   await openGame(page);
   await page.evaluate(() => window.__game?.holdEnemies(true));
@@ -4226,7 +4227,12 @@ test('overworld enemies come back after four rooms away; dungeon enemies never',
   }
   await page.evaluate(() => window.__game?.goToRoom(6, 11));
   expect(await enemies()).toBe(2);
+  expect(watched.errors).toEqual([]);
+});
 
+test('dungeon enemies never come back', async ({ page }) => {
+  const watched = watchPage(page);
+  const enemies = async () => (await snapshot(page)).enemies.length;
   // In dungeon 1, a defeated enemy stays gone: through other rooms, and after saving and continuing.
   await page.goto('./?dungeon=1');
   await expect.poll(() => sceneNow(page), { timeout: 15_000 }).toBe('Game');
