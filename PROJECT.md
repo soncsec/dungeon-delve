@@ -191,6 +191,7 @@ Walker looks like a child of about ten but is ancient: the Star's guardian, boun
 | 2026-10-21 | Bosses each fight their own way: the Treant shuffles and spits seeds; the Giant Frog crouches and leaps at Jarrett, out of reach in the air, and each landing throws a ring of shots; the Mummy shambles after him firing spreads, and only a Lightning bolt's stun lets blows land on it |
 | 2026-10-20 | A small title screen arrives with the save game (M3.5): CONTINUE when there is a save, and NEW GAME, which asks before wiping it. `?dungeon=n` skips the title and starts a new run marked as a cheat |
 | 2026-10-20 | Each beaten boss leaves a heart container and a shard of the Star of Power; a shard is the pack's crystal recoloured gold |
+| 2026-10-23 | A world map (M8.6), like the Legend of Zelda's: in the bag, on its own page (Left/Right) on the overworld; the screens Jarrett has visited fill in, each in its region's colour (no words), with where he is and the dungeon entrances marked |
 
 ## 8. Open questions
 

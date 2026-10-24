@@ -84,6 +84,7 @@ import { forDevice, paginate, type Page } from '../logic/dialogue';
 import { markStrikes, stepStrikes, stormPatches, strikeHits, type Strike } from '../logic/storm';
 import { isTouchDevice } from '../platform/touch';
 import { dungeonMap, type DungeonMap } from '../logic/dungeonMap';
+import { worldMap, type WorldMap } from '../logic/worldMap';
 import { canTalk, finishVisit, markTalked, walkerHere, type WalkerVisit } from '../logic/walker';
 import { WALKER_VISITS } from '../world/walker';
 import { SHOPKEEPER_CELL } from '../world/shop';
@@ -811,9 +812,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.enteredRoom();
   }
 
-  /** On entering a room: a dungeon room goes on the map, and a save point saves. */
+  /** On entering a room: a dungeon room or overworld screen goes on its map, and a save point saves. */
   private enteredRoom(): void {
-    if (MAPS[this.mapId].theme === 'dungeon') {
+    if (MAPS[this.mapId].theme === 'dungeon' || this.mapId === 'overworld') {
       const id = seenId(this.mapId, roomKey(this.room.col, this.room.row));
       this.progress = markSeen(this.progress, id);
     }
@@ -2078,6 +2079,23 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       (col, row) => this.world.bosses.has(roomKey(col, row)),
     );
     return { name: m.name, map };
+  }
+
+  /** On the overworld, the world map: the screens he has been in (null on other maps). */
+  worldMap(): WorldMap | null {
+    if (this.mapId !== 'overworld') return null;
+    const rooms = MAPS.overworld.rooms.map((r) => ({
+      col: r.col,
+      row: r.row,
+      region: r.region ?? 'forest',
+      leadsTo: (r.exits ?? []).map((e) => e.to.map),
+    }));
+    return worldMap(
+      rooms,
+      (col, row) => isOpened(this.progress, seenId('overworld', roomKey(col, row))),
+      this.room,
+      (map) => isOpened(this.progress, rewardId(map, 'shard')),
+    );
   }
 
   heldShards(): number {

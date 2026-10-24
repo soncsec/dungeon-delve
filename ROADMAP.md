@@ -181,6 +181,7 @@
 - [ ] M8.5 Full playthrough with no console errors in every browser project, in two parts:
   - [x] M8.5a Every room of every map (the overworld, the eight dungeons, the vault, the secret caves and the shop) is drawn in Chromium, Firefox and WebKit with no console errors (`tests/e2e/rooms.spec.ts`)
   - [ ] M8.5b A full playthrough, start to Kira's rescue, with the owner (alongside M8.1)
+- [x] M8.6 A world map (owner 2026-10-23: "it's hard to know where you are in the world"): on the overworld the bag has a second page, Left/Right, showing the overworld's 16 x 12 screens, dark until visited, each visited screen in its region's colour, gold where Jarrett is, and a dot on each dungeon entrance (red to do, white once its shard is found, violet the vault)
 
 ## M9 — v1.0 release
 

@@ -949,6 +949,13 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
     // No far weapon or spell yet: the daggers are dungeon 1's prize, the Fireball dungeon 2's.
     slots: { near: 'Wooden Sword', far: '', spell: '', shield: 'Wooden Shield' },
     map: null, // outdoors: no dungeon map
+    // ...but the world map, on its own page: so far only the screen he starts on.
+    world: {
+      cols: 16,
+      rows: 12,
+      cells: [{ x: 8, y: 11, region: 'village', current: true, entrance: null }],
+    },
+    page: 'items',
   });
   // The game is paused: holding a direction doesn't move Jarrett.
   await page.keyboard.down('ArrowRight');
@@ -3118,6 +3125,65 @@ test('a damaged save is ignored: the title offers no CONTINUE', async ({ page })
   expect(watched.errors).toEqual([]);
 });
 
+test('on the overworld, the bag turns to a world map of the screens Jarrett has been in', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  const bag = () => page.evaluate(() => window.__game?.inventory());
+  await openGame(page);
+  // North from the village to Hollow Oak's screen, its shard found, and one screen on.
+  await page.evaluate(() => {
+    const g = window.__game;
+    g?.holdEnemies(true);
+    for (const [c, r] of [
+      [8, 10],
+      [8, 9],
+      [7, 9],
+      [6, 9],
+      [6, 8],
+      [7, 8],
+    ] as const) {
+      g?.goToRoom(c, r);
+    }
+    g?.takeShard(1);
+  });
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Inventory');
+  expect((await bag())?.page).toBe('items');
+  // Right: the map page. Every screen he has been in, gold where he is, Hollow Oak done.
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await bag())?.page).toBe('map');
+  const world = (await bag())?.world;
+  expect(world?.cols).toBe(16);
+  expect(world?.rows).toBe(12);
+  expect(world?.cells.map((c) => `${c.x},${c.y}`)).toEqual([
+    '6,8',
+    '7,8',
+    '6,9',
+    '7,9',
+    '8,9',
+    '8,10',
+    '8,11',
+  ]);
+  expect(world?.cells.find((c) => c.current)).toMatchObject({ x: 7, y: 8 });
+  expect(world?.cells.find((c) => c.x === 6 && c.y === 8)?.entrance).toBe('done');
+  expect(world?.cells.find((c) => c.x === 8 && c.y === 11)?.region).toBe('village');
+  // Left: back to the items; I closes it.
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(async () => (await bag())?.page).toBe('items');
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  // In a dungeon there is no world map, and right stays on the items.
+  await openGame(page, '?dungeon=1');
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Inventory');
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(200);
+  expect((await bag())?.world).toBeNull();
+  expect((await bag())?.page).toBe('items');
+  expect(watched.errors).toEqual([]);
+});
+
 test('the inventory shows a map of the dungeon rooms Jarrett has been in, kept in the save', async ({
   page,
 }) => {
@@ -3843,7 +3909,8 @@ test('north of Hollow Oak lie the vault grounds, and the vault door stays shut',
   await page.keyboard.up('ArrowUp');
   const s = await snapshot(page);
   expect(s.player.y).toBe(70);
-  expect(s.opened.filter((id) => id.startsWith('overworld/'))).toEqual([]);
+  // Nothing opened out here (the screens he has been in are kept too, for the world map).
+  expect(fixtures(s.opened).filter((id) => id.startsWith('overworld/'))).toEqual([]);
   expect(watched.errors).toEqual([]);
 });
 
@@ -4120,7 +4187,7 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
   await openGame(page);
   await page.evaluate(() => window.__game?.giveItem('fireball')); // dungeon 2's prize
   const opened = async () =>
-    (await snapshot(page)).opened.filter((id) => id.startsWith('overworld/'));
+    fixtures((await snapshot(page)).opened).filter((id) => id.startsWith('overworld/'));
   // The start room's boulder fills columns 4–5, rows 6–7. Strike it from above with the sword.
   await page.evaluate(() => window.__game?.placeHero(72, 92, 'down'));
   await page.keyboard.press('Space');

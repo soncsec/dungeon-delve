@@ -4,6 +4,7 @@ import type { AssetPreviewScene } from '../scenes/AssetPreviewScene';
 import type { EnemyKind } from '../logic/enemies';
 import type { Facing } from '../logic/hero';
 import type { ItemId } from '../logic/inventory';
+import type { WorldMap } from '../logic/worldMap';
 import type { GameScene, GameSnapshot, PickupKind } from '../scenes/GameScene';
 import type { InventoryScene } from '../scenes/InventoryScene';
 import type { PauseScene } from '../scenes/PauseScene';
@@ -99,6 +100,8 @@ export interface TestHook {
       name: string;
       rooms: { x: number; y: number; current: boolean; boss: boolean }[];
     } | null;
+    world: WorldMap | null;
+    page: 'items' | 'map';
   } | null;
   /** What the status bar shows: each heart's state, and the gem count text. */
   hud(): {
