@@ -949,6 +949,13 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
     // No far weapon or spell yet: the daggers are dungeon 1's prize, the Fireball dungeon 2's.
     slots: { near: 'Wooden Sword', far: '', spell: '', shield: 'Wooden Shield' },
     map: null, // outdoors: no dungeon map
+    // ...but the world map, on its own page: so far only the screen he starts on.
+    world: {
+      cols: 16,
+      rows: 12,
+      cells: [{ x: 8, y: 11, region: 'village', current: true, entrance: null }],
+    },
+    page: 'items',
   });
   // The game is paused: holding a direction doesn't move Jarrett.
   await page.keyboard.down('ArrowRight');
@@ -3115,6 +3122,65 @@ test('a damaged save is ignored: the title offers no CONTINUE', async ({ page })
   await page.evaluate(() => window.localStorage.setItem('dungeon-delve:save', '{oops'));
   await reloadToTitle(page);
   expect((await titleShows(page))?.options).toEqual(['NEW GAME', 'CONTROLS']);
+  expect(watched.errors).toEqual([]);
+});
+
+test('on the overworld, the bag turns to a world map of the screens Jarrett has been in', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  const bag = () => page.evaluate(() => window.__game?.inventory());
+  await openGame(page);
+  // North from the village to Hollow Oak's screen, its shard found, and one screen on.
+  await page.evaluate(() => {
+    const g = window.__game;
+    g?.holdEnemies(true);
+    for (const [c, r] of [
+      [8, 10],
+      [8, 9],
+      [7, 9],
+      [6, 9],
+      [6, 8],
+      [7, 8],
+    ] as const) {
+      g?.goToRoom(c, r);
+    }
+    g?.takeShard(1);
+  });
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Inventory');
+  expect((await bag())?.page).toBe('items');
+  // Right: the map page. Every screen he has been in, gold where he is, Hollow Oak done.
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await bag())?.page).toBe('map');
+  const world = (await bag())?.world;
+  expect(world?.cols).toBe(16);
+  expect(world?.rows).toBe(12);
+  expect(world?.cells.map((c) => `${c.x},${c.y}`)).toEqual([
+    '6,8',
+    '7,8',
+    '6,9',
+    '7,9',
+    '8,9',
+    '8,10',
+    '8,11',
+  ]);
+  expect(world?.cells.find((c) => c.current)).toMatchObject({ x: 7, y: 8 });
+  expect(world?.cells.find((c) => c.x === 6 && c.y === 8)?.entrance).toBe('done');
+  expect(world?.cells.find((c) => c.x === 8 && c.y === 11)?.region).toBe('village');
+  // Left: back to the items; I closes it.
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(async () => (await bag())?.page).toBe('items');
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Game');
+  // In a dungeon there is no world map, and right stays on the items.
+  await openGame(page, '?dungeon=1');
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Inventory');
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(200);
+  expect((await bag())?.world).toBeNull();
+  expect((await bag())?.page).toBe('items');
   expect(watched.errors).toEqual([]);
 });
 
