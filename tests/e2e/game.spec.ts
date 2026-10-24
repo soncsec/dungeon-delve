@@ -38,13 +38,15 @@ async function untilGame(
   done: (s: GameSnapshot) => boolean,
   gameMs = 5_000,
 ): Promise<GameSnapshot> {
+  // Each recording has its own number, so an earlier one still waiting on its next frame
+  // ends rather than running alongside (a snapshot every frame is costly on a slow browser).
   await page.evaluate(() => {
-    const w = window as unknown as { __frames?: GameSnapshot[]; __recording?: boolean };
+    const w = window as unknown as { __frames?: GameSnapshot[]; __recording?: number };
+    const mine = (w.__recording ?? 0) + 1;
+    w.__recording = mine;
     w.__frames = [];
-    if (w.__recording) return;
-    w.__recording = true;
     const record = (): void => {
-      if (!w.__recording) return;
+      if (w.__recording !== mine) return;
       const s = window.__game?.snapshot();
       if (s) w.__frames?.push(s);
       requestAnimationFrame(record);
@@ -64,7 +66,8 @@ async function untilGame(
       start ??= s.playMs;
       if (done(s) || s.playMs - start > gameMs) {
         await page.evaluate(() => {
-          (window as unknown as { __recording?: boolean }).__recording = false;
+          const w = window as unknown as { __recording?: number };
+          w.__recording = (w.__recording ?? 0) + 1;
         });
         return s;
       }
@@ -1190,6 +1193,8 @@ test('Bog Grotto’s archway in the marsh opens once Jarrett holds a shard', asy
   await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), { x: 160, y: 70 });
   await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
@@ -1298,6 +1303,8 @@ test('Sunken Crypt’s archway in the ruins opens once Jarrett holds two shards'
   const at = (await snapshot(page)).player;
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), at);
   await expect.poll(shards).toBe(1);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   await page.evaluate(() => window.__game?.placeHero(160, 140, 'down'));
   await page.keyboard.down('ArrowDown');
   await expect
@@ -1321,6 +1328,8 @@ test('Sunken Crypt’s archway in the ruins opens once Jarrett holds two shards'
   await page.evaluate(() => window.__game?.placeHero(160, 70, 'up'));
   await page.evaluate(() => window.__game?.spawnPickup('shard', 160, 70));
   await expect.poll(shards).toBe(2);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   await page.keyboard.down('ArrowUp');
   await expect
     .poll(async () => (await snapshot(page)).travelling, { timeout: 10_000, intervals: [50] })
@@ -3257,6 +3266,8 @@ test('once dungeon 1’s shard is found, Walker waits outside, thanks Jarrett an
   const at = (await snapshot(page)).player;
   await page.evaluate(({ x, y }) => window.__game?.spawnPickup('shard', x, y), at);
   await expect.poll(async () => (await snapshot(page)).shards).toBe(1);
+  // He holds it up first, and can't move until he's done.
+  expect((await untilGame(page, (s) => !s.holding)).holding).toBe(false);
   expect((await snapshot(page)).opened).toContain('dungeon1/shard');
 
   // No magic yet: no spell, and no mana bar.
