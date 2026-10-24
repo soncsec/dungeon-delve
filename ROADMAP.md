@@ -11,10 +11,10 @@
 | M2 Combat, inventory and mana | Done (2026-10-20) |
 | M3 First dungeon, end to end | Done (owner play-tested 2026-10-21: "looks good"; the walking direction fixed in #52) |
 | M4 The overworld | Done (owner play-tested 2026-10-21) |
-| M5 Dungeons 2–4 | In progress |
-| M6 Dungeons 5–8 | Not started |
-| M7 Shadow Vault and ending | Not started |
-| M8 Polish and balance | Not started |
+| M5 Dungeons 2–4 | Done (2026-10-22) |
+| M6 Dungeons 5–8 | Done (2026-10-23; released) |
+| M7 Shadow Vault and ending | Done (2026-10-23; released) |
+| M8 Polish and balance | Done (owner play-tested 2026-10-24: every dungeon "about right", full playthrough done) |
 | M9 v1.0 release | Not started |
 
 **In production:** first release 2026-10-21, `20261021T165122Z-fe100746` (M0–M4 and the walking fix), at http://games.soncrant.com/dungeon-delve/.
@@ -132,7 +132,7 @@
 - [x] M5.4 New enemy types for these regions: the snake (spits venom), the mushroom (puffs spores) and the toad (hops)
 - [x] M5.5 Walker's lines at dungeons 2–4 and on the overworld: a hint at each entrance (the boss, and what the dungeon's item does), and outside each once its shard is found (the way on; choosing spells; secrets the Axe opens). On a phone he names the touch buttons, not the keys
 - [x] M5.6 No enemy looks stuck in a tree or a rock (owner 2026-10-22): walking enemies keep out from under the art of trees, tree tops, houses and archways, and start clear of them; fliers are drawn over trees, rocks and walls; a drop lands where Jarrett can reach and see it
-- [ ] M5.7 Holding up a find (owner 2026-10-22): from a chest, or a boss's heart container and shard, Jarrett turns to face you with the find over his head while a success tune plays, and the game waits a moment
+- [x] M5.7 Holding up a find (owner 2026-10-22): from a chest, or a boss's heart container and shard, Jarrett turns to face you with the find over his head while a success tune plays, and the game waits a moment
 - [x] M5.8 A bigger overworld (owner 2026-10-22): 16 screens wide by 12 tall (from 8×8). The first 64 rooms spread out (dungeons, village, caves and Walker with them), and 128 new rooms between them in each region's style, made by `tools/map/grow_overworld.py` and edited by hand from then on
 
 **Acceptance criteria (each dungeon):** owner play-test; reachability test passes; the boss has its own attack pattern.
@@ -172,15 +172,15 @@
 
 ## M8 — Polish and balance
 
-- [ ] M8.1 Difficulty pass with the owner (enemy health, damage, drop rates, prices)
+- [x] M8.1 Difficulty pass with the owner (enemy health, damage, drop rates, prices): done 2026-10-24, every dungeon, the vault, hearts and potions, and mana judged "about right"; no changes
 - [x] M8.2 Touch controls and phone layout (done after M5.2, owner 2026-10-21)
 - [x] M8.3 Title screen (the intro, art and the rest; the CONTINUE / NEW GAME menu came with M3.5), controls legend, quit-to-arcade, pause menu, in two PRs:
   - [x] M8.3a The pause screen, as in Star Destroyer: P or Esc pauses (a PAUSE button on phones) and the game waits, its play time too; it shows the controls, and Q quits to the arcade after asking (Y / N)
   - [x] M8.3b The title screen: the story so far a card at a time (the intro), Jarrett and Kira either side of the menu, CONTROLS on the menu (the same legend as the pause screen), the fastest time, and Q (a button on phones) back to the arcade
 - [x] M8.4 Portal card image (256×192) and `coming-soon` status (portal PR): done in games-portal #33 (the card image, and `live`), released with the portal on 2026-10-22
-- [ ] M8.5 Full playthrough with no console errors in every browser project, in two parts:
+- [x] M8.5 Full playthrough with no console errors in every browser project, in two parts:
   - [x] M8.5a Every room of every map (the overworld, the eight dungeons, the vault, the secret caves and the shop) is drawn in Chromium, Firefox and WebKit with no console errors (`tests/e2e/rooms.spec.ts`)
-  - [ ] M8.5b A full playthrough, start to Kira's rescue, with the owner (alongside M8.1)
+  - [x] M8.5b A full playthrough, start to Kira's rescue, with the owner (alongside M8.1): done 2026-10-24, every step of the checklist, no issues found
 - [x] M8.6 A world map (owner 2026-10-23: "it's hard to know where you are in the world"): on the overworld the bag has a second page, Left/Right, showing the overworld's 16 x 12 screens, dark until visited, each visited screen in its region's colour, gold where Jarrett is, and a dot on each dungeon entrance (red to do, white once its shard is found, violet the vault)
 
 ## M9 — v1.0 release
