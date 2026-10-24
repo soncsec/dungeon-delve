@@ -3909,7 +3909,8 @@ test('north of Hollow Oak lie the vault grounds, and the vault door stays shut',
   await page.keyboard.up('ArrowUp');
   const s = await snapshot(page);
   expect(s.player.y).toBe(70);
-  expect(s.opened.filter((id) => id.startsWith('overworld/'))).toEqual([]);
+  // Nothing opened out here (the screens he has been in are kept too, for the world map).
+  expect(fixtures(s.opened).filter((id) => id.startsWith('overworld/'))).toEqual([]);
   expect(watched.errors).toEqual([]);
 });
 
@@ -4186,7 +4187,7 @@ test('the Axe smashes boulders and cracked walls; the sword only clinks; Firebal
   await openGame(page);
   await page.evaluate(() => window.__game?.giveItem('fireball')); // dungeon 2's prize
   const opened = async () =>
-    (await snapshot(page)).opened.filter((id) => id.startsWith('overworld/'));
+    fixtures((await snapshot(page)).opened).filter((id) => id.startsWith('overworld/'));
   // The start room's boulder fills columns 4–5, rows 6–7. Strike it from above with the sword.
   await page.evaluate(() => window.__game?.placeHero(72, 92, 'down'));
   await page.keyboard.press('Space');
