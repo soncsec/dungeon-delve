@@ -354,13 +354,21 @@ export function roomArt(
         });
         return;
       }
+      // A false wall still standing is a little duller than the wall round it, for a sharp eye.
+      const tell = cell.fixture === 'hollow' ? { tint: FALSE_WALL_TINT } : {};
       if (cell.forest && mountains) {
         // In the mountains, walls are cliffs.
-        art.ground.push({ frame: cliffFrame(room, x, y), x: px, y: py, sheet: 'mountain' });
+        art.ground.push({
+          frame: cliffFrame(room, x, y),
+          x: px,
+          y: py,
+          sheet: 'mountain',
+          ...tell,
+        });
       } else if (cell.forest) {
         // Village rooms use the forest walls recoloured to suit their light grass.
         const walls = region === 'village' ? { sheet: 'forest-village' as const } : {};
-        art.ground.push({ frame: forestFrame(room, x, y), x: px, y: py, ...walls });
+        art.ground.push({ frame: forestFrame(room, x, y), x: px, y: py, ...walls, ...tell });
         // Tree tops grow over the ground above a wall, but not over a hole (it must show).
         if (y > 0 && !isForest(room, x, y - 1) && !room.cells[y - 1]?.[x]?.exit) {
           art.over.push({ frame: FOREST_FRAMES.top(x), x: px, y: py - TILE, ...walls });
@@ -394,7 +402,12 @@ export const DUNGEON_FRAMES = {
   gate: dframe(8, 7),
   /** A crystal switch: the orb at a pillar's foot, in the wall face. */
   orb: dframe(12, 7),
+  /** A wall top with a small crack: a secret wall's tell (owner 2026-10-24, M10.3a). */
+  crackedTop: dframe(8, 2),
 } as const;
+
+/** A false wall's tell outdoors (owner 2026-10-24, M10.3a): its trees or cliff a little duller (runtime tint, ADR-D05). */
+export const FALSE_WALL_TINT = 0xc4ccb4;
 
 /** A crystal switch not yet powered is drawn dim (runtime tint, ADR-D05); powered, it shines. */
 export const SWITCH_DIM = 0x707090;
@@ -422,7 +435,11 @@ export function dungeonFrame(
   // A crumbled secret wall is floor now, and the wall beside it ends there.
   const wall = (cx: number, cy: number): boolean =>
     isWall(room, cx, cy) && !(room.cells[cy]?.[cx]?.fixture === 'secret' && openAt(cx, cy));
-  if (wall(x, y)) return wall(x, y + 1) ? DUNGEON_FRAMES.top : DUNGEON_FRAMES.face;
+  if (wall(x, y)) {
+    if (!wall(x, y + 1)) return DUNGEON_FRAMES.face;
+    // A secret wall still standing shows a small crack, for a sharp eye.
+    return fixture === 'secret' ? DUNGEON_FRAMES.crackedTop : DUNGEON_FRAMES.top;
+  }
   if (wall(x - 1, y)) return DUNGEON_FRAMES.shadow;
   return crackAt(x, y) ?? DUNGEON_FRAMES.floor;
 }

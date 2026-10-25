@@ -21,6 +21,7 @@ import {
   THORN_TINT,
   SWITCH_DIM,
   EYE_TINT,
+  FALSE_WALL_TINT,
   mixTint,
   propSheet,
   roomArt,
@@ -154,8 +155,10 @@ describe('dungeon tiles', () => {
         y === 4 || y === 5 ? '##................uu' : '##................##',
       ),
     );
-    expect(dungeonFrame(secret, 18, 4)).toBe(DUNGEON_FRAMES.top);
-    expect(dungeonFrame(secret, 18, 5)).toBe(DUNGEON_FRAMES.top);
+    // Standing, it shows a small crack (M10.3a): the tell for a sharp eye.
+    expect(dungeonFrame(secret, 18, 4)).toBe(DUNGEON_FRAMES.crackedTop);
+    expect(dungeonFrame(secret, 18, 5)).toBe(DUNGEON_FRAMES.crackedTop);
+    expect(DUNGEON_FRAMES.crackedTop).not.toBe(DUNGEON_FRAMES.top);
     const open = (x: number, y: number) => (y === 4 || y === 5) && x >= 18;
     expect([DUNGEON_FRAMES.floor, ...DUNGEON_FRAMES.cracks]).toContain(
       dungeonFrame(secret, 19, 4, true, open),
@@ -286,6 +289,26 @@ describe('village art', () => {
     const forest = roomArt(walled);
     expect(forest.ground.some((t) => t.sheet !== undefined)).toBe(false);
     expect(forest.over.some((t) => t.sheet !== undefined)).toBe(false);
+  });
+
+  it('draws a false wall a little duller than the wall round it (in forest and mountains), until it is opened', () => {
+    const r = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        y === 2 ? 'FFoh................' : y < 2 ? 'FFFFFFFFFFFFFFFFFFFF' : '....................',
+      ),
+    );
+    const at = (art: ReturnType<typeof roomArt>, x: number, y: number) =>
+      art.ground.filter((t) => t.x === x * 16 && t.y === y * 16);
+    const forest = roomArt(r);
+    expect(at(forest, 3, 2).some((t) => t.tint === FALSE_WALL_TINT)).toBe(true);
+    expect(at(forest, 4, 1).some((t) => t.tint !== undefined)).toBe(false);
+    const cliffs = roomArt(r, 'mountains');
+    expect(at(cliffs, 3, 2).some((t) => t.sheet === 'mountain' && t.tint === FALSE_WALL_TINT)).toBe(
+      true,
+    );
+    // Opened, it is ground, with no tell.
+    const opened = roomArt(r, 'forest', (x, y) => x === 3 && y === 2);
+    expect(at(opened, 3, 2).some((t) => t.tint !== undefined)).toBe(false);
   });
 
   it('draws forest props from the recoloured sheet in the village only', () => {
