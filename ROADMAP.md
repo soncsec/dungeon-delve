@@ -199,7 +199,7 @@ The owner asked for hidden passages and secret caves; the 12 overworld caves (M4
   - [x] M10.1b The secret rooms of dungeons 5–8: Thunder Spire (gems, a Mana Brew), Witchwood Tower (a Health Potion, gems), Crimson Manor (a heart container, off the east wing), Dragon's Maw (gems, a Health Potion)
 - [x] M10.2 Eight more secret caves on the overworld (20 in all), in the regions with few: two on the volcano edge (one behind thorns), two in the ruins, two in the marsh (one behind thorns), one in the mountains and one in the forest; gems and potions
 - [ ] M10.3 Easier to find, in three PRs:
-  - [ ] M10.3a A visible tell: a faint crack on false and secret walls
+  - [x] M10.3a A visible tell: a secret wall in a dungeon shows the pack's cracked wall top; a false wall outdoors (trees or cliff) is drawn a little duller (runtime tint), until opened
   - [ ] M10.3b Found caves and secret rooms marked on the world map and the dungeon map
   - [ ] M10.3c Walker's hints at nearby secrets
 
