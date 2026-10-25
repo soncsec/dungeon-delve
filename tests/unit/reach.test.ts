@@ -187,6 +187,38 @@ describe("the dungeons' secret rooms (M10.1)", () => {
       wall: '1,1',
       x: [18, 19],
     },
+    {
+      name: 'Thunder Spire',
+      defs: DUNGEON_5,
+      start: DUNGEON_5_START,
+      room: '2,1',
+      wall: '1,1',
+      x: [18, 19],
+    },
+    {
+      name: 'Witchwood Tower',
+      defs: DUNGEON_6,
+      start: DUNGEON_6_START,
+      room: '0,1',
+      wall: '1,1',
+      x: [0, 1],
+    },
+    {
+      name: 'Crimson Manor',
+      defs: DUNGEON_7,
+      start: DUNGEON_7_START,
+      room: '3,2',
+      wall: '2,2',
+      x: [18, 19],
+    },
+    {
+      name: "Dragon's Maw",
+      defs: DUNGEON_8,
+      start: DUNGEON_8_START,
+      room: '2,1',
+      wall: '1,1',
+      x: [18, 19],
+    },
   ];
   const all = { fireball: true, lightning: true, axe: true, ward: true, steel: true };
   for (const c of cases) {
@@ -440,7 +472,8 @@ describe('the real maps', () => {
       lightning: true,
       steel: true,
     });
-    expect(noWard.rooms).toEqual(['0,2', '1,2', '2,2']);
+    // The wings and the foyer, and the secret room off the east wing (M10.1b), which needs no Ward.
+    expect(noWard.rooms).toEqual(['0,2', '1,2', '2,2', '3,2']);
     const noSteel = explore(buildWorld(DUNGEON_7), start, {
       axe: true,
       lightning: true,

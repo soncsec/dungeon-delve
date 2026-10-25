@@ -12,6 +12,7 @@
  * sparks before key 2) and Lightning (the east vent's switch).
  */
 import type { RoomDef } from '../logic/world';
+import { secretRoom, withSecretDoor } from './secretRooms';
 
 /** The entrance: where Jarrett arrives and gets back up after falling. */
 export const DUNGEON_8_START = { col: 1, row: 3 } as const;
@@ -43,18 +44,21 @@ export const DUNGEON_8: readonly RoomDef[] = [
       { kind: 'eye', col: 8, row: 4 },
       { kind: 'ghost', col: 14, row: 7 },
     ],
-    lines: [
-      '#########..#########',
-      '#########KK#########',
-      '##................##',
-      '##..##........##..##',
-      '##................##',
-      '##................##',
-      '##..##........##..##',
-      '##................##',
-      '#########..#########',
-      '#########..#########',
-    ],
+    lines: withSecretDoor(
+      [
+        '#########..#########',
+        '#########KK#########',
+        '##................##',
+        '##..##........##..##',
+        '##................##',
+        '##................##',
+        '##..##........##..##',
+        '##................##',
+        '#########..#########',
+        '#########..#########',
+      ],
+      'east',
+    ),
   },
   // The west vent: key 2, in a closet behind sparks.
   {
@@ -173,4 +177,9 @@ export const DUNGEON_8: readonly RoomDef[] = [
       '#########DD#########',
     ],
   },
+  // The secret room (M10.1), east of the throne hall, behind its secret wall: gems and a potion.
+  secretRoom(2, 1, 'west', [
+    { col: 13, row: 3, contents: { kind: 'gems', amount: 40 } },
+    { col: 13, row: 6, contents: { kind: 'potion', potion: 'health' } },
+  ]),
 ];

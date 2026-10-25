@@ -12,6 +12,7 @@
  * Sword (the eye that holds key 2's cage) and Lightning (the chapel's switch).
  */
 import type { RoomDef } from '../logic/world';
+import { secretRoom, withSecretDoor } from './secretRooms';
 
 /** The foyer: where Jarrett arrives and gets back up after falling. */
 export const DUNGEON_7_START = { col: 1, row: 2 } as const;
@@ -163,17 +164,22 @@ export const DUNGEON_7: readonly RoomDef[] = [
       { kind: 'wolf', col: 6, row: 7 },
       { kind: 'mushroom', col: 8, row: 3 },
     ],
-    lines: [
-      '####################',
-      '####################',
-      '##................##',
-      '##..........#####.##',
-      '............#.C.#.##',
-      '............##x##.##',
-      '##................##',
-      '##................##',
-      '####################',
-      '####################',
-    ],
+    lines: withSecretDoor(
+      [
+        '####################',
+        '####################',
+        '##................##',
+        '##..........#####.##',
+        '............#.C.#.##',
+        '............##x##.##',
+        '##................##',
+        '##................##',
+        '####################',
+        '####################',
+      ],
+      'east',
+    ),
   },
+  // The secret room (M10.1), east of the east wing, behind its secret wall: a heart container.
+  secretRoom(3, 2, 'west', [{ col: 13, row: 4, contents: { kind: 'heart' } }]),
 ];
