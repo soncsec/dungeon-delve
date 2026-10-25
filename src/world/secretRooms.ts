@@ -29,7 +29,7 @@ export function secretRoom(
       return inside || doorway ? '.' : '#';
     }).join(''),
   );
-  return { col, row, lines, chests };
+  return { col, row, lines, chests, secret: true };
 }
 
 /**

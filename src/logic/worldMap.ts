@@ -1,8 +1,8 @@
 /**
  * The world map in the inventory (engine-free, unit tested; owner 2026-10-23):
  * the overworld screens Jarrett has been in, laid out on the overworld's grid,
- * each in its region's colour, with the screen he's in now and the dungeon
- * entrances marked.
+ * each in its region's colour, with the screen he's in now, the dungeon
+ * entrances, and the secret caves he has found marked.
  */
 import type { Region } from './tiles';
 import { dungeonNumber, VAULT_NUMBER } from './progress';
@@ -17,6 +17,8 @@ export interface WorldCell {
   region: Region;
   current: boolean;
   entrance: EntranceMark | null;
+  /** A secret cave down from this screen that he has been in (M10.3b). */
+  cave: boolean;
 }
 
 export interface WorldMap {
@@ -50,6 +52,7 @@ export function worldMap(
   seen: (col: number, row: number) => boolean,
   current: Cell,
   done: (map: string) => boolean,
+  caveFound: (col: number, row: number) => boolean = () => false,
 ): WorldMap {
   const cols = all.map((r) => r.col);
   const rows = all.map((r) => r.row);
@@ -63,6 +66,7 @@ export function worldMap(
       region: r.region,
       current: r.col === current.col && r.row === current.row,
       entrance: entranceOf(r, done),
+      cave: caveFound(r.col, r.row),
     }))
     .sort((a, b) => a.y - b.y || a.x - b.x);
   return { cols: Math.max(...cols) - left + 1, rows: Math.max(...rows) - top + 1, cells };

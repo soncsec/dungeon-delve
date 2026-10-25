@@ -234,6 +234,7 @@ import {
   type MapExit,
   type World,
 } from '../logic/world';
+import { SECRET_CAVES } from '../world/caves';
 import { MAPS, type MapId } from '../world/maps';
 import { SAVE_VERSION, type SaveGame } from '../logic/save';
 import { writeSave } from '../storage/saveStore';
@@ -813,9 +814,13 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
     this.enteredRoom();
   }
 
-  /** On entering a room: a dungeon room or overworld screen goes on its map, and a save point saves. */
+  /** On entering a room: a dungeon room, overworld screen or secret cave goes on its map, and a save point saves. */
   private enteredRoom(): void {
-    if (MAPS[this.mapId].theme === 'dungeon' || this.mapId === 'overworld') {
+    if (
+      MAPS[this.mapId].theme === 'dungeon' ||
+      this.mapId === 'overworld' ||
+      this.mapId === 'caves'
+    ) {
       const id = seenId(this.mapId, roomKey(this.room.col, this.room.row));
       this.progress = markSeen(this.progress, id);
     }
@@ -2078,6 +2083,7 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       (col, row) => isOpened(this.progress, seenId(this.mapId, roomKey(col, row))),
       this.room,
       (col, row) => this.world.bosses.has(roomKey(col, row)),
+      (col, row) => m.rooms.some((r) => r.col === col && r.row === row && r.secret === true),
     );
     return { name: m.name, map };
   }
@@ -2096,6 +2102,14 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
       (col, row) => isOpened(this.progress, seenId('overworld', roomKey(col, row))),
       this.room,
       (map) => isOpened(this.progress, rewardId(map, 'shard')),
+      // A cave he has been in (cave i is the caves map's room at column 2i).
+      (col, row) =>
+        SECRET_CAVES.some(
+          (c, i) =>
+            c.room.col === col &&
+            c.room.row === row &&
+            isOpened(this.progress, seenId('caves', roomKey(2 * i, 0))),
+        ),
     );
   }
 

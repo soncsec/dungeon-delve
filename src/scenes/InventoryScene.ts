@@ -73,6 +73,9 @@ const ENTRANCE_DOT: Readonly<Record<EntranceMark, number>> = {
   done: 0xffffff,
   vault: 0xd8b0ff,
 };
+/** A secret cave he has found, on the world map; a secret room he has found, on the dungeon map (M10.3b). */
+const CAVE_MARK = 0x4fd3d6;
+const SECRET_ROOM = 0x8a5ad0;
 /** The bag's pages: its items, and (on the overworld) the world map. */
 type Page = 'items' | 'map';
 
@@ -176,7 +179,9 @@ export class InventoryScene extends Phaser.Scene {
       const x = MAP.x + room.x * (MAP.w + MAP.gap);
       const y = MAP.y + room.y * (MAP.h + MAP.gap);
       this.dynamic.push(
-        this.add.rectangle(x, y, MAP.w, MAP.h, room.current ? 0xffd166 : 0x3a5a8a).setOrigin(0),
+        this.add
+          .rectangle(x, y, MAP.w, MAP.h, room.current ? HERE : room.secret ? SECRET_ROOM : 0x3a5a8a)
+          .setOrigin(0),
       );
       if (room.boss) {
         this.dynamic.push(
@@ -189,7 +194,8 @@ export class InventoryScene extends Phaser.Scene {
   /**
    * The map page: the whole overworld as a grid, dark where he hasn't been; each screen he
    * has been in in its region's colour, gold where he is, and a dot on each dungeon
-   * entrance (red to do, white done, violet the vault); a key to the marks beneath.
+   * entrance (red to do, white done, violet the vault), and a mark on each secret cave
+   * he has found; a key to the marks beneath.
    */
   private drawWorld(m: WorldMap): void {
     const left = Math.round((GAME_WIDTH - m.cols * (WORLD.w + WORLD.gap) + WORLD.gap) / 2);
@@ -215,12 +221,18 @@ export class InventoryScene extends Phaser.Scene {
           this.add.rectangle(p.x + WORLD.w / 2 - 2, p.y + 3, 4, 3, dot).setOrigin(0),
         );
       }
+      if (cell.cave) {
+        this.dynamic.push(
+          this.add.rectangle(p.x + WORLD.w - 4, p.y + WORLD.h - 3, 3, 2, CAVE_MARK).setOrigin(0),
+        );
+      }
     }
     const key: [number, string][] = [
       [HERE, 'YOU'],
       [ENTRANCE_DOT.dungeon, 'DUNGEON'],
       [ENTRANCE_DOT.done, 'DONE'],
       [ENTRANCE_DOT.vault, 'VAULT'],
+      [CAVE_MARK, 'CAVE'],
     ];
     let x = left;
     for (const [colour, label] of key) {

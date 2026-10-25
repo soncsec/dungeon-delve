@@ -10,7 +10,7 @@ const openOn = (lines: readonly string[], side: 'north' | 'south' | 'east' | 'we
 describe('secretRoom', () => {
   it('is walled all round but for a two-cell doorway on the side asked', () => {
     const west = secretRoom(2, 1, 'west', []);
-    expect(west).toMatchObject({ col: 2, row: 1, chests: [] });
+    expect(west).toMatchObject({ col: 2, row: 1, chests: [], secret: true });
     expect(openOn(west.lines, 'west')).toEqual([4, 5]);
     expect(openOn(west.lines, 'east')).toEqual([]);
     expect(openOn(west.lines, 'north')).toEqual([]);

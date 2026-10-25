@@ -953,7 +953,7 @@ test('I opens the inventory over a paused game; I closes it', async ({ page }) =
     world: {
       cols: 16,
       rows: 12,
-      cells: [{ x: 8, y: 11, region: 'village', current: true, entrance: null }],
+      cells: [{ x: 8, y: 11, region: 'village', current: true, entrance: null, cave: false }],
     },
     page: 'items',
   });
@@ -3186,6 +3186,47 @@ test('on the overworld, the bag turns to a world map of the screens Jarrett has 
   expect(watched.errors).toEqual([]);
 });
 
+test('a secret cave he has been in is marked on the world map; a secret room on the dungeon map', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  const bag = async () => {
+    await page.keyboard.press('i');
+    await expect.poll(() => sceneNow(page)).toBe('Inventory');
+    await page.keyboard.press('ArrowRight');
+    const shown = await page.evaluate(() => window.__game?.inventory());
+    await page.keyboard.press('i');
+    await expect.poll(() => sceneNow(page)).toBe('Game');
+    return shown;
+  };
+  await openGame(page);
+  await page.evaluate(() => window.__game?.holdEnemies(true));
+  // The east meadow's cave (under its stone): not found yet, then down in it and back up.
+  await page.evaluate(() => window.__game?.goToRoom(10, 11));
+  const meadow = async () =>
+    (await bag())?.world?.cells.find((c) => c.x === 10 && c.y === 11)?.cave;
+  expect(await meadow()).toBe(false);
+  await page.evaluate(() => {
+    window.__game?.goToMap('caves', 0, 0); // cave 0 is the east meadow's
+    window.__game?.goToMap('overworld', 10, 11);
+  });
+  expect(await meadow()).toBe(true);
+
+  // In Hollow Oak, its secret room (off the great hall) shows in its own colour once found.
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 1);
+    window.__game?.goToRoom(2, 1);
+  });
+  await page.keyboard.press('i');
+  await expect.poll(() => sceneNow(page)).toBe('Inventory');
+  const rooms = (await page.evaluate(() => window.__game?.inventory()))?.map?.rooms ?? [];
+  expect(rooms.find((r) => r.x === 2 && r.y === 1)).toMatchObject({ secret: true, current: true });
+  expect(rooms.filter((r) => r.secret)).toHaveLength(1);
+  expect(watched.errors).toEqual([]);
+});
+
 test('the inventory shows a map of the dungeon rooms Jarrett has been in, kept in the save', async ({
   page,
 }) => {
@@ -3202,14 +3243,14 @@ test('the inventory shows a map of the dungeon rooms Jarrett has been in, kept i
   await page.evaluate(() => window.__game?.holdEnemies(true));
   expect(await mapShown()).toEqual({
     name: 'Hollow Oak',
-    rooms: [{ x: 1, y: 3, current: true, boss: false }],
+    rooms: [{ x: 1, y: 3, current: true, boss: false, secret: false }],
   });
   await page.evaluate(() => window.__game?.goToRoom(1, 2)); // the hub
   await page.evaluate(() => window.__game?.goToRoom(0, 2)); // the west room
   expect((await mapShown())?.rooms).toEqual([
-    { x: 0, y: 2, current: true, boss: false },
-    { x: 1, y: 2, current: false, boss: false },
-    { x: 1, y: 3, current: false, boss: false },
+    { x: 0, y: 2, current: true, boss: false, secret: false },
+    { x: 1, y: 2, current: false, boss: false, secret: false },
+    { x: 1, y: 3, current: false, boss: false, secret: false },
   ]);
 
   // Back at the entrance (a save point), then reload and continue: the map is kept.

@@ -19,7 +19,7 @@ describe('worldMap', () => {
     expect(m).toEqual({
       cols: 3,
       rows: 2,
-      cells: [{ x: 1, y: 1, region: 'village', current: true, entrance: null }],
+      cells: [{ x: 1, y: 1, region: 'village', current: true, entrance: null, cave: false }],
     });
   });
 
@@ -27,9 +27,9 @@ describe('worldMap', () => {
     const seen = new Set(['0,0', '0,1', '1,1']);
     const m = worldMap(WORLD, (c, r) => seen.has(`${c},${r}`), { col: 0, row: 1 }, noneDone);
     expect(m.cells).toEqual([
-      { x: 0, y: 0, region: 'forest', current: false, entrance: 'dungeon' },
-      { x: 0, y: 1, region: 'forest', current: true, entrance: null },
-      { x: 1, y: 1, region: 'village', current: false, entrance: null },
+      { x: 0, y: 0, region: 'forest', current: false, entrance: 'dungeon', cave: false },
+      { x: 0, y: 1, region: 'forest', current: true, entrance: null, cave: false },
+      { x: 1, y: 1, region: 'village', current: false, entrance: null, cave: false },
     ]);
   });
 
@@ -49,10 +49,23 @@ describe('worldMap', () => {
     expect(m.cells.filter((c) => c.y === 1).map((c) => c.entrance)).toEqual([null, null, null]);
   });
 
+  it('marks a screen whose secret cave he has been in (M10.3b)', () => {
+    const m = worldMap(
+      WORLD,
+      () => true,
+      { col: 1, row: 1 },
+      noneDone,
+      (c, r) => c === 2 && r === 1,
+    );
+    expect(m.cells.filter((c) => c.cave).map((c) => `${c.x},${c.y}`)).toEqual(['2,1']);
+  });
+
   it('measures from the top-left screen, wherever the world sits', () => {
     const shifted = WORLD.map((r) => ({ ...r, col: r.col + 4, row: r.row + 2 }));
     const m = worldMap(shifted, () => false, { col: 5, row: 3 }, noneDone);
     expect(m.cols).toBe(3);
-    expect(m.cells).toEqual([{ x: 1, y: 1, region: 'village', current: true, entrance: null }]);
+    expect(m.cells).toEqual([
+      { x: 1, y: 1, region: 'village', current: true, entrance: null, cave: false },
+    ]);
   });
 });
