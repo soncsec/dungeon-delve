@@ -197,7 +197,7 @@ The owner asked for hidden passages and secret caves; the 12 overworld caves (M4
 - [x] M10.1 A secret room in each dungeon, behind a secret wall (stone that sounds hollow and crumbles on a second strike, the whole two-cell doorway at once); rewards gems and potions, a heart container in two (16 hearts in all, so the status bar shows 8 a row). In two PRs:
   - [x] M10.1a The secret wall, and the secret rooms of dungeons 1–4: Hollow Oak (gems, a Health Potion), Bog Grotto (a Mana Brew, gems), Sunken Crypt (gems, a Health Potion), Stonecrag Mine (a heart container); hearts 8 a row
   - [x] M10.1b The secret rooms of dungeons 5–8: Thunder Spire (gems, a Mana Brew), Witchwood Tower (a Health Potion, gems), Crimson Manor (a heart container, off the east wing), Dragon's Maw (gems, a Health Potion)
-- [ ] M10.2 Eight more secret caves on the overworld (20 in all), in the regions with few
+- [x] M10.2 Eight more secret caves on the overworld (20 in all), in the regions with few: two on the volcano edge (one behind thorns), two in the ruins, two in the marsh (one behind thorns), one in the mountains and one in the forest; gems and potions
 - [ ] M10.3 Easier to find, in three PRs:
   - [ ] M10.3a A visible tell: a faint crack on false and secret walls
   - [ ] M10.3b Found caves and secret rooms marked on the world map and the dungeon map
