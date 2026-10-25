@@ -3406,6 +3406,7 @@ test('once dungeon 1’s shard is found, Walker waits outside, thanks Jarrett an
   expect(said).toContain('THANK YOU, JARRETT');
   expect(said).toContain('THIS IS FIREBALL');
   expect(said).toContain('PRESS X TO SWITCH');
+  expect(said).toContain('EVERY DUNGEON HIDES A SECRET ROOM'); // his hint (M10.3c)
   const s = await snapshot(page);
   expect(s.walker).toBeNull();
   expect(s.opened).toContain('walker/dungeon1-done');

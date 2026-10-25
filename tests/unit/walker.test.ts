@@ -214,3 +214,24 @@ describe('Princess Kira, in her cell in the Shadow Vault (M7.3)', () => {
     }
   });
 });
+
+describe("Walker's hints at secrets (M10.3c)", () => {
+  it('outside each finished dungeon, he hints at a secret nearby, before his parting words', () => {
+    for (let n = 1; n <= 8; n++) {
+      const visit = WALKER_VISITS.find((v) => v.id === `dungeon${n}-done`);
+      const lines = visit?.speech.map((p) => p.text) ?? [];
+      const hint = lines.findIndex((t) =>
+        /HOLLOW|THORNS|SECRET|DULL|RUBBLE|DEAD END|CRACKS/.test(t),
+      );
+      expect(hint, `dungeon ${n}`).toBeGreaterThanOrEqual(0);
+      expect(hint, `dungeon ${n}`).toBeLessThan(lines.length - 1);
+    }
+  });
+
+  it('after Hollow Oak, he tells of the secret room in every dungeon', () => {
+    const visit = WALKER_VISITS.find((v) => v.id === 'dungeon1-done');
+    expect(visit?.speech.some((p) => p.text.includes('EVERY DUNGEON HIDES A SECRET ROOM'))).toBe(
+      true,
+    );
+  });
+});
