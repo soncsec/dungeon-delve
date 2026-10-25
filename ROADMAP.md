@@ -16,7 +16,7 @@
 | M7 Shadow Vault and ending | Done (2026-10-23; released) |
 | M8 Polish and balance | Done (owner play-tested 2026-10-24: every dungeon "about right", full playthrough done) |
 | M9 v1.0 release | Done (2026-10-24: production 20261024T225720Z-6aaa1403, tag v1.0) |
-| M10 More secrets (owner 2026-10-24, after v1.0) | In progress |
+| M10 More secrets (owner 2026-10-24, after v1.0) | Done (2026-10-25) |
 
 **In production:** first release 2026-10-21, `20261021T165122Z-fe100746` (M0–M4 and the walking fix), at http://games.soncrant.com/dungeon-delve/.
 
@@ -198,8 +198,8 @@ The owner asked for hidden passages and secret caves; the 12 overworld caves (M4
   - [x] M10.1a The secret wall, and the secret rooms of dungeons 1–4: Hollow Oak (gems, a Health Potion), Bog Grotto (a Mana Brew, gems), Sunken Crypt (gems, a Health Potion), Stonecrag Mine (a heart container); hearts 8 a row
   - [x] M10.1b The secret rooms of dungeons 5–8: Thunder Spire (gems, a Mana Brew), Witchwood Tower (a Health Potion, gems), Crimson Manor (a heart container, off the east wing), Dragon's Maw (gems, a Health Potion)
 - [x] M10.2 Eight more secret caves on the overworld (20 in all), in the regions with few: two on the volcano edge (one behind thorns), two in the ruins, two in the marsh (one behind thorns), one in the mountains and one in the forest; gems and potions
-- [ ] M10.3 Easier to find, in three PRs:
+- [x] M10.3 Easier to find, in three PRs:
   - [x] M10.3a A visible tell: a secret wall in a dungeon shows the pack's cracked wall top; a false wall outdoors (trees or cliff) is drawn a little duller (runtime tint), until opened
   - [x] M10.3b Found caves and secret rooms marked: a cave he has been in shows as a cyan mark on its screen of the world map (CAVE in its key); a secret room he has found shows purple on the dungeon map
-  - [ ] M10.3c Walker's hints at nearby secrets
+  - [x] M10.3c Walker's hints at nearby secrets: outside each finished dungeon he adds a riddle-like hint at a cave nearby (one the items held by then can open); after Hollow Oak he also tells of the secret room in every dungeon
 

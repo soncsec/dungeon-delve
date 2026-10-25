@@ -100,6 +100,13 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
         text: 'YOUR DAGGERS: PRESS X TO SWITCH TO THEM, THEN SPACE TO THROW. X AGAIN FOR THE SWORD.',
         touch: 'YOUR DAGGERS: SWAP SWITCHES TO THEM, THEN HIT THROWS. SWAP AGAIN FOR THE SWORD.',
       },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'EVERY DUNGEON HIDES A SECRET ROOM. LOOK FOR CRACKS IN A WALL, AND STRIKE IT TWICE.',
+      },
+      {
+        text: 'AND YOUR NEW FIRE? THE THORNS IN THE WOODS WEST OF THE VAULT GROUNDS HIDE MORE THAN A PATH.',
+      },
       {
         text: 'THE NEXT SHARD IS IN BOG GROTTO, IN THE MARSH TO THE WEST. I WILL FIND YOU THERE.',
       },
@@ -126,6 +133,10 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     after: 'dungeon2/shard',
     speech: [
       { text: 'TWO SHARDS! SIX MORE TO FIND.' },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'THE MARSH KEEPS A HEART OF ITS OWN, SOUTH OF HERE, BEHIND THORNS. FIRE OPENS THE WAY.',
+      },
       {
         text: 'THE NEXT LIES IN SUNKEN CRYPT, IN THE RUINS EAST OF THE VAULT. ITS DEAD DO NOT REST.',
       },
@@ -157,6 +168,10 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
         text: 'YOU KNOW TWO SPELLS NOW. CHOOSE ONE IN YOUR BAG: PRESS I, THEN THE SPELL, THEN SPACE.',
         touch: 'YOU KNOW TWO SPELLS NOW. CHOOSE ONE IN YOUR BAG: BAG, THEN THE SPELL, THEN HIT.',
       },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'IN THE EAST RUINS, ONE WALL LOOKS TIRED. STRIKE IT, AND LISTEN FOR A HOLLOW SOUND.',
+      },
       {
         text: 'THE NEXT SHARD IS IN STONECRAG MINE, IN THE MOUNTAINS TO THE NORTH. AN OGRE GUARDS IT.',
       },
@@ -186,6 +201,10 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       { text: 'FOUR SHARDS: HALF THE STAR! I CAN FEEL IT GROWING WARM.' },
       {
         text: 'THE AXE BREAKS BOULDERS AND RUBBLE OUT HERE TOO. LOOK FOR SECRETS BEHIND THEM.',
+      },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'THAT AXE CAN BREAK MORE THAN ROCKS IN A MINE. TRY THE RUBBLE IN THE HIGH PASS, EAST OF HERE.',
       },
       {
         text: 'THE NEXT SHARD IS IN THUNDER SPIRE, IN THE MOUNTAINS TO THE NORTH-WEST. STORMS CIRCLE IT.',
@@ -221,6 +240,10 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
         text: 'CHOOSE THE WARD IN YOUR BAG, THEN PRESS C. FOR A MOMENT, NOTHING CAN HURT YOU.',
         touch: 'CHOOSE THE WARD IN YOUR BAG, THEN TAP MAGIC. FOR A MOMENT, NOTHING CAN HURT YOU.',
       },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'UP IN THE HIGH MOUNTAINS TO THE EAST, A CLIFF THAT LOOKS DULLER THAN THE REST IS NO CLIFF.',
+      },
       {
         text: 'THE NEXT SHARD IS IN WITCHWOOD TOWER, DEEP IN THE FOREST TO THE SOUTH-WEST.',
       },
@@ -254,6 +277,10 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       {
         text: 'STONE EYES WATCH FROM SOME WALLS. SEND AN ORB BACK INTO ONE, AND IT SHUTS FOR GOOD.',
       },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'SOUTH OF HERE, THE FOREST ENDS IN A DEAD END. DEAD ENDS ARE NOT ALWAYS WHAT THEY SEEM.',
+      },
       {
         text: 'THE NEXT SHARD IS IN CRIMSON MANOR, IN THE RUINS FAR EAST OF THE VAULT.',
       },
@@ -285,6 +312,10 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
       {
         text: "THE LAST SHARD IS IN DRAGON'S MAW, ON THE VOLCANO'S EDGE IN THE FAR NORTH-EAST.",
       },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'IN THE RUINS EAST OF THE MANOR, A DULL WALL HIDES A HEART. YOUR SWORD WILL KNOW IT.',
+      },
       { text: 'A DRAGON GUARDS IT. REST, FILL YOUR POTIONS, AND BE READY.' },
     ],
   },
@@ -314,6 +345,10 @@ export const WALKER_VISITS: readonly WalkerVisit[] = [
     speech: [
       { text: 'ALL EIGHT SHARDS! THE STAR OF POWER IS WHOLE AGAIN. I CAN FEEL IT SHINE.' },
       { text: 'NOW, THE SHADOW VAULT, IN THE MIDDLE OF THE LAND. MEET ME AT ITS DOOR.' },
+      // A hint at a nearby secret (owner 2026-10-24, M10.3c).
+      {
+        text: 'EVEN HERE BY THE FIRE MOUNTAIN, ONE STONE WALL SOUNDS HOLLOW. AND THORNS GROW JUST EAST.',
+      },
       { text: 'KIRA IS WAITING, JARRETT. AND SO IS THE SORCERER.' },
     ],
   },
