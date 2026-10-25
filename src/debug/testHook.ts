@@ -98,7 +98,7 @@ export interface TestHook {
     slots: Record<string, string>;
     map: {
       name: string;
-      rooms: { x: number; y: number; current: boolean; boss: boolean }[];
+      rooms: { x: number; y: number; current: boolean; boss: boolean; secret: boolean }[];
     } | null;
     world: WorldMap | null;
     page: 'items' | 'map';

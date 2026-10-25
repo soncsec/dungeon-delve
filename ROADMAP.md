@@ -200,6 +200,6 @@ The owner asked for hidden passages and secret caves; the 12 overworld caves (M4
 - [x] M10.2 Eight more secret caves on the overworld (20 in all), in the regions with few: two on the volcano edge (one behind thorns), two in the ruins, two in the marsh (one behind thorns), one in the mountains and one in the forest; gems and potions
 - [ ] M10.3 Easier to find, in three PRs:
   - [x] M10.3a A visible tell: a secret wall in a dungeon shows the pack's cracked wall top; a false wall outdoors (trees or cliff) is drawn a little duller (runtime tint), until opened
-  - [ ] M10.3b Found caves and secret rooms marked on the world map and the dungeon map
+  - [x] M10.3b Found caves and secret rooms marked: a cave he has been in shows as a cyan mark on its screen of the world map (CAVE in its key); a secret room he has found shows purple on the dungeon map
   - [ ] M10.3c Walker's hints at nearby secrets
 

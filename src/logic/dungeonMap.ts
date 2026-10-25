@@ -9,6 +9,8 @@ export interface MapRoom {
   y: number;
   current: boolean;
   boss: boolean;
+  /** A secret room (M10.1), shown in its own colour once found (M10.3b). */
+  secret: boolean;
 }
 
 export interface DungeonMap {
@@ -26,6 +28,7 @@ export function dungeonMap(
   seen: (col: number, row: number) => boolean,
   current: Cell,
   isBoss: (col: number, row: number) => boolean,
+  isSecret: (col: number, row: number) => boolean = () => false,
 ): DungeonMap {
   const cols = all.map((c) => c.col);
   const rows = all.map((c) => c.row);
@@ -38,6 +41,7 @@ export function dungeonMap(
       y: c.row - top,
       current: c.col === current.col && c.row === current.row,
       boss: isBoss(c.col, c.row),
+      secret: isSecret(c.col, c.row),
     }))
     .sort((a, b) => a.y - b.y || a.x - b.x);
   return { cols: Math.max(...cols) - left + 1, rows: Math.max(...rows) - top + 1, rooms };

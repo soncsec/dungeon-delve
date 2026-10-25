@@ -35,6 +35,8 @@ export interface RoomDef {
   boss?: { kind: BossKind; col: number; row: number };
   /** Its look outdoors (forest unless given). */
   region?: Region;
+  /** A dungeon's secret room (M10.1): the dungeon map shows it in its own colour. */
+  secret?: boolean;
 }
 
 /** A doorway to another map: its cells here, and where Jarrett arrives. */
