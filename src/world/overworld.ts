@@ -763,7 +763,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
       'FFFFFF........FFFFFF',
-      'FFFF.............FFF',
+      'FFoh.............FFF',
       'FFFF..O..r..WWWW..FF',
       'FF......R...WWWW....',
       'FFFF...T..b.WWWW.b..',
@@ -1102,7 +1102,7 @@ const ROOMS: readonly RoomDef[] = [
     lines: [
       'FFFFFFFFF..FFFFFFFFF',
       'FFFFF..........FFFFF',
-      'FFFF...#.........FFF',
+      'FFFF...#.........hoF',
       'FF.O...#...qqqq..FFF',
       '.....#.#...qqqq.....',
       '...T.#.####..T......',

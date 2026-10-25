@@ -1,8 +1,9 @@
 /**
- * Secret caves (owner 2026-10-21): 12 across the overworld, each down a hole
- * hidden behind a false wall, under a pushable stone, or behind thorns
- * (Fireball), a boulder or rubble (the Axe). Each cave is one small room on
- * the `caves` map, with a chest or two; three caves hold heart containers.
+ * Secret caves (owner 2026-10-21): 12 across the overworld, and 8 more
+ * (M10.2, owner 2026-10-24) for 20, each down a hole hidden behind a false
+ * wall, under a pushable stone, or behind thorns (Fireball), a boulder or
+ * rubble (the Axe). Each cave is one small room on the `caves` map, with a
+ * chest or two; three caves hold heart containers.
  *
  * This list makes both sides: the cave rooms, and the holes' doorways in the
  * overworld rooms (whose text marks each hole with `o`, or `Q` under a stone).
@@ -116,6 +117,71 @@ export const SECRET_CAVES: readonly SecretCave[] = [
       { kind: 'potion', potion: 'mana' },
     ],
     opensWith: 'axe',
+  },
+  // M10.2 (owner 2026-10-24): eight more, mostly where there were few (20 in all).
+  // Behind a false wall on the volcano edge.
+  {
+    room: { col: 14, row: 1 },
+    hole: { col: 1, row: 2 },
+    landing: { col: 3, row: 2 },
+    chests: [{ kind: 'gems', amount: 40 }],
+  },
+  // Behind thorns on the volcano edge (Fireball).
+  {
+    room: { col: 15, row: 2 },
+    hole: { col: 18, row: 5 },
+    landing: { col: 16, row: 5 },
+    chests: [
+      { kind: 'potion', potion: 'health' },
+      { kind: 'gems', amount: 30 },
+    ],
+    opensWith: 'fireball',
+  },
+  // Behind a false wall in the east ruins.
+  {
+    room: { col: 12, row: 8 },
+    hole: { col: 18, row: 2 },
+    landing: { col: 16, row: 2 },
+    chests: [{ kind: 'gems', amount: 30 }],
+  },
+  // Behind a false wall in the far ruins.
+  {
+    room: { col: 14, row: 4 },
+    hole: { col: 18, row: 7 },
+    landing: { col: 16, row: 7 },
+    chests: [{ kind: 'potion', potion: 'mana' }],
+  },
+  // Behind a false wall in the south marsh.
+  {
+    room: { col: 0, row: 11 },
+    hole: { col: 2, row: 2 },
+    landing: { col: 4, row: 2 },
+    chests: [{ kind: 'gems', amount: 30 }],
+  },
+  // Behind thorns in the north marsh (Fireball).
+  {
+    room: { col: 3, row: 6 },
+    hole: { col: 18, row: 5 },
+    landing: { col: 16, row: 5 },
+    chests: [
+      { kind: 'potion', potion: 'mana' },
+      { kind: 'gems', amount: 20 },
+    ],
+    opensWith: 'fireball',
+  },
+  // Behind a false wall in the high mountains.
+  {
+    room: { col: 6, row: 1 },
+    hole: { col: 18, row: 7 },
+    landing: { col: 16, row: 7 },
+    chests: [{ kind: 'gems', amount: 40 }],
+  },
+  // Behind a false wall in the forest by Stonecrag's road.
+  {
+    room: { col: 7, row: 3 },
+    hole: { col: 1, row: 7 },
+    landing: { col: 3, row: 7 },
+    chests: [{ kind: 'potion', potion: 'health' }],
   },
 ];
 

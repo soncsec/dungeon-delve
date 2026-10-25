@@ -598,13 +598,13 @@ describe('the real maps', () => {
       '14,0/10,2',
     ];
     const free = SECRET_CAVES.filter((c) => !c.opensWith).map(hole);
-    expect(free).toHaveLength(7);
+    expect(free).toHaveLength(13); // 7, and 6 of M10.2's eight (owner 2026-10-24)
     expect(r.exits).toEqual([...doors, ...free].sort());
-    expect(r.hollows).toHaveLength(4);
+    expect(r.hollows).toHaveLength(10);
     // With the Axe and Fireball, every cave: through thorns, boulders and rubble.
     const all = explore(world, { ...START_ROOM, cx: 10, cy: 5 }, { axe: true, fireball: true });
     expect(all.exits).toEqual([...doors, ...SECRET_CAVES.map(hole)].sort());
-    expect(SECRET_CAVES).toHaveLength(12);
+    expect(SECRET_CAVES).toHaveLength(20);
     expect(SECRET_CAVES.filter((c) => c.chests.some((k) => k.kind === 'heart'))).toHaveLength(3);
   });
 });
@@ -722,7 +722,7 @@ describe('the overworld, stage by stage (M4.6)', () => {
     ]);
   });
 
-  it('with no items: every room, every dungeon doorway, and the 7 caves that need nothing', () => {
+  it('with no items: every room, every dungeon doorway, and the 13 caves that need nothing', () => {
     const r = explore(world, start);
     expect(r.rooms).toHaveLength(192); // 16 × 12 (owner 2026-10-22)
     for (const site of sites) {
@@ -732,19 +732,19 @@ describe('the overworld, stage by stage (M4.6)', () => {
       ).toBe(true);
     }
     expect(reachedCaves(r)).toEqual(caves([]));
-    expect(reachedCaves(r)).toHaveLength(7);
+    expect(reachedCaves(r)).toHaveLength(13);
   });
 
-  it('with Fireball (Walker’s gift after dungeon 1): the 2 thorn caves too', () => {
+  it('with Fireball (Walker’s gift after dungeon 1): the 4 thorn caves too', () => {
     const r = explore(world, start, { fireball: true });
     expect(reachedCaves(r)).toEqual(caves(['fireball']));
-    expect(reachedCaves(r)).toHaveLength(9);
+    expect(reachedCaves(r)).toHaveLength(17);
   });
 
-  it('with the Axe too (dungeon 4): all 12 caves', () => {
+  it('with the Axe too (dungeon 4): all 20 caves', () => {
     const r = explore(world, start, { fireball: true, axe: true });
     expect(reachedCaves(r)).toEqual(caves(['fireball', 'axe']));
-    expect(reachedCaves(r)).toHaveLength(12);
+    expect(reachedCaves(r)).toHaveLength(20);
     // Every boulder on the map can be reached and smashed (none is out of reach).
     const boulders = [...world.rooms].flatMap(([key, room]) =>
       room.cells.flatMap((row, y) =>
