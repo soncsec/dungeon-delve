@@ -182,8 +182,8 @@ export function explore(world: World, start: ReachStart, items: ReachItems = {})
   for (;;) {
     const w = walk(world, start, opened);
     const touched = [...w.touched].sort(([a], [b]) => (a < b ? -1 : 1));
-    // Every false wall in reach first: two strikes of the sword open one.
-    const walls = touched.filter(([, f]) => f === 'hollow').map(([c]) => c);
+    // Every false wall in reach first (and a dungeon's secret wall): two strikes of the sword open one.
+    const walls = touched.filter(([, f]) => f === 'hollow' || f === 'secret').map(([c]) => c);
     for (const wall of walls) {
       hollows.add(wall);
       opened.add(wall);

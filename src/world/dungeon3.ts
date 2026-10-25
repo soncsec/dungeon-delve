@@ -13,6 +13,7 @@
  * Fireball Walker taught Jarrett after Hollow Oak.
  */
 import type { RoomDef } from '../logic/world';
+import { secretRoom, withSecretDoor } from './secretRooms';
 
 /** The entrance room: where Jarrett arrives and gets back up after falling. */
 export const DUNGEON_3_START = { col: 1, row: 3 } as const;
@@ -46,18 +47,21 @@ export const DUNGEON_3: readonly RoomDef[] = [
       { kind: 'eye', col: 5, row: 6 },
       { kind: 'wolf', col: 15, row: 6 },
     ],
-    lines: [
-      '#########..#########',
-      '#########KK#########',
-      '##................##',
-      '##..C.............##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '#########..#########',
-      '#########..#########',
-    ],
+    lines: withSecretDoor(
+      [
+        '#########..#########',
+        '#########KK#########',
+        '##................##',
+        '##..C.............##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '#########..#########',
+        '#########..#########',
+      ],
+      'west',
+    ),
   },
   // The west crypt: key 2 in a cage; the crystal switch in the north wall opens it.
   {
@@ -178,4 +182,9 @@ export const DUNGEON_3: readonly RoomDef[] = [
       '#########DD#########',
     ],
   },
+  // The secret room (M10.1), west of the tomb hall, behind its secret wall: gems and a potion.
+  secretRoom(0, 1, 'east', [
+    { col: 6, row: 3, contents: { kind: 'gems', amount: 30 } },
+    { col: 6, row: 6, contents: { kind: 'potion', potion: 'health' } },
+  ]),
 ];

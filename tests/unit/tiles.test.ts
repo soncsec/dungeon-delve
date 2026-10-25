@@ -148,6 +148,22 @@ describe('dungeon tiles', () => {
     expect(dungeonFrame(r, 0, 9)).toBe(DUNGEON_FRAMES.top);
   });
 
+  it('draws a secret wall as wall until it crumbles, then floor, and the wall above ends there', () => {
+    const secret = parseRoom(
+      Array.from({ length: 10 }, (_, y) =>
+        y === 4 || y === 5 ? '##................uu' : '##................##',
+      ),
+    );
+    expect(dungeonFrame(secret, 18, 4)).toBe(DUNGEON_FRAMES.top);
+    expect(dungeonFrame(secret, 18, 5)).toBe(DUNGEON_FRAMES.top);
+    const open = (x: number, y: number) => (y === 4 || y === 5) && x >= 18;
+    expect([DUNGEON_FRAMES.floor, ...DUNGEON_FRAMES.cracks]).toContain(
+      dungeonFrame(secret, 19, 4, true, open),
+    );
+    expect(dungeonFrame(secret, 18, 3, false, open)).toBe(DUNGEON_FRAMES.face);
+    expect(dungeonFrame(secret, 18, 3)).toBe(DUNGEON_FRAMES.top);
+  });
+
   it('shades floor next to a wall on its left, and scatters cracks elsewhere', () => {
     expect(dungeonFrame(r, 2, 5)).toBe(DUNGEON_FRAMES.shadow);
     const floors = Array.from({ length: 8 }, (_, y) =>

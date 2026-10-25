@@ -152,6 +152,53 @@ describe('explore', () => {
   });
 });
 
+describe("the dungeons' secret rooms (M10.1)", () => {
+  // Each found with every item: its room reached only by crumbling its secret wall.
+  const cases = [
+    {
+      name: 'Hollow Oak',
+      defs: DUNGEON_1,
+      start: DUNGEON_1_START,
+      room: '2,1',
+      wall: '1,1',
+      x: [18, 19],
+    },
+    {
+      name: 'Bog Grotto',
+      defs: DUNGEON_2,
+      start: DUNGEON_2_START,
+      room: '2,1',
+      wall: '1,1',
+      x: [18, 19],
+    },
+    {
+      name: 'Sunken Crypt',
+      defs: DUNGEON_3,
+      start: DUNGEON_3_START,
+      room: '0,1',
+      wall: '1,1',
+      x: [0, 1],
+    },
+    {
+      name: 'Stonecrag Mine',
+      defs: DUNGEON_4,
+      start: DUNGEON_4_START,
+      room: '2,1',
+      wall: '1,1',
+      x: [18, 19],
+    },
+  ];
+  const all = { fireball: true, lightning: true, axe: true, ward: true, steel: true };
+  for (const c of cases) {
+    it(`${c.name}'s secret room is behind a secret wall the sword crumbles`, () => {
+      const r = explore(buildWorld(c.defs), { ...c.start, cx: 10, cy: 8 }, all);
+      expect(r.rooms).toContain(c.room);
+      const cells = [4, 5].flatMap((y) => c.x.map((x) => `${c.wall}/${x},${y}`)).sort();
+      expect(r.hollows).toEqual(cells);
+    });
+  }
+});
+
 describe('explore, from nowhere', () => {
   it('needs a real start room', () => {
     expect(() =>

@@ -12,6 +12,7 @@ import {
   isWall,
   parseRoom,
   sealCells,
+  secretGroup,
   type Room,
 } from '../../src/logic/room';
 
@@ -166,6 +167,50 @@ describe('parseRoom', () => {
     expect(() =>
       parseRoom(room({ 1: '.R' + OPEN.slice(2), 2: '..r' + OPEN.slice(3) }), 'r'),
     ).toThrow('overlaps');
+  });
+});
+
+describe('secret walls', () => {
+  // A dungeon room's east wall (two cells thick) with a secret doorway in rows 4 and 5.
+  const r = parseRoom(
+    Array.from({ length: 10 }, (_, y) =>
+      y === 4 || y === 5 ? '##................uu' : '##................##',
+    ),
+  );
+
+  it('reads a secret wall as stone that blocks, until opened', () => {
+    expect(cellAt(r, 18, 4)).toEqual({
+      solid: true,
+      forest: false,
+      wall: true,
+      prop: null,
+      fixture: 'secret',
+      exit: false,
+    });
+    expect(isSolid(r, 18, 4)).toBe(true);
+    expect(isWall(r, 19, 5)).toBe(true);
+  });
+
+  it('counts as a way through at the edge, like a locked door', () => {
+    expect(isPassage(r, 19, 4)).toBe(true);
+    expect(isPassage(r, 19, 3)).toBe(false);
+    expect(
+      edgeOpenings(r, 'east')
+        .map((open, y) => (open ? y : null))
+        .filter((y) => y !== null),
+    ).toEqual([4, 5]);
+  });
+
+  it('crumbles with every secret cell joined to it, and nothing else', () => {
+    const all = [
+      { x: 18, y: 4 },
+      { x: 19, y: 4 },
+      { x: 18, y: 5 },
+      { x: 19, y: 5 },
+    ];
+    expect(secretGroup(r, 19, 5)).toEqual(all);
+    expect(secretGroup(r, 18, 4)).toEqual(all);
+    expect(secretGroup(r, 17, 4)).toEqual([]);
   });
 });
 

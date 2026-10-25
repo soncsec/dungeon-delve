@@ -619,12 +619,12 @@ export const HUD = {
   /** First heart's left edge, and the distance between hearts (the small heart art is 11 px wide). */
   heartX: 1,
   heartSpacing: 12,
-  /** Hearts per row; a second row starts below (all 14 hearts fit in 84 × 20 px). */
-  heartsPerRow: 7,
+  /** Hearts per row; a second row starts below (all 16 hearts fit in 96 × 20 px; owner 2026-10-24: two more from secret rooms). */
+  heartsPerRow: 8,
   /** Where each row of hearts sits: the top of the 16-px heart frame (the art is 9 px tall). */
   heartRowY: [-4, 6],
-  /** The small-key count, shown in dungeons only, right of the hearts. */
-  keyX: 92,
+  /** The small-key count, shown in dungeons only, right of the hearts (its icon's centre). */
+  keyX: 104,
   /** Left edges of the mana bar, the potion counts and the weapon box. */
   manaBarX: 142,
   manaBarWidth: 44,

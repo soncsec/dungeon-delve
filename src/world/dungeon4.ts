@@ -12,6 +12,7 @@
  * room's crystal switch (Lightning, from Sunken Crypt).
  */
 import type { RoomDef } from '../logic/world';
+import { secretRoom, withSecretDoor } from './secretRooms';
 
 /** The entrance room: where Jarrett arrives and gets back up after falling. */
 export const DUNGEON_4_START = { col: 1, row: 3 } as const;
@@ -45,18 +46,21 @@ export const DUNGEON_4: readonly RoomDef[] = [
       { kind: 'eye', col: 5, row: 6 },
       { kind: 'robot', col: 15, row: 6 },
     ],
-    lines: [
-      '#########..#########',
-      '#########KK#########',
-      '##................##',
-      '##..C.............##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '#########..#########',
-      '#########..#########',
-    ],
+    lines: withSecretDoor(
+      [
+        '#########..#########',
+        '#########KK#########',
+        '##................##',
+        '##..C.............##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '#########..#########',
+        '#########..#########',
+      ],
+      'east',
+    ),
   },
   // The west drift: key 2, in a closet a boulder has sealed (the Axe smashes it).
   {
@@ -172,4 +176,6 @@ export const DUNGEON_4: readonly RoomDef[] = [
       '#########DD#########',
     ],
   },
+  // The secret room (M10.1), east of the deep shaft, behind its secret wall: a heart container.
+  secretRoom(2, 1, 'west', [{ col: 13, row: 4, contents: { kind: 'heart' } }]),
 ];

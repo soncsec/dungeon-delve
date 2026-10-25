@@ -195,6 +195,7 @@ import {
   fixturesIn,
   isSolid,
   sealCells,
+  secretGroup,
   type Dir,
   type Fixture,
 } from '../logic/room';
@@ -2333,16 +2334,21 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
   }
 
   /**
-   * A false wall under the blade: the first swing sounds hollow; a second
-   * swing crumbles it open, for good.
+   * A false wall (or a dungeon's secret wall) under the blade: the first swing
+   * sounds hollow; a second swing crumbles it open, for good. A secret wall
+   * crumbles with every secret cell joined to it.
    */
   private strikeFalseWalls(box: Rect): void {
     const key = roomKey(this.room.col, this.room.row);
     const room = this.world.rooms.get(key);
     if (!room) return;
     for (const { x, y } of cellsUnder(box)) {
-      if (room.cells[y]?.[x]?.fixture !== 'hollow') continue;
-      const id = fixtureId(this.mapId, key, x, y);
+      const fixture = room.cells[y]?.[x]?.fixture;
+      if (fixture !== 'hollow' && fixture !== 'secret') continue;
+      // A secret wall is struck as one, by its first cell, however many cells the blade covers.
+      const cells = fixture === 'secret' ? secretGroup(room, x, y) : [{ x, y }];
+      const first = cells[0] ?? { x, y };
+      const id = fixtureId(this.mapId, key, first.x, first.y);
       if (isOpened(this.progress, id)) continue;
       const struck = this.struckWalls.get(id);
       if (struck === this.swings) continue;
@@ -2353,7 +2359,9 @@ export class GameScene extends Phaser.Scene implements InventoryHost, ShopHost {
         this.effect('hit', at.x, at.y);
       } else {
         this.struckWalls.delete(id);
-        this.progress = openChest(this.progress, id);
+        for (const c of cells) {
+          this.progress = openChest(this.progress, fixtureId(this.mapId, key, c.x, c.y));
+        }
         this.sfx.play('crumble');
         this.effect('puff', at.x, at.y);
         this.redrawRoom();

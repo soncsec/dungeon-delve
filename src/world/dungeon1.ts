@@ -10,6 +10,7 @@
  * stone that blocks its doorway inwards.
  */
 import type { RoomDef } from '../logic/world';
+import { secretRoom, withSecretDoor } from './secretRooms';
 
 /** The entrance room: where Jarrett arrives and gets back up after falling. */
 export const DUNGEON_1_START = { col: 1, row: 3 } as const;
@@ -42,18 +43,21 @@ export const DUNGEON_1: readonly RoomDef[] = [
       { kind: 'eye', col: 14, row: 3 },
       { kind: 'bird', col: 6, row: 6 },
     ],
-    lines: [
-      '#########..#########',
-      '#########..#########',
-      '##................##',
-      '##..C.............##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '#########KK#########',
-      '#########..#########',
-    ],
+    lines: withSecretDoor(
+      [
+        '#########..#########',
+        '#########..#########',
+        '##................##',
+        '##..C.............##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '#########KK#########',
+        '#########..#########',
+      ],
+      'east',
+    ),
   },
   // The west room: the closet in the corner holds the daggers; a stone blocks its doorway.
   {
@@ -144,4 +148,9 @@ export const DUNGEON_1: readonly RoomDef[] = [
       '#########DD#########',
     ],
   },
+  // The secret room (M10.1), east of the great hall, behind its secret wall: gems and a potion.
+  secretRoom(2, 1, 'west', [
+    { col: 13, row: 3, contents: { kind: 'gems', amount: 20 } },
+    { col: 13, row: 6, contents: { kind: 'potion', potion: 'health' } },
+  ]),
 ];
