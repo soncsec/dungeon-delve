@@ -12,6 +12,7 @@
  * Fireball Walker taught Jarrett after Hollow Oak burns them (owner 2026-10-21).
  */
 import type { RoomDef } from '../logic/world';
+import { secretRoom, withSecretDoor } from './secretRooms';
 
 /** The entrance room: where Jarrett arrives and gets back up after falling. */
 export const DUNGEON_2_START = { col: 1, row: 3 } as const;
@@ -45,18 +46,21 @@ export const DUNGEON_2: readonly RoomDef[] = [
       { kind: 'ghost', col: 6, row: 6 },
       { kind: 'wolf', col: 15, row: 6 },
     ],
-    lines: [
-      '#########..#########',
-      '#########KK#########',
-      '##................##',
-      '##..C.............##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '##................##',
-      '#########..#########',
-      '#########..#########',
-    ],
+    lines: withSecretDoor(
+      [
+        '#########..#########',
+        '#########KK#########',
+        '##................##',
+        '##..C.............##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '##................##',
+        '#########..#########',
+        '#########..#########',
+      ],
+      'east',
+    ),
   },
   // The west room: key 2, in a closet behind thorns.
   {
@@ -172,4 +176,9 @@ export const DUNGEON_2: readonly RoomDef[] = [
       '#########DD#########',
     ],
   },
+  // The secret room (M10.1), east of the bog hall, behind its secret wall: a Mana Brew and gems.
+  secretRoom(2, 1, 'west', [
+    { col: 13, row: 3, contents: { kind: 'potion', potion: 'mana' } },
+    { col: 13, row: 6, contents: { kind: 'gems', amount: 20 } },
+  ]),
 ];

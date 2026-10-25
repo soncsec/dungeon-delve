@@ -409,12 +409,21 @@ export function crackAt(x: number, y: number): number | null {
  * The frame for a dungeon cell: wall top or face, floor, shadowed floor or
  * cracked floor; a locked door shows the barred gate until `opened`.
  */
-export function dungeonFrame(room: Room, x: number, y: number, opened = false): number {
+export function dungeonFrame(
+  room: Room,
+  x: number,
+  y: number,
+  opened = false,
+  openAt: (x: number, y: number) => boolean = () => false,
+): number {
   const fixture = room.cells[y]?.[x]?.fixture;
   if ((fixture === 'door' || fixture === 'gate') && !opened) return DUNGEON_FRAMES.gate;
   if (fixture === 'switch' || fixture === 'eye') return DUNGEON_FRAMES.orb;
-  if (isWall(room, x, y)) return isWall(room, x, y + 1) ? DUNGEON_FRAMES.top : DUNGEON_FRAMES.face;
-  if (isWall(room, x - 1, y)) return DUNGEON_FRAMES.shadow;
+  // A crumbled secret wall is floor now, and the wall beside it ends there.
+  const wall = (cx: number, cy: number): boolean =>
+    isWall(room, cx, cy) && !(room.cells[cy]?.[cx]?.fixture === 'secret' && openAt(cx, cy));
+  if (wall(x, y)) return wall(x, y + 1) ? DUNGEON_FRAMES.top : DUNGEON_FRAMES.face;
+  if (wall(x - 1, y)) return DUNGEON_FRAMES.shadow;
   return crackAt(x, y) ?? DUNGEON_FRAMES.floor;
 }
 
@@ -434,7 +443,11 @@ export function dungeonArt(
     rowCells.forEach((cell, x) => {
       const isOpen =
         cell.fixture === 'gate' ? gates || opened(x, y) : cell.fixture !== null && opened(x, y);
-      const tile = { frame: dungeonFrame(room, x, y, isOpen), x: x * TILE, y: y * TILE };
+      const tile = {
+        frame: dungeonFrame(room, x, y, isOpen, opened),
+        x: x * TILE,
+        y: y * TILE,
+      };
       // A switch is dim until powered; an eye statue glows red until shut, then is dim.
       if (cell.fixture === 'eye')
         art.ground.push(isOpen ? { ...tile, dim: true } : { ...tile, tint: EYE_TINT });

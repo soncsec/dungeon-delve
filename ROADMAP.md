@@ -16,6 +16,7 @@
 | M7 Shadow Vault and ending | Done (2026-10-23; released) |
 | M8 Polish and balance | Done (owner play-tested 2026-10-24: every dungeon "about right", full playthrough done) |
 | M9 v1.0 release | Done (2026-10-24: production 20261024T225720Z-6aaa1403, tag v1.0) |
+| M10 More secrets (owner 2026-10-24, after v1.0) | In progress |
 
 **In production:** first release 2026-10-21, `20261021T165122Z-fe100746` (M0–M4 and the walking fix), at http://games.soncrant.com/dungeon-delve/.
 
@@ -188,3 +189,17 @@
 - [x] M9.1 Release with `scripts/release.sh deploy` (owner approval), from a clean `main` with CI and staging ZAP passed: release 20261024T225720Z-6aaa1403 (main 6aaa140; owner approved 2026-10-24), 444 e2e passed in the release's own check, smoke test passed
 - [x] M9.2 games-portal `Production check` covers `dungeon-delve`; run it and report: run 40140999417 passed (smoke test from outside; production ZAP 0 failures)
 - [x] M9.3 Portal PR: status `live` (already set in games-portal #33); tag v1.0 on 6aaa140 with a [GitHub release](https://github.com/soncsec/dungeon-delve/releases/tag/v1.0)
+
+## M10 — More secrets (owner 2026-10-24, after v1.0)
+
+The owner asked for hidden passages and secret caves; the 12 overworld caves (M4.3) were there, so: secret rooms in the dungeons, more caves, and help finding them (owner's choices, 2026-10-24).
+
+- [ ] M10.1 A secret room in each dungeon, behind a secret wall (stone that sounds hollow and crumbles on a second strike, the whole two-cell doorway at once); rewards gems and potions, a heart container in two (16 hearts in all, so the status bar shows 8 a row). In two PRs:
+  - [x] M10.1a The secret wall, and the secret rooms of dungeons 1–4: Hollow Oak (gems, a Health Potion), Bog Grotto (a Mana Brew, gems), Sunken Crypt (gems, a Health Potion), Stonecrag Mine (a heart container); hearts 8 a row
+  - [ ] M10.1b The secret rooms of dungeons 5–8 (a heart container in Crimson Manor)
+- [ ] M10.2 Eight more secret caves on the overworld (20 in all), in the regions with few
+- [ ] M10.3 Easier to find, in three PRs:
+  - [ ] M10.3a A visible tell: a faint crack on false and secret walls
+  - [ ] M10.3b Found caves and secret rooms marked on the world map and the dungeon map
+  - [ ] M10.3c Walker's hints at nearby secrets
+

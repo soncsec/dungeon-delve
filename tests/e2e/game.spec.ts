@@ -4096,6 +4096,46 @@ async function holdUntil(page: Page, key: string, done: () => Promise<boolean>):
   await page.keyboard.up(key);
 }
 
+test('a secret wall in Hollow Oak sounds hollow, crumbles open, and hides a secret room', async ({
+  page,
+}) => {
+  const watched = watchPage(page);
+  await openGame(page, '?dungeon=1');
+  await page.evaluate(() => {
+    window.__game?.holdEnemies(true);
+    window.__game?.goToRoom(1, 1); // the great hall
+    window.__game?.clearEnemies();
+  });
+  // Its east wall, rows 4 and 5, two cells thick: struck from beside it, facing it.
+  await page.evaluate(() => window.__game?.placeHero(276, 86, 'right'));
+  await swingOnce(page);
+  expect((await snapshot(page)).sounds.hollow).toBe(1);
+  expect((await snapshot(page)).opened).not.toContain('dungeon1/1,1/18,4');
+  await swingOnce(page);
+  const all = ['dungeon1/1,1/18,4', 'dungeon1/1,1/19,4', 'dungeon1/1,1/18,5', 'dungeon1/1,1/19,5'];
+  expect((await untilGame(page, (s) => s.sounds.crumble === 1)).opened).toEqual(
+    expect.arrayContaining(all),
+  );
+
+  // Through it, east: the secret room, with gems and a potion.
+  await holdUntil(page, 'ArrowRight', async () => (await snapshot(page)).room.col === 2);
+  expect((await untilGame(page, (s) => !s.sliding)).room).toEqual({ col: 2, row: 1 });
+  const before = await snapshot(page);
+  for (const [y, dir, key] of [
+    [86, 'up', 'ArrowUp'],
+    [86, 'down', 'ArrowDown'],
+  ] as const) {
+    await page.evaluate(({ y, dir }) => window.__game?.placeHero(216, y, dir), { y, dir });
+    const opened = (await snapshot(page)).opened.length;
+    await holdUntil(page, key, async () => (await snapshot(page)).opened.length > opened);
+    await expect.poll(async () => (await snapshot(page)).pickups).toEqual([]);
+  }
+  const s = await snapshot(page);
+  expect(s.gems).toBe(before.gems + 20);
+  expect(s.potions.health).toBe(before.potions.health + 1);
+  expect(watched.errors).toEqual([]);
+});
+
 test('a false wall sounds hollow, opens on a second strike, and hides a secret cave', async ({
   page,
 }) => {

@@ -108,6 +108,7 @@ export type Fixture =
   | 'door'
   | 'chest'
   | 'hollow'
+  | 'secret'
   | 'cracked'
   | 'boulder'
   | 'thorns'
@@ -206,6 +207,8 @@ export function parseRoom(lines: readonly string[], name = 'room'): Room {
       if (ch === 'W') return { ...plain, solid: true, water: true };
       if (ch === 'h') return { ...plain, solid: true, forest: true, fixture: 'hollow' };
       if (ch === 'x') return { ...plain, solid: true, forest: true, fixture: 'cracked' };
+      // A dungeon's secret wall (owner 2026-10-24): stone, until two strikes crumble it.
+      if (ch === 'u') return { ...plain, solid: true, wall: true, fixture: 'secret' };
       if (ch === 'o') return { ...plain, solid: false, exit: true, ground: 'hole' };
       if (ch === 'Q') {
         stones.push({ cx: x, cy: y });
@@ -349,8 +352,38 @@ export function isPassage(room: Room, x: number, y: number): boolean {
   if (!cell) return true;
   if (cell.exit) return false;
   return (
-    !cell.solid || cell.fixture === 'door' || cell.fixture === 'gate' || cell.fixture === 'spark'
+    !cell.solid ||
+    cell.fixture === 'door' ||
+    cell.fixture === 'gate' ||
+    cell.fixture === 'spark' ||
+    cell.fixture === 'secret'
   );
+}
+
+/**
+ * A secret wall and every secret-wall cell joined to it (side by side or one
+ * above another): they crumble together, so a wall two cells thick opens at once.
+ */
+export function secretGroup(room: Room, x: number, y: number): { x: number; y: number }[] {
+  if (cellAt(room, x, y)?.fixture !== 'secret') return [];
+  const seen = new Set<string>([`${x},${y}`]);
+  const group = [{ x, y }];
+  for (let i = 0; i < group.length; i++) {
+    const c = group[i] as { x: number; y: number };
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const n = { x: c.x + dx, y: c.y + dy };
+      const k = `${n.x},${n.y}`;
+      if (seen.has(k) || cellAt(room, n.x, n.y)?.fixture !== 'secret') continue;
+      seen.add(k);
+      group.push(n);
+    }
+  }
+  return group.sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
 /** Every doorway cell to another map in a room. */
