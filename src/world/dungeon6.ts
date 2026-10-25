@@ -14,6 +14,7 @@
  * behind thorns (the Fireball).
  */
 import type { RoomDef } from '../logic/world';
+import { secretRoom, withSecretDoor } from './secretRooms';
 
 /** The entrance room: where Jarrett arrives and gets back up after falling. */
 export const DUNGEON_6_START = { col: 1, row: 3 } as const;
@@ -46,18 +47,21 @@ export const DUNGEON_6: readonly RoomDef[] = [
       { kind: 'ghost', col: 15, row: 6 },
       { kind: 'mushroom', col: 5, row: 4 },
     ],
-    lines: [
-      '#########..#########',
-      '#########KK#########',
-      '##................##',
-      '##..####....####..##',
-      '##................##',
-      '##..####....####..##',
-      '##................##',
-      '##.C..............##',
-      '#########..#########',
-      '#########..#########',
-    ],
+    lines: withSecretDoor(
+      [
+        '#########..#########',
+        '#########KK#########',
+        '##................##',
+        '##..####....####..##',
+        '##................##',
+        '##..####....####..##',
+        '##................##',
+        '##.C..............##',
+        '#########..#########',
+        '#########..#########',
+      ],
+      'west',
+    ),
   },
   // The west hall: the Steel Sword, in a closet behind sparks.
   {
@@ -173,4 +177,9 @@ export const DUNGEON_6: readonly RoomDef[] = [
       '#########DD#########',
     ],
   },
+  // The secret room (M10.1), west of the library, behind its secret wall: a potion and gems.
+  secretRoom(0, 1, 'east', [
+    { col: 6, row: 3, contents: { kind: 'potion', potion: 'health' } },
+    { col: 6, row: 6, contents: { kind: 'gems', amount: 30 } },
+  ]),
 ];
