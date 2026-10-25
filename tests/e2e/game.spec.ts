@@ -2543,6 +2543,8 @@ test('the beaten Treant leaves a heart container (+1 heart) and a shard of the S
     .poll(async () => (await page.evaluate(() => window.__game?.hud()))?.hearts.length)
     .toBe(4);
 
+  // He holds the heart container up first, and picks up nothing more until he's done.
+  expect((await untilGame(page, (now) => !now.holding)).holding).toBe(false);
   const shard = await at('shard');
   await page.evaluate(({ x, y }) => window.__game?.placeHero(x, y), shard);
   await expect.poll(kinds).toEqual([]);
